@@ -1,5 +1,6 @@
 // src/pages/CharacterCreate.jsx
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
 import { SKILLS, ATTRIBUTES, groupSkillsByCategory } from '../data/skills';
@@ -28,6 +29,7 @@ function buildSteps(isAgent) {
 }
 
 export default function CharacterCreate() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState('identity');
   const [activeModalPackage, setActiveModalPackage] = useState(null);
   const [sanityWarning, setSanityWarning] = useState(null);
@@ -182,6 +184,9 @@ export default function CharacterCreate() {
     <div className="flex min-h-screen bg-gray-50">
       {/* Navegação lateral */}
       <aside className="w-60 border-r bg-white p-4 space-y-1">
+        <button onClick={() => navigate('/dashboard')} className="text-xs text-gray-400 hover:text-gray-600 mb-2">
+          ← Voltar ao Dashboard
+        </button>
         <h1 className="text-sm font-semibold text-gray-400 uppercase mb-3">Ficha ACE</h1>
         {STEPS.map((step, i) => (
           <button
