@@ -4,14 +4,16 @@
 
 import { useState } from 'react';
 import { BACKGROUND_PACKAGES } from '../../data/backgrounds';
-import { SKILLS } from '../../data/skills';
+import { SKILLS, ATTRIBUTES } from '../../data/skills';
 import {
   getValidSkillsForPackage,
   createDistributionState,
   incrementSkill,
   decrementSkill,
   randomizeDistribution,
+  selectAttribute,
   canConfirm,
+  ATTRIBUTE_BONUS_PER_PACKAGE,
 } from '../../logic/backgroundDistribution';
 
 export default function BackgroundModal({ packageId, onConfirm, onClose }) {
@@ -24,8 +26,11 @@ export default function BackgroundModal({ packageId, onConfirm, onClose }) {
   const handleIncrement = (skillId) => setState((s) => incrementSkill(s, skillId));
   const handleDecrement = (skillId) => setState((s) => decrementSkill(s, skillId));
   const handleRandomize = () => setState((s) => randomizeDistribution(s, validSkills));
+  const handleSelectAttribute = (attributeId) => setState((s) => selectAttribute(s, attributeId));
   const handleConfirm = () => {
-    if (canConfirm(state)) onConfirm(state.allocations);
+    if (canConfirm(state)) {
+      onConfirm({ allocations: state.allocations, attributeId: state.selectedAttribute });
+    }
   };
 
   return (
@@ -57,6 +62,26 @@ export default function BackgroundModal({ packageId, onConfirm, onClose }) {
         {state.error && (
           <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b">{state.error}</div>
         )}
+
+        {/* Bônus fixo de Atributo (+2, não divisível) */}
+        <div className="px-4 py-3 border-b">
+          <div className="text-sm text-gray-600 mb-2">
+            Escolha o Atributo que recebe +{ATTRIBUTE_BONUS_PER_PACKAGE} nesta compra
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(ATTRIBUTES).map(([id, attr]) => (
+              <button
+                key={id}
+                onClick={() => handleSelectAttribute(id)}
+                className={`px-3 py-1.5 rounded border text-sm ${
+                  state.selectedAttribute === id ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+                }`}
+              >
+                {attr.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Lista de perícias válidas */}
         <div className="p-4 space-y-2">

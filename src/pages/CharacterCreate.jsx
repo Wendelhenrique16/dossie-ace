@@ -9,8 +9,6 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 
-const EMPTY_ATTRIBUTES = Object.fromEntries(Object.keys(ATTRIBUTES).map((id) => [id, 0]));
-
 function buildSteps(isAgent) {
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
@@ -39,9 +37,8 @@ export default function CharacterCreate() {
     concept: '',
     role: 'civil', // 'civil' | 'agente'
     lifeStageId: null,
-    purchasedBackgrounds: [], // [{ packageId, allocations }]
+    purchasedBackgrounds: [], // [{ packageId, allocations, attributeId }]
     maxSanity: 100,
-    attributes: EMPTY_ATTRIBUTES,
     aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [] },
     customSkills: [], // [{ name, skillId, cost, effectType, narrative }]
     occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
@@ -90,6 +87,17 @@ export default function CharacterCreate() {
     return totals;
   }, [character.purchasedBackgrounds]);
 
+  // Atributos vêm exclusivamente do +2 fixo de cada pacote comprado
+  // (por enquanto qualquer atributo pode ser escolhido em qualquer pacote —
+  // falta a relação pacote->atributos permitidos).
+  const attributeTotalsFromBackgrounds = useMemo(() => {
+    const totals = Object.fromEntries(Object.keys(ATTRIBUTES).map((id) => [id, 0]));
+    character.purchasedBackgrounds.forEach(({ attributeId }) => {
+      if (attributeId) totals[attributeId] = (totals[attributeId] || 0) + 2;
+    });
+    return totals;
+  }, [character.purchasedBackgrounds]);
+
   const occupationBonuses = useMemo(() => {
     const { primaryId, secondaryId, freeAttribute } = character.occupation;
     if (!primaryId || !secondaryId) return { skillBonuses: {}, attributeBonuses: {} };
@@ -104,14 +112,22 @@ export default function CharacterCreate() {
     return totals;
   }, [skillTotalsFromBackgrounds, occupationBonuses]);
 
+  const finalAttributeTotals = useMemo(() => {
+    const totals = { ...attributeTotalsFromBackgrounds };
+    Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+      totals[attrId] = (totals[attrId] || 0) + bonus;
+    });
+    return totals;
+  }, [attributeTotalsFromBackgrounds, occupationBonuses]);
+
   const isBroken = checkBrokenSanityState(purchasedCount);
 
   // Vigor Base (Atributo Existência + bônus de Constituição)
   const vigor = useMemo(() => {
-    const existencia = character.attributes.existencia || 0;
+    const existencia = finalAttributeTotals.existencia || 0;
     const constituicaoSkill = finalSkillTotals.constituicao || 0;
     return existencia * 2 + Math.floor(constituicaoSkill / 2);
-  }, [character.attributes, finalSkillTotals]);
+  }, [finalAttributeTotals, finalSkillTotals]);
 
   function handleSelectLifeStage(id) {
     setCharacter((c) => ({
@@ -124,7 +140,7 @@ export default function CharacterCreate() {
     setSanityWarning(null);
   }
 
-  function handleConfirmBackground(allocations) {
+  function handleConfirmBackground({ allocations, attributeId }) {
     setCharacter((c) => {
       let newMaxSanity = c.maxSanity;
       let warning = null;
@@ -138,19 +154,12 @@ export default function CharacterCreate() {
         ...c,
         purchasedBackgrounds: [
           ...c.purchasedBackgrounds,
-          { packageId: activeModalPackage, allocations },
+          { packageId: activeModalPackage, allocations, attributeId },
         ],
         maxSanity: newMaxSanity,
       };
     });
     setActiveModalPackage(null);
-  }
-
-  function handleAttributeChange(attrId, value) {
-    setCharacter((c) => ({
-      ...c,
-      attributes: { ...c.attributes, [attrId]: Number(value) },
-    }));
   }
 
   function handleAddCustomSkill() {
@@ -268,17 +277,16 @@ export default function CharacterCreate() {
             ) : (
               <>
                 <div className="mb-6">
-                  <h3 className="font-medium mb-2">Atributos Base</h3>
+                  <h3 className="font-medium mb-2">Atributos</h3>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Cada pacote comprado concede +2 fixo a um Atributo, escolhido no próprio modal
+                    de distribuição.
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(ATTRIBUTES).map(([id, attr]) => (
-                      <div key={id} className="flex items-center justify-between">
-                        <span className="text-sm">{attr.label}</span>
-                        <input
-                          type="number"
-                          className="w-16 border rounded px-2 py-1 text-right"
-                          value={character.attributes[id]}
-                          onChange={(e) => handleAttributeChange(id, e.target.value)}
-                        />
+                      <div key={id} className="flex items-center justify-between text-sm">
+                        <span>{attr.label}</span>
+                        <strong>{attributeTotalsFromBackgrounds[id] ?? 0}</strong>
                       </div>
                     ))}
                   </div>
@@ -544,7 +552,7 @@ export default function CharacterCreate() {
               </div>
               <div>
                 <div className="font-medium mb-1">Atributos</div>
-                {Object.entries(character.attributes).map(([id, value]) => (
+                {Object.entries(finalAttributeTotals).map(([id, value]) => (
                   <div key={id}>
                     {ATTRIBUTES[id].label}: {value}
                   </div>

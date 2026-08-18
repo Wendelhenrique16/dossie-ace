@@ -32,8 +32,19 @@ export function createDistributionState(packageId) {
     totalPoints: pkg.pointsPerPurchase,
     remainingPoints: pkg.pointsPerPurchase,
     allocations: {}, // { skillId: pontosAlocados }
+    selectedAttribute: null, // atributo escolhido para o +2 fixo desta compra
   };
 }
+
+/**
+ * Seleciona qual Atributo recebe o bônus fixo de +2 nesta compra do pacote.
+ * Regra: +2 fixo, não divisível — é sempre um único atributo por compra.
+ */
+export function selectAttribute(state, attributeId) {
+  return { ...state, selectedAttribute: attributeId, error: null };
+}
+
+export const ATTRIBUTE_BONUS_PER_PACKAGE = 2;
 
 /**
  * Incrementa 1 ponto numa perícia (botão "+" do modal).
@@ -95,8 +106,9 @@ export function randomizeDistribution(state, validSkillIds) {
 }
 
 /**
- * O modal só habilita "Confirmar" quando o saldo chega a 0.
+ * O modal só habilita "Confirmar" quando o saldo de perícias chega a 0
+ * E um Atributo foi escolhido para o bônus fixo de +2.
  */
 export function canConfirm(state) {
-  return state.remainingPoints === 0;
+  return state.remainingPoints === 0 && state.selectedAttribute !== null;
 }
