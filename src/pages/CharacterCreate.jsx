@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
-import { SKILLS, ATTRIBUTES } from '../data/skills';
+import { SKILLS, ATTRIBUTES, groupSkillsByCategory } from '../data/skills';
 import { listSelectableOccupations, calculateOccupationBonuses } from '../logic/occupationBonuses';
 import { rollExtraPackageSanityCost, checkBrokenSanityState } from '../logic/characterCalculations';
 import BackgroundModal from '../components/modals/BackgroundModal';
@@ -560,12 +560,17 @@ export default function CharacterCreate() {
               </div>
               <div>
                 <div className="font-medium mb-1">Perícias (com bônus de ocupação já somados)</div>
-                {Object.entries(finalSkillTotals).length === 0 ? (
+                {Object.keys(finalSkillTotals).length === 0 ? (
                   <p className="text-gray-400">Nenhuma perícia distribuída ainda.</p>
                 ) : (
-                  Object.entries(finalSkillTotals).map(([skillId, total]) => (
-                    <div key={skillId}>
-                      {SKILLS[skillId]?.label ?? skillId}: {total}
+                  groupSkillsByCategory(Object.keys(finalSkillTotals)).map((group) => (
+                    <div key={group.categoryId} className="mb-2">
+                      <div className="text-xs font-semibold text-gray-400 uppercase">{group.label}</div>
+                      {group.skills.map((skillId) => (
+                        <div key={skillId}>
+                          {SKILLS[skillId]?.label ?? skillId}: {finalSkillTotals[skillId]}
+                        </div>
+                      ))}
                     </div>
                   ))
                 )}

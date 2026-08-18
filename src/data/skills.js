@@ -131,3 +131,20 @@ export const SKILL_LEVEL_TO_DICE = {
   9: '3d8+d4/7d4',
   // 9+ : vantagem (rola duas vezes, fica com o maior)
 };
+
+/**
+ * Agrupa uma lista de ids de perícia por categoria, seguindo a mesma ordem
+ * e nomenclatura da ficha (Corpo, Sentidos, Mente, Conhecimento, Profissão,
+ * Utilidade, Tecnologias, Miscelânea, Combate, Movimento, Social).
+ * Só retorna categorias que tenham ao menos 1 perícia presente em skillIds.
+ */
+export function groupSkillsByCategory(skillIds) {
+  const idSet = new Set(skillIds);
+  return Object.entries(SKILL_CATEGORIES)
+    .map(([categoryId, category]) => ({
+      categoryId,
+      label: category.label,
+      skills: category.skills.filter((skillId) => idSet.has(skillId)),
+    }))
+    .filter((group) => group.skills.length > 0);
+}

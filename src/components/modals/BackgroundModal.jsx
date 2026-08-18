@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { BACKGROUND_PACKAGES } from '../../data/backgrounds';
-import { SKILLS, ATTRIBUTES } from '../../data/skills';
+import { SKILLS, ATTRIBUTES, groupSkillsByCategory } from '../../data/skills';
 import {
   getValidSkillsForPackage,
   createDistributionState,
@@ -19,6 +19,7 @@ import {
 export default function BackgroundModal({ packageId, onConfirm, onClose }) {
   const pkg = BACKGROUND_PACKAGES[packageId];
   const validSkills = getValidSkillsForPackage(packageId);
+  const skillGroups = groupSkillsByCategory(validSkills);
   const [state, setState] = useState(() => createDistributionState(packageId));
 
   if (!pkg) return null;
@@ -83,34 +84,41 @@ export default function BackgroundModal({ packageId, onConfirm, onClose }) {
           </div>
         </div>
 
-        {/* Lista de perícias válidas */}
-        <div className="p-4 space-y-2">
-          {validSkills.map((skillId) => {
-            const skill = SKILLS[skillId];
-            const allocated = state.allocations[skillId] || 0;
-            return (
-              <div key={skillId} className="flex items-center justify-between py-1">
-                <span className="text-sm">{skill?.label ?? skillId}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDecrement(skillId)}
-                    disabled={allocated === 0}
-                    className="w-7 h-7 rounded border disabled:opacity-30"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center text-sm">{allocated}</span>
-                  <button
-                    onClick={() => handleIncrement(skillId)}
-                    disabled={state.remainingPoints === 0 || allocated >= 2}
-                    className="w-7 h-7 rounded border disabled:opacity-30"
-                  >
-                    +
-                  </button>
-                </div>
+        {/* Lista de perícias válidas, agrupadas por categoria (como na ficha) */}
+        <div className="p-4 space-y-4">
+          {skillGroups.map((group) => (
+            <div key={group.categoryId}>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-1">{group.label}</h3>
+              <div className="space-y-2">
+                {group.skills.map((skillId) => {
+                  const skill = SKILLS[skillId];
+                  const allocated = state.allocations[skillId] || 0;
+                  return (
+                    <div key={skillId} className="flex items-center justify-between py-1">
+                      <span className="text-sm">{skill?.label ?? skillId}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleDecrement(skillId)}
+                          disabled={allocated === 0}
+                          className="w-7 h-7 rounded border disabled:opacity-30"
+                        >
+                          −
+                        </button>
+                        <span className="w-6 text-center text-sm">{allocated}</span>
+                        <button
+                          onClick={() => handleIncrement(skillId)}
+                          disabled={state.remainingPoints === 0 || allocated >= 2}
+                          className="w-7 h-7 rounded border disabled:opacity-30"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
 
         {/* Ações do modal */}
