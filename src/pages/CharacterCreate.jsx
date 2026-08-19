@@ -181,7 +181,7 @@ export default function CharacterCreate() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-full">
       {/* Navegação lateral */}
       <aside className="w-60 border-r bg-white p-4 space-y-1">
         <button onClick={() => navigate('/dashboard')} className="text-xs text-gray-400 hover:text-gray-600 mb-2">

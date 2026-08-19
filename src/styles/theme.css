@@ -1,0 +1,397 @@
+/* src/styles/theme.css
+ *
+ * Sistema de tema com duas camadas:
+ *   1) Variáveis de cor/estrutura — aplicadas nos dois temas via
+ *      .theme-root[data-theme='dark'] / .theme-root[data-theme='light'].
+ *   2) Flourishes exclusivos do terminal (glow, uppercase, CRT/scanline) —
+ *      só existem em .theme-root[data-theme='dark'], pois são o design do
+ *      mockup. O Modo Claro NÃO recebe nenhum desses — fica só com as
+ *      variáveis de estrutura, prontas pra você substituir os valores.
+ *
+ * Toggle: controlado via atributo data-theme no elemento .theme-root (ver
+ * ThemeToggle.jsx e App.jsx). Sem libs externas.
+ */
+
+/* ---------- MODO ESCURO — paleta exata do mockup ---------- */
+.theme-root[data-theme='dark'] {
+  --bg-color: #0a0a0a;
+  --text-color: #00ff41;
+  --accent-color: #008f11;
+  --warning-color: #ffcc00;
+  --panel-bg: #111111;
+  --font-family: 'Courier New', Courier, monospace;
+  --border-radius: 0px;
+}
+
+/* ---------- MODO CLARO — esqueleto, SEM design definido ----------
+ * Placeholders neutros só pra não quebrar o layout. Troque os valores
+ * abaixo quando a paleta do Modo Claro for decidida — nada mais no
+ * arquivo precisa mudar.
+ */
+.theme-root[data-theme='light'] {
+  --bg-color: #ffffff;                  /* TODO: cor de fundo */
+  --text-color: #111111;                /* TODO: cor de texto */
+  --accent-color: #d1d5db;              /* TODO: cor de borda/destaque */
+  --warning-color: #b45309;             /* TODO: cor de aviso */
+  --panel-bg: #ffffff;                  /* TODO: cor de painel/card */
+  --font-family: system-ui, sans-serif; /* TODO: fonte */
+  --border-radius: 6px;                 /* TODO: raio de borda */
+}
+
+/* ================= ESTRUTURA (vale para os dois temas) ================= */
+
+.theme-root {
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  position: relative;
+}
+
+.theme-root button {
+  background-color: transparent;
+  border: 1px solid var(--text-color);
+  color: var(--text-color);
+  font-family: inherit;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-root button:disabled {
+  opacity: 0.3;
+}
+
+.theme-root input,
+.theme-root select,
+.theme-root textarea {
+  background-color: transparent;
+  border: 1px solid var(--accent-color);
+  color: var(--text-color);
+  font-family: inherit;
+  border-radius: var(--border-radius);
+}
+
+.theme-root input:focus,
+.theme-root select:focus,
+.theme-root textarea:focus {
+  outline: none;
+  border-color: var(--text-color);
+}
+
+/* Reskin dos utilitários Tailwind já usados nos componentes —
+   funciona nos dois temas porque só aponta pras variáveis acima */
+.theme-root .border {
+  border-color: var(--accent-color) !important;
+}
+.theme-root .bg-white,
+.theme-root .bg-gray-50,
+.theme-root .bg-gray-100 {
+  background-color: var(--panel-bg) !important;
+}
+.theme-root .bg-gray-900 {
+  background-color: var(--text-color) !important;
+  color: var(--bg-color) !important;
+}
+.theme-root .text-gray-400,
+.theme-root .text-gray-500,
+.theme-root .text-gray-600 {
+  color: var(--accent-color) !important;
+}
+.theme-root .text-amber-600 {
+  color: var(--warning-color) !important;
+}
+.theme-root .bg-amber-50 {
+  background-color: color-mix(in srgb, var(--warning-color) 12%, transparent) !important;
+  border-color: var(--warning-color) !important;
+}
+
+.theme-root ::-webkit-scrollbar {
+  width: 8px;
+}
+.theme-root ::-webkit-scrollbar-track {
+  background: var(--panel-bg);
+}
+.theme-root ::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+}
+
+/* ============ FLOURISHES — EXCLUSIVOS DO MODO ESCURO ============
+ * Nada aqui se aplica ao Modo Claro. Isso é o "estilo hacker/governamental"
+ * do mockup — glow neon, uppercase, letter-spacing e o efeito CRT.
+ */
+
+.theme-root[data-theme='dark'] h1,
+.theme-root[data-theme='dark'] h2,
+.theme-root[data-theme='dark'] h3 {
+  text-shadow: 0 0 5px var(--text-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.theme-root[data-theme='dark'] button {
+  text-transform: uppercase;
+}
+
+.theme-root[data-theme='dark'] button:hover:not(:disabled) {
+  background-color: var(--text-color);
+  color: var(--bg-color);
+  box-shadow: 0 0 10px var(--text-color);
+}
+
+.theme-root[data-theme='dark'] input:focus,
+.theme-root[data-theme='dark'] select:focus,
+.theme-root[data-theme='dark'] textarea:focus {
+  background-color: rgba(0, 255, 65, 0.05);
+}
+
+.theme-root[data-theme='dark'] .hover\:bg-gray-50:hover {
+  background-color: rgba(0, 255, 65, 0.05) !important;
+  border-color: var(--text-color) !important;
+}
+
+/* Textura de scanlines no fundo */
+.theme-root[data-theme='dark'] {
+  background-image: linear-gradient(0deg, rgba(0, 0, 0, 0.1) 50%, rgba(255, 255, 255, 0.02) 50%);
+  background-size: 100% 4px;
+}
+
+/* Overlay CRT (linhas de varredura + aberração cromática sutil) */
+.theme-root[data-theme='dark']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* ================= LAYOUT DO MOCKUP (container + header + grid) =================
+ * Estrutura vale para os dois temas (usa as variáveis). Os flourishes
+ * (glow, uppercase) ficam nas seções [data-theme='dark'] mais abaixo.
+ */
+
+.theme-root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.terminal-frame {
+  width: 100%;
+  max-width: 1000px;
+  height: 80vh;
+  border: 2px solid var(--accent-color);
+  background-color: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-frame-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-header {
+  border-bottom: 2px solid var(--accent-color);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.user-icon {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.ace-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.ace-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 5px;
+}
+
+.ace-logo-icon {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--text-color);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* Grade de personagens (equivalente ao agents-grid do mockup) */
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.agent-card {
+  border: 1px solid var(--accent-color);
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.2s ease;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+}
+
+.agent-photo-sim {
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--accent-color);
+  margin: 0 auto 10px auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  border-radius: var(--border-radius);
+}
+
+.agent-name {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .agents-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============ FLOURISHES DE LAYOUT — EXCLUSIVOS DO MODO ESCURO ============ */
+
+.theme-root[data-theme='dark'] .terminal-frame {
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+}
+
+.theme-root[data-theme='dark'] .app-header {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.theme-root[data-theme='dark'] .ace-title {
+  text-transform: uppercase;
+  text-shadow: 0 0 5px var(--text-color);
+}
+
+.theme-root[data-theme='dark'] .agent-name {
+  text-transform: uppercase;
+}
+
+.theme-root[data-theme='dark'] .agent-card {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.theme-root[data-theme='dark'] .agent-card:hover {
+  transform: scale(1.05);
+  border-color: var(--text-color);
+  background-color: rgba(0, 255, 65, 0.05);
+}
+
+/* Move o overlay CRT pro container central em vez da tela inteira */
+.theme-root[data-theme='dark']::after {
+  display: none;
+}
+.theme-root[data-theme='dark'] .terminal-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* ================= TELA DE LOGIN (layout do mockup) ================= */
+
+.login-form-container {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+  border: 1px solid var(--accent-color);
+  padding: 30px;
+}
+
+.photo-placeholder {
+  width: 120px;
+  height: 150px;
+  border: 1px dashed var(--accent-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 10px;
+  flex-shrink: 0;
+}
+
+.form-fields {
+  width: 250px;
+}
+
+.form-fields input {
+  padding: 8px;
+}
+
+/* Botão secundário (equivalente ao "CANCELAR" do mockup — borda apagada) */
+.btn-secondary {
+  border-color: var(--accent-color) !important;
+  opacity: 0.7;
+}
+
+/* Flourish exclusivo do escuro: placeholders em caixa alta + fundo do painel */
+.theme-root[data-theme='dark'] .login-form-container {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.theme-root[data-theme='dark'] input::placeholder {
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+
+@media (max-width: 480px) {
+  .login-form-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  .form-fields {
+    width: 100%;
+  }
+}

@@ -21,34 +21,26 @@ export default function CharacterList() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-2xl mx-auto">
-        <button onClick={() => navigate('/dashboard')} className="text-sm text-gray-500 mb-4">
-          ← Voltar
-        </button>
+    <div className="p-6 h-full flex flex-col">
+      <button onClick={() => navigate('/dashboard')} className="text-sm mb-4 self-start px-3 py-1.5">
+        ← Voltar
+      </button>
 
-        <h1 className="text-xl font-semibold mb-4">Personagens</h1>
+      <h1 className="text-xl font-semibold mb-4">Personagens</h1>
 
-        <div className="grid grid-cols-1 gap-3">
-          {PLACEHOLDER_CHARACTERS.map((char) => (
-            <button
-              key={char.id}
-              onClick={() => handleOpenCharacter(char)}
-              className="text-left border rounded p-4 bg-white hover:bg-gray-50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{char.name}</span>
-                <span className="text-xs text-gray-400 capitalize">{char.role}</span>
-              </div>
-              <div className="text-sm text-gray-500">{char.concept}</div>
-            </button>
-          ))}
-        </div>
-
-        {PLACEHOLDER_CHARACTERS.length === 0 && (
-          <p className="text-sm text-gray-400">Nenhum personagem criado ainda.</p>
-        )}
+      <div className="agents-grid">
+        {PLACEHOLDER_CHARACTERS.map((char) => (
+          <button key={char.id} onClick={() => handleOpenCharacter(char)} className="agent-card">
+            <div className="agent-photo-sim">👤</div>
+            <div className="agent-name">{char.name}</div>
+            <div className="text-xs opacity-60 capitalize mt-1">{char.role}</div>
+          </button>
+        ))}
       </div>
+
+      {PLACEHOLDER_CHARACTERS.length === 0 && (
+        <p className="text-sm opacity-60">Nenhum personagem criado ainda.</p>
+      )}
     </div>
   );
 }

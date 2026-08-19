@@ -9,6 +9,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CharacterList from './pages/CharacterList';
 import CharacterCreate from './pages/CharacterCreate';
+import ThemeToggle from './components/ThemeToggle';
+import AppHeader from './components/AppHeader';
 
 function RequireAuth({ isLoggedIn, children }) {
   if (!isLoggedIn) return <Navigate to="/login" replace />;
@@ -16,42 +18,55 @@ function RequireAuth({ isLoggedIn, children }) {
 }
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null); // { name, email } | null
+  const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const isLoggedIn = !!user;
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login onLogin={() => setIsLoggedIn(true)} />} />
+    <div className="theme-root" data-theme={theme}>
+      <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
-      <Route
-        path="/dashboard"
-        element={
-          <RequireAuth isLoggedIn={isLoggedIn}>
-            <Dashboard />
-          </RequireAuth>
-        }
-      />
+      <div className="terminal-frame">
+        <AppHeader userName={user?.name} />
 
-      <Route
-        path="/characters"
-        element={
-          <RequireAuth isLoggedIn={isLoggedIn}>
-            <CharacterList />
-          </RequireAuth>
-        }
-      />
+        <div className="terminal-frame-content">
+          <Routes>
+            <Route path="/login" element={<Login onLogin={setUser} />} />
 
-      <Route
-        path="/characters/new"
-        element={
-          <RequireAuth isLoggedIn={isLoggedIn}>
-            <CharacterCreate />
-          </RequireAuth>
-        }
-      />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
 
-      {/* Qualquer rota desconhecida cai no dashboard (se logado) ou no login */}
-      <Route path="*" element={<Navigate to={isLoggedIn ? '/dashboard' : '/login'} replace />} />
-    </Routes>
+            <Route
+              path="/characters"
+              element={
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <CharacterList />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/characters/new"
+              element={
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <CharacterCreate />
+                </RequireAuth>
+              }
+            />
+
+            {/* Qualquer rota desconhecida cai no dashboard (se logado) ou no login */}
+            <Route path="*" element={<Navigate to={isLoggedIn ? '/dashboard' : '/login'} replace />} />
+          </Routes>
+        </div>
+      </div>
+    </div>
   );
 }
 

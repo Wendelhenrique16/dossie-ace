@@ -7,7 +7,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="h-full flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <h1 className="text-xl font-semibold mb-1">Suas Fichas</h1>
         <p className="text-sm text-gray-500 mb-6">O que você quer fazer?</p>

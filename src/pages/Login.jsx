@@ -1,52 +1,75 @@
 // src/pages/Login.jsx
 // Esqueleto — sem integração real com Supabase Auth ainda.
+// Layout replica o mockup: foto (placeholder) + campos lado a lado.
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (name.trim() === '') {
+      setError('Identificação do Agente é obrigatória.');
+      return;
+    }
     // TODO: trocar por supabase.auth.signInWithPassword({ email, password })
-    onLogin({ email });
+    onLogin({ name, email });
     navigate('/dashboard');
   }
 
+  function handleCancel() {
+    setName('');
+    setEmail('');
+    setPassword('');
+    setError(null);
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white border rounded p-6">
-        <h1 className="text-lg font-semibold mb-1">Ficha ACE</h1>
-        <p className="text-sm text-gray-500 mb-6">Entre para acessar suas fichas.</p>
+    <div className="h-full flex items-center justify-center p-6">
+      <form onSubmit={handleSubmit} className="login-form-container">
+        <div className="photo-placeholder">[ Arquivo de foto pendente ]</div>
 
-        <label className="block text-sm mb-1">E-mail</label>
-        <input
-          type="email"
-          required
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="form-fields">
+          <input
+            type="text"
+            required
+            placeholder="Nome do agente"
+            className="w-full mb-3"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            type="email"
+            required
+            placeholder="E-mail operacional"
+            className="w-full mb-3"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            type="password"
+            required
+            placeholder="Senha de acesso"
+            className="w-full mb-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-        <label className="block text-sm mb-1">Senha</label>
-        <input
-          type="password"
-          required
-          className="w-full border rounded px-3 py-2 mb-6"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 
-        <button type="submit" className="w-full py-2 rounded bg-gray-900 text-white text-sm">
-          Entrar
-        </button>
-
-        <p className="text-xs text-gray-400 text-center mt-4">
-          Ainda sem cadastro real — qualquer e-mail/senha entra por enquanto.
-        </p>
+          <button type="submit" className="w-full mb-2">
+            Confirmar credenciais
+          </button>
+          <button type="button" onClick={handleCancel} className="w-full btn-secondary">
+            Cancelar
+          </button>
+        </div>
       </form>
     </div>
   );
