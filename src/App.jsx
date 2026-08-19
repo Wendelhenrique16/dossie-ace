@@ -5,20 +5,22 @@
 
 import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AuthChoice from './pages/AuthChoice';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import CharacterList from './pages/CharacterList';
 import CharacterCreate from './pages/CharacterCreate';
 import ThemeToggle from './components/ThemeToggle';
 import AppHeader from './components/AppHeader';
 
 function RequireAuth({ isLoggedIn, children }) {
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (!isLoggedIn) return <Navigate to="/auth" replace />;
   return children;
 }
 
 function App() {
-  const [user, setUser] = useState(null); // { name, email } | null
+  const [user, setUser] = useState(null); // { name?, email } | null
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   const isLoggedIn = !!user;
@@ -28,21 +30,20 @@ function App() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
       <div className="terminal-frame">
-        <AppHeader userName={user?.name} />
+        <AppHeader userName={user?.name || user?.email} />
 
         <div className="terminal-frame-content">
           <Routes>
+            {/* Tela inicial — pública, não exige login */}
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Fluxo de autenticação */}
+            <Route path="/auth" element={<AuthChoice />} />
             <Route path="/login" element={<Login onLogin={setUser} />} />
+            <Route path="/register" element={<Register onLogin={setUser} />} />
 
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth isLoggedIn={isLoggedIn}>
-                  <Dashboard />
-                </RequireAuth>
-              }
-            />
-
+            {/* Protegidas */}
             <Route
               path="/characters"
               element={
@@ -51,7 +52,6 @@ function App() {
                 </RequireAuth>
               }
             />
-
             <Route
               path="/characters/new"
               element={
@@ -61,8 +61,8 @@ function App() {
               }
             />
 
-            {/* Qualquer rota desconhecida cai no dashboard (se logado) ou no login */}
-            <Route path="*" element={<Navigate to={isLoggedIn ? '/dashboard' : '/login'} replace />} />
+            {/* Qualquer rota desconhecida cai na tela inicial */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>

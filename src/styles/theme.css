@@ -395,3 +395,28 @@
     width: 100%;
   }
 }
+
+/* ================= AUTH CHOICE / MENU BOX (layout do mockup) ================= */
+
+.menu-box {
+  border: 1px solid var(--accent-color);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 300px;
+}
+
+.theme-root[data-theme='dark'] .menu-box {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Status "LOGIN REQUERIDO" clicável no header */
+.header-login-link {
+  border: none !important;
+  background: none !important;
+  padding: 0 !important;
+  text-decoration: underline;
+  font-size: inherit;
+  cursor: pointer;
+}
