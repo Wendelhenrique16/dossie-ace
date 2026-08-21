@@ -5,6 +5,9 @@ import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
 import { SKILLS, ATTRIBUTES, groupSkillsByCategory } from '../data/skills';
 import { listSelectableOccupations, calculateOccupationBonuses } from '../logic/occupationBonuses';
+import { CLASSES, getArchetypesForClass } from '../data/classes';
+import { CAMINHOS } from '../data/caminhos';
+import { calculateClassBonuses } from '../logic/classBonuses';
 import { rollExtraPackageSanityCost, checkBrokenSanityState } from '../logic/characterCalculations';
 import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
@@ -44,7 +47,7 @@ export default function CharacterCreate() {
     aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [] },
     customSkills: [], // [{ name, skillId, cost, effectType, narrative }]
     occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
-    classPath: { className: '', path: '' },
+    classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
   });
 
   const isAgent = character.role === 'agente';
@@ -106,21 +109,35 @@ export default function CharacterCreate() {
     return calculateOccupationBonuses(primaryId, secondaryId, freeAttribute);
   }, [character.occupation]);
 
+  const classBonuses = useMemo(() => {
+    const { classId, archetypeId, weaponChoiceSkillId } = character.classPath;
+    if (!isAgent || !classId || !archetypeId) {
+      return { attributeBonuses: {}, skillBonuses: {}, specialtyPoints: 0, notes: [] };
+    }
+    return calculateClassBonuses(classId, archetypeId, weaponChoiceSkillId);
+  }, [isAgent, character.classPath]);
+
   const finalSkillTotals = useMemo(() => {
     const totals = { ...skillTotalsFromBackgrounds };
     Object.entries(occupationBonuses.skillBonuses).forEach(([skillId, bonus]) => {
       totals[skillId] = (totals[skillId] || 0) + bonus;
     });
+    Object.entries(classBonuses.skillBonuses).forEach(([skillId, bonus]) => {
+      totals[skillId] = (totals[skillId] || 0) + bonus;
+    });
     return totals;
-  }, [skillTotalsFromBackgrounds, occupationBonuses]);
+  }, [skillTotalsFromBackgrounds, occupationBonuses, classBonuses]);
 
   const finalAttributeTotals = useMemo(() => {
     const totals = { ...attributeTotalsFromBackgrounds };
     Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
       totals[attrId] = (totals[attrId] || 0) + bonus;
     });
+    Object.entries(classBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+      totals[attrId] = (totals[attrId] || 0) + bonus;
+    });
     return totals;
-  }, [attributeTotalsFromBackgrounds, occupationBonuses]);
+  }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses]);
 
   const isBroken = checkBrokenSanityState(purchasedCount);
 
@@ -521,22 +538,121 @@ export default function CharacterCreate() {
           <section>
             <h2 className="text-xl font-semibold mb-2">Classe & Caminho</h2>
             <p className="text-sm text-gray-500 mb-4">Exclusivo para Agentes da ACE (Rank D+).</p>
+
+            {/* Classe */}
             <label className="block text-sm mb-1">Classe</label>
-            <input
-              className="w-full border rounded px-3 py-2 mb-4 text-sm"
-              value={character.classPath.className}
-              onChange={(e) =>
-                setCharacter((c) => ({ ...c, classPath: { ...c.classPath, className: e.target.value } }))
-              }
-            />
+            <div className="grid grid-cols-1 gap-2 mb-4">
+              {Object.values(CLASSES).map((cls) => (
+                <button
+                  key={cls.id}
+                  onClick={() =>
+                    setCharacter((c) => ({
+                      ...c,
+                      classPath: {
+                        classId: cls.id,
+                        archetypeId: null,
+                        weaponChoiceSkillId: null,
+                        caminhoId: c.classPath.caminhoId,
+                      },
+                    }))
+                  }
+                  className={`text-left border rounded p-3 ${
+                    character.classPath.classId === cls.id ? 'border-gray-900 bg-gray-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium">{cls.label}</div>
+                  <div className="text-xs text-gray-400 italic">
+                    {cls.description || '(descrição a definir)'}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Escolha de perícia condicional (só Lutador, por enquanto) */}
+            {character.classPath.classId &&
+              CLASSES[character.classPath.classId].classBonus.skillChoice && (
+                <div className="mb-4">
+                  <label className="block text-sm mb-1">
+                    Perícia do bônus de Classe (escolha 1)
+                  </label>
+                  <select
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    value={character.classPath.weaponChoiceSkillId ?? ''}
+                    onChange={(e) =>
+                      setCharacter((c) => ({
+                        ...c,
+                        classPath: { ...c.classPath, weaponChoiceSkillId: e.target.value || null },
+                      }))
+                    }
+                  >
+                    <option value="">Selecione...</option>
+                    {CLASSES[character.classPath.classId].classBonus.skillChoice.options.map(
+                      (skillId) => (
+                        <option key={skillId} value={skillId}>
+                          {SKILLS[skillId]?.label ?? skillId}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+              )}
+
+            {/* Arquétipo */}
+            {character.classPath.classId && (
+              <>
+                <label className="block text-sm mb-1">Arquétipo</label>
+                <div className="grid grid-cols-1 gap-2 mb-4">
+                  {getArchetypesForClass(character.classPath.classId).map((arch) => (
+                    <button
+                      key={arch.id}
+                      onClick={() =>
+                        setCharacter((c) => ({
+                          ...c,
+                          classPath: { ...c.classPath, archetypeId: arch.id },
+                        }))
+                      }
+                      className={`text-left border rounded p-3 ${
+                        character.classPath.archetypeId === arch.id
+                          ? 'border-gray-900 bg-gray-50'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="font-medium">{arch.label}</div>
+                      <div className="text-xs text-gray-400 italic">
+                        {arch.description || '(descrição a definir)'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Caminho */}
             <label className="block text-sm mb-1">Caminho</label>
-            <input
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={character.classPath.path}
-              onChange={(e) =>
-                setCharacter((c) => ({ ...c, classPath: { ...c.classPath, path: e.target.value } }))
-              }
-            />
+            <div className="grid grid-cols-1 gap-2">
+              {Object.values(CAMINHOS).map((caminho) => (
+                <button
+                  key={caminho.id}
+                  onClick={() =>
+                    setCharacter((c) => ({
+                      ...c,
+                      classPath: { ...c.classPath, caminhoId: caminho.id },
+                    }))
+                  }
+                  className={`text-left border rounded p-3 ${
+                    character.classPath.caminhoId === caminho.id
+                      ? 'border-gray-900 bg-gray-50'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium">{caminho.label}</div>
+                  <div className="text-xs text-gray-400 italic mb-1">
+                    {caminho.description || '(descrição a definir)'}
+                  </div>
+                  <div className="text-xs text-gray-500">{caminho.vantagem}</div>
+                </button>
+              ))}
+            </div>
           </section>
         )}
 
@@ -621,7 +737,26 @@ export default function CharacterCreate() {
               {isAgent && (
                 <div>
                   <div className="font-medium mb-1">Classe & Caminho</div>
-                  {character.classPath.className || '—'} / {character.classPath.path || '—'}
+                  <div>
+                    Classe: {CLASSES[character.classPath.classId]?.label ?? '—'}
+                    {character.classPath.classId &&
+                      CLASSES[character.classPath.classId].classBonus.skillChoice && (
+                        <> ({SKILLS[character.classPath.weaponChoiceSkillId]?.label ?? 'perícia não escolhida'})</>
+                      )}
+                  </div>
+                  <div>
+                    Arquétipo:{' '}
+                    {getArchetypesForClass(character.classPath.classId).find(
+                      (a) => a.id === character.classPath.archetypeId
+                    )?.label ?? '—'}
+                  </div>
+                  <div>Caminho: {CAMINHOS[character.classPath.caminhoId]?.label ?? '—'}</div>
+                  <div>Pontos de Especialidade: {classBonuses.specialtyPoints}</div>
+                  {classBonuses.notes.map((note, i) => (
+                    <div key={i} className="text-xs text-gray-500 mt-1">
+                      {note}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
