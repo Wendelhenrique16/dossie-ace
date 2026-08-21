@@ -537,7 +537,7 @@ export default function CharacterCreate() {
         {currentStep === 'classPath' && (
           <section>
             <h2 className="text-xl font-semibold mb-2">Classe & Caminho</h2>
-            <p className="text-sm text-gray-500 mb-4">Exclusivo para Agentes da ACE (Rank D+).</p>
+            <p className="text-sm text-gray-500 mb-4">[Descrição a definir].</p>
 
             {/* Classe */}
             <label className="block text-sm mb-1">Classe</label>
