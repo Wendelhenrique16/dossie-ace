@@ -3,11 +3,13 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BureaucraticLoader from '../components/BureaucraticLoader';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
   function handleSubmit(e) {
@@ -18,6 +20,11 @@ export default function Login({ onLogin }) {
     }
     // TODO: trocar por supabase.auth.signInWithPassword({ email, password })
     // O nome do agente viria da conta já registrada (tabela profiles/users).
+    setIsProcessing(true);
+  }
+
+  function handleLoaderComplete() {
+    setIsProcessing(false);
     onLogin({ email });
     navigate('/dashboard');
   }
@@ -52,6 +59,8 @@ export default function Login({ onLogin }) {
           Ainda não tenho conta
         </button>
       </form>
+
+      <BureaucraticLoader isOpen={isProcessing} onComplete={handleLoaderComplete} />
     </div>
   );
 }

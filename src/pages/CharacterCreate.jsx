@@ -8,6 +8,7 @@ import { listSelectableOccupations, calculateOccupationBonuses } from '../logic/
 import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { calculateClassBonuses } from '../logic/classBonuses';
+import BureaucraticLoader from '../components/BureaucraticLoader';
 import { rollExtraPackageSanityCost, checkBrokenSanityState } from '../logic/characterCalculations';
 import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
@@ -36,6 +37,7 @@ export default function CharacterCreate() {
   const [currentStep, setCurrentStep] = useState('identity');
   const [activeModalPackage, setActiveModalPackage] = useState(null);
   const [sanityWarning, setSanityWarning] = useState(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [character, setCharacter] = useState({
     name: '',
@@ -192,6 +194,12 @@ export default function CharacterCreate() {
   }
 
   function handleExportPdf() {
+    // UC-04: a "burocracia" roda antes da geração real do PDF.
+    setIsGeneratingPdf(true);
+  }
+
+  function handlePdfLoaderComplete() {
+    setIsGeneratingPdf(false);
     // TODO: substituir por geração real de PDF (jsPDF/react-pdf) quando o
     // layout final da ficha estiver pronto. Placeholder valida o fluxo.
     window.print();
@@ -537,7 +545,7 @@ export default function CharacterCreate() {
         {currentStep === 'classPath' && (
           <section>
             <h2 className="text-xl font-semibold mb-2">Classe & Caminho</h2>
-            <p className="text-sm text-gray-500 mb-4">[Descrição a definir].</p>
+            <p className="text-sm text-gray-500 mb-4">Exclusivo para Agentes da ACE (Rank D+).</p>
 
             {/* Classe */}
             <label className="block text-sm mb-1">Classe</label>
@@ -787,6 +795,8 @@ export default function CharacterCreate() {
           </button>
         </div>
       </main>
+
+      <BureaucraticLoader isOpen={isGeneratingPdf} onComplete={handlePdfLoaderComplete} />
     </div>
   );
 }
