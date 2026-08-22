@@ -36,7 +36,7 @@ export default function AceOSBoot({ onComplete }) {
       const t = setTimeout(() => setVisibleLines((n) => n + 1), LINE_INTERVAL_MS);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setPhase('blink'), 500);
+    const t = setTimeout(() => setPhase('blink'), 200);
     return () => clearTimeout(t);
   }, [phase, visibleLines]);
 
