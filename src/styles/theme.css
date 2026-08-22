@@ -440,3 +440,158 @@
 .theme-root[data-theme='dark'] .bureaucratic-progress-fill {
   box-shadow: 0 0 6px var(--text-color);
 }
+
+/* ================= ACE-OS BOOT SEQUENCE ================= */
+
+.ace-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.ace-boot-spinner-phase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.ace-boot-logo {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--text-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.ace-boot-dots {
+  display: flex;
+  gap: 10px;
+}
+
+.ace-boot-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--text-color);
+  opacity: 0.3;
+  animation: ace-boot-dot-pulse 1.2s infinite ease-in-out;
+}
+.ace-boot-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.ace-boot-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes ace-boot-dot-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.ace-boot-terminal {
+  width: 100%;
+  max-width: 600px;
+  padding: 20px;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.ace-boot-line {
+  margin-bottom: 8px;
+}
+
+.ace-boot-ok {
+  color: var(--text-color);
+  font-weight: bold;
+  margin-left: 6px;
+}
+
+.ace-boot-blink-name {
+  font-size: 2.5rem;
+  letter-spacing: 6px;
+  font-weight: bold;
+  animation: ace-boot-blink 0.8s infinite step-start;
+}
+
+@keyframes ace-boot-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ================= STATUS DOT (LOGIN REQUERIDO) ================= */
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--accent-color);
+}
+
+/* Só pisca vermelho / brilha verde no modo escuro — no claro fica um
+   indicador neutro sem flourish, até o design definir o próprio. */
+.theme-root[data-theme='dark'] .status-dot--pending {
+  background-color: #ff3333;
+  box-shadow: 0 0 8px #ff3333;
+  animation: ace-blink-status 1.2s infinite;
+}
+.theme-root[data-theme='dark'] .status-dot--active {
+  background-color: var(--text-color);
+  box-shadow: 0 0 8px var(--text-color);
+}
+
+@keyframes ace-blink-status {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* ================= CURSOR DE BLOCO NOS INPUTS (SÓ MODO ESCURO) ================= */
+
+.input-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.block-cursor {
+  display: none;
+}
+
+.theme-root[data-theme='dark'] .block-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--text-color);
+  margin-left: -12px;
+  box-shadow: 0 0 5px var(--text-color);
+  animation: ace-blink-cursor 0.8s infinite step-start;
+  pointer-events: none;
+}
+
+@keyframes ace-blink-cursor {
+  50% {
+    opacity: 0;
+  }
+}

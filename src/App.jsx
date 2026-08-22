@@ -13,6 +13,7 @@ import CharacterList from './pages/CharacterList';
 import CharacterCreate from './pages/CharacterCreate';
 import ThemeToggle from './components/ThemeToggle';
 import AppHeader from './components/AppHeader';
+import AceOSBoot from './components/AceOSBoot';
 
 function RequireAuth({ isLoggedIn, children }) {
   if (!isLoggedIn) return <Navigate to="/auth" replace />;
@@ -27,6 +28,7 @@ function App() {
 
   return (
     <div className="theme-root" data-theme={theme}>
+      <AceOSBoot />
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
       <div className="terminal-frame">

@@ -32,22 +32,28 @@ export default function Login({ onLogin }) {
   return (
     <div className="h-full flex items-center justify-center p-6">
       <form onSubmit={handleSubmit} className="border p-6 w-full max-w-sm">
-        <input
-          type="email"
-          required
-          placeholder="E-mail operacional"
-          className="w-full mb-3"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          required
-          placeholder="Senha de acesso"
-          className="w-full mb-2"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="input-group mb-3">
+          <input
+            type="email"
+            required
+            placeholder="E-mail operacional"
+            className="w-full"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <span className="block-cursor" />
+        </div>
+        <div className="input-group mb-2">
+          <input
+            type="password"
+            required
+            placeholder="Senha de acesso"
+            className="w-full"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <span className="block-cursor" />
+        </div>
 
         {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 

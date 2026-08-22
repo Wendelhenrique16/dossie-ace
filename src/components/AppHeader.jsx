@@ -7,7 +7,7 @@ export default function AppHeader({ userName }) {
   return (
     <header className="app-header">
       <div className="user-info">
-        <div className="user-icon">👤</div>
+        <div className={`status-dot ${userName ? 'status-dot--active' : 'status-dot--pending'}`} />
         {userName ? (
           <span>{`AGENTE: ${userName.toUpperCase()}`}</span>
         ) : (
