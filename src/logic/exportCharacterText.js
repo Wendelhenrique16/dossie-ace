@@ -1,0 +1,152 @@
+// src/logic/exportCharacterText.js
+import { SKILLS, SKILL_LEVEL_TO_DICE, groupSkillsByCategory } from '../data/skills';
+import { BACKGROUND_PACKAGES } from '../data/backgrounds';
+import { CLASSES } from '../data/classes';
+import { CAMINHOS } from '../data/caminhos';
+import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
+import { OCCUPATION_CATEGORIES } from '../data/occupations';
+
+function diceFor(level) {
+  if (!level || level <= 0) return 'd00';
+  return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
+}
+
+function aspectLabel(id, catalog) {
+  return catalog.find((a) => a.id === id)?.label ?? id;
+}
+
+/**
+ * Monta o texto da ficha no formato oficial (mesmo layout do documento
+ * original). Campos que ainda não são coletados na criação (Tier, Gênero,
+ * Sexualidade, Religião, Estado Civil, Lore, Altura, Peso, Defesas etc.)
+ * ficam em branco — dá pra preencher à mão depois de exportar.
+ */
+export function generateCharacterSheetText({
+  character,
+  lifeStage,
+  finalAttributeTotals,
+  finalSkillTotals,
+  vigor,
+  remainingLuck,
+  classBonuses,
+  isAgent,
+}) {
+  const lines = [];
+
+  const className = isAgent ? CLASSES[character.classPath.classId]?.label ?? '' : '';
+  const caminhoName = isAgent ? CAMINHOS[character.classPath.caminhoId]?.label ?? '' : '';
+  const specialtyPoints = isAgent ? classBonuses?.specialtyPoints ?? '' : '';
+
+  lines.push('"Personagem', '');
+  lines.push(`Nome: ${character.name || ''}`);
+  lines.push('Tier: ');
+  lines.push(`Idade: ${lifeStage?.label ?? ''}`);
+  lines.push(`Classe: ${className}`);
+  lines.push(`Caminho: ${caminhoName}`);
+  lines.push(`Especialidade: ${specialtyPoints}`);
+  lines.push('');
+
+  lines.push('"Curiosidades', '');
+  lines.push('Gênero: ');
+  lines.push('Sexualidade: ');
+  lines.push('Religião: ');
+  lines.push('Estado Civil: ');
+  lines.push(`Lore: ${character.concept || ''}`);
+  lines.push('Curiosidades gerais: ');
+  lines.push('');
+
+  lines.push('"Informações', '');
+  lines.push('Pacotes de antecedentes:');
+  Object.values(BACKGROUND_PACKAGES).forEach((pkg) => {
+    const count = character.purchasedBackgrounds.filter((p) => p.packageId === pkg.id).length;
+    lines.push(`${pkg.label.replace('Pacote ', '')}. ${count}`);
+  });
+  lines.push('');
+
+  const primary = OCCUPATION_CATEGORIES[character.occupation.primaryId];
+  const secondary = OCCUPATION_CATEGORIES[character.occupation.secondaryId];
+  const occupationText = [primary?.label, secondary?.label].filter(Boolean).join(' + ');
+  lines.push(`Ocupação: ${occupationText}`);
+  lines.push('');
+
+  lines.push('Aspectos:');
+  lines.push('    "Negativos');
+  [...character.aspects.mandatoryIds, ...character.aspects.chosenNegativeIds].forEach((id) => {
+    lines.push(`> ${aspectLabel(id, NEGATIVE_ASPECTS)}`);
+  });
+  lines.push('      "Positivos');
+  character.aspects.chosenPositiveIds.forEach((id) => {
+    lines.push(`> ${aspectLabel(id, POSITIVE_ASPECTS)}`);
+  });
+  lines.push('');
+
+  const vicioIds = [...character.aspects.mandatoryIds, ...character.aspects.chosenNegativeIds].filter(
+    (id) => id === 'vicio'
+  );
+  lines.push(`Vícios: ${vicioIds.length > 0 ? 'Vício' : ''}`);
+  lines.push('Traumas: ');
+  lines.push('Manias: ');
+  lines.push('');
+
+  lines.push('"Corpo', '');
+  lines.push('Altura: ');
+  lines.push('Peso: ');
+  lines.push('Aparência: ');
+  lines.push('');
+
+  lines.push('〃Atributos', '');
+  lines.push(`Existência: ${finalAttributeTotals.existencia ?? 0}`);
+  lines.push(`Destreza: ${finalAttributeTotals.destreza ?? 0}`);
+  lines.push(`Inteligência: ${finalAttributeTotals.inteligencia ?? 0}`);
+  lines.push(`Carisma: ${finalAttributeTotals.carisma ?? 0}`);
+  lines.push(`Sabedoria: ${finalAttributeTotals.sabedoria ?? 0}`);
+  lines.push('');
+
+  lines.push('〃Perícias', '');
+  const allSkillIds = Object.keys(SKILLS);
+  groupSkillsByCategory(allSkillIds).forEach((group) => {
+    lines.push(`- ${group.label}:`, '');
+    group.skills.forEach((skillId) => {
+      const level = finalSkillTotals[skillId] ?? 0;
+      lines.push(`${SKILLS[skillId].label}: ${diceFor(level)}`);
+    });
+    lines.push('');
+  });
+
+  lines.push('"Defesas', '');
+  lines.push('Defesa (armadura): ');
+  lines.push('DT Física: ');
+  lines.push('DT Mental: ');
+  lines.push('DT Social: ');
+  lines.push('');
+
+  lines.push('"Vigor', '');
+  lines.push(`Vigor: ${vigor}/${vigor}`);
+  lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
+  lines.push(`Sanidade: ${character.maxSanity}/${character.maxSanity}`);
+  lines.push('');
+
+  lines.push('"Ferimentos', '');
+  lines.push('Local / Penalidade: Nenhum');
+  lines.push('');
+
+  lines.push('"Condições', '');
+  lines.push('> Normal (sem penalidades)');
+
+  return lines.join('\n');
+}
+
+/**
+ * Dispara o download do .txt no navegador.
+ */
+export function downloadCharacterSheetText(text, filename = 'ficha-ace.txt') {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

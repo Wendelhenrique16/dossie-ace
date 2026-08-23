@@ -1,7 +1,7 @@
 // src/components/AppHeader.jsx
 import { useNavigate } from 'react-router-dom';
 
-export default function AppHeader({ userName }) {
+export default function AppHeader({ userName, onLogout }) {
   const navigate = useNavigate();
 
   return (
@@ -9,7 +9,14 @@ export default function AppHeader({ userName }) {
       <div className="user-info">
         <div className={`status-dot ${userName ? 'status-dot--active' : 'status-dot--pending'}`} />
         {userName ? (
-          <span>{`AGENTE: ${userName.toUpperCase()}`}</span>
+          <>
+            <span>{`AGENTE: ${userName.toUpperCase()}`}</span>
+            {onLogout && (
+              <button onClick={onLogout} className="header-login-link">
+                Sair
+              </button>
+            )}
+          </>
         ) : (
           <button onClick={() => navigate('/auth')} className="header-login-link">
             Login Requerido

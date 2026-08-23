@@ -1,10 +1,10 @@
 // src/App.jsx
 // Rotas do app. BrowserRouter fica no main.jsx (ver instruções).
-// Autenticação ainda é só um estado em memória — reseta ao dar F5.
-// TODO: trocar por sessão real do Supabase Auth quando integrar o backend.
+// Autenticação real via Supabase Auth (sessão persistida pelo próprio SDK).
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { supabase } from './lib/supabase';
 import Dashboard from './pages/Dashboard';
 import AuthChoice from './pages/AuthChoice';
 import Login from './pages/Login';
@@ -21,10 +21,33 @@ function RequireAuth({ isLoggedIn, children }) {
 }
 
 function App() {
-  const [user, setUser] = useState(null); // { name?, email } | null
+  const [session, setSession] = useState(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  const isLoggedIn = !!user;
+  const isLoggedIn = !!session;
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionLoaded(true);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  function handleLogout() {
+    supabase.auth.signOut();
+  }
+
+  const userName = session?.user?.user_metadata?.name || session?.user?.email;
+
+  // Evita piscar a tela de login antes da sessão salva carregar
+  if (!sessionLoaded) return null;
 
   return (
     <div className="theme-root" data-theme={theme}>
@@ -32,7 +55,7 @@ function App() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
       <div className="terminal-frame">
-        <AppHeader userName={user?.name || user?.email} />
+        <AppHeader userName={userName} onLogout={isLoggedIn ? handleLogout : undefined} />
 
         <div className="terminal-frame-content">
           <Routes>
@@ -42,8 +65,8 @@ function App() {
 
             {/* Fluxo de autenticação */}
             <Route path="/auth" element={<AuthChoice />} />
-            <Route path="/login" element={<Login onLogin={setUser} />} />
-            <Route path="/register" element={<Register onLogin={setUser} />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
             {/* Protegidas */}
             <Route
@@ -58,7 +81,7 @@ function App() {
               path="/characters/new"
               element={
                 <RequireAuth isLoggedIn={isLoggedIn}>
-                  <CharacterCreate />
+                  <CharacterCreate userId={session?.user?.id} />
                 </RequireAuth>
               }
             />

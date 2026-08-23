@@ -1,16 +1,19 @@
 // src/pages/Register.jsx
-// Registro — nome + foto (placeholder) + credenciais. Layout do mockup.
+// Registro real via Supabase Auth. Nome/foto ficam em user_metadata por
+// enquanto (foto ainda é só o placeholder visual do UC-01 original).
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import BureaucraticLoader from '../components/BureaucraticLoader';
 
-export default function Register({ onLogin }) {
+export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const authPromiseRef = useRef(null);
   const navigate = useNavigate();
 
   function handleSubmit(e) {
@@ -19,15 +22,23 @@ export default function Register({ onLogin }) {
       setError('Identificação do Agente é obrigatória.');
       return;
     }
-    // TODO: trocar por supabase.auth.signUp({ email, password }) + salvar
-    // nome/foto na tabela de perfil.
+    setError(null);
+    authPromiseRef.current = supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
     setIsProcessing(true);
   }
 
-  function handleLoaderComplete() {
+  async function handleLoaderComplete() {
+    const result = await authPromiseRef.current;
     setIsProcessing(false);
-    onLogin({ name, email });
-    navigate('/dashboard');
+    if (result?.error) {
+      setError(result.error.message);
+    } else {
+      navigate('/dashboard');
+    }
   }
 
   function handleCancel() {

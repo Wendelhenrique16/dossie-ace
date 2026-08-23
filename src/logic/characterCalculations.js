@@ -70,6 +70,48 @@ export function rollExtraPackageSanityCost() {
 }
 
 /**
+ * Calcula Força máxima em kg (1 ponto de Força = 10kg).
+ */
+export function calculateMaxCarryWeightKg(forcaLevel) {
+  return forcaLevel * 10;
+}
+
+/**
+ * Cada ponto em Resistência = +1 ação em esforço extremo e +1 no contador
+ * de cansaço máximo.
+ */
+export function calculateStaminaFromResistencia(resistenciaLevel) {
+  return {
+    extremeEffortActions: resistenciaLevel,
+    maxFatigueCounter: resistenciaLevel,
+  };
+}
+
+/**
+ * A cada 5 pontos em Prontidão, +1 reação por turno. 15+ concede uma ação
+ * adicional.
+ */
+export function calculateReactionsFromProntidao(prontidaoLevel) {
+  const reactions = Math.floor(prontidaoLevel / 5);
+  return {
+    reactionsPerTurn: reactions,
+    bonusAction: prontidaoLevel >= 15,
+  };
+}
+
+/**
+ * Investigação: a partir de 5 pontos, cada ponto reduz o tempo de análise
+ * de ambientes/situações complexas. Retorna um multiplicador de tempo
+ * (1 = tempo normal, menor = mais rápido). A curva exata é decisão de
+ * mesa/produto — aqui usamos uma redução linear simples como base.
+ */
+export function calculateInvestigationTimeMultiplier(investigacaoLevel) {
+  if (investigacaoLevel < 5) return 1;
+  const reduction = (investigacaoLevel - 4) * 0.05; // 5% por ponto acima de 4
+  return Math.max(0.2, 1 - reduction); // nunca abaixo de 20% do tempo original
+}
+
+/**
  * Determina se um personagem, ao ultrapassar 12 pacotes de antecedentes,
  * entra no estado "A Beira da Loucura" (Sanidade Máxima = 1 permanente).
  */
@@ -77,3 +119,33 @@ export function checkBrokenSanityState(totalPackages, hardLimit = 12) {
   return totalPackages > hardLimit;
 }
 
+/**
+ * Valor máximo de face de um dado pelo nível de perícia (0-9+).
+ * Usado pra calcular o Vigor (Resistência + Constituição).
+ * Níveis 7-9 usam a maior face das notações compostas do livro.
+ */
+export function getSkillDieMaxValue(level) {
+  const table = { 0: 0, 1: 4, 2: 6, 3: 8, 4: 10, 5: 12, 6: 20, 7: 20, 8: 24, 9: 28 };
+  return table[Math.max(0, Math.min(level, 9))] ?? 0;
+}
+
+/**
+ * Vigor = dado máximo de Resistência + dado máximo de Constituição.
+ * Ex: Resistência nível 3 (d8) + Constituição nível 5 (d12) = 8 + 12 = 20.
+ */
+export function calculateVigor(resistenciaLevel, constituicaoLevel) {
+  return getSkillDieMaxValue(resistenciaLevel) + getSkillDieMaxValue(constituicaoLevel);
+}
+
+/**
+ * Determina os Níveis de Sucesso de um teste, comparando o resultado
+ * contra a Dificuldade (DT) base e seus incrementos.
+ * Ordem: Falha crítica | Falha | Normal | Sucesso Bom | Sucesso Extremo
+ */
+export function resolveSuccessLevel(rollTotal, dtBase = 21) {
+  if (rollTotal < dtBase - 10) return 'falha_critica';
+  if (rollTotal < dtBase) return 'falha';
+  if (rollTotal < dtBase + 5) return 'normal';
+  if (rollTotal < dtBase + 10) return 'sucesso_bom';
+  return 'sucesso_extremo';
+}

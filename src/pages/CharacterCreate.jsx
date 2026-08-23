@@ -9,7 +9,9 @@ import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { calculateClassBonuses } from '../logic/classBonuses';
 import BureaucraticLoader from '../components/BureaucraticLoader';
-import { rollExtraPackageSanityCost, checkBrokenSanityState } from '../logic/characterCalculations';
+import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
+import { saveCharacterToSupabase } from '../logic/saveCharacter';
+import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
 import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
@@ -32,12 +34,14 @@ function buildSteps(isAgent) {
   return steps;
 }
 
-export default function CharacterCreate() {
+export default function CharacterCreate({ userId }) {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState('identity');
   const [activeModalPackage, setActiveModalPackage] = useState(null);
   const [sanityWarning, setSanityWarning] = useState(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
+  const [saveError, setSaveError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [character, setCharacter] = useState({
     name: '',
@@ -143,12 +147,10 @@ export default function CharacterCreate() {
 
   const isBroken = checkBrokenSanityState(purchasedCount);
 
-  // Vigor Base (Atributo Existência + bônus de Constituição)
+  // Vigor oficial: dado máximo de Resistência + dado máximo de Constituição
   const vigor = useMemo(() => {
-    const existencia = finalAttributeTotals.existencia || 0;
-    const constituicaoSkill = finalSkillTotals.constituicao || 0;
-    return existencia * 2 + Math.floor(constituicaoSkill / 2);
-  }, [finalAttributeTotals, finalSkillTotals]);
+    return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
+  }, [finalSkillTotals]);
 
   function handleSelectLifeStage(id) {
     setCharacter((c) => ({
@@ -195,14 +197,57 @@ export default function CharacterCreate() {
 
   function handleExportPdf() {
     // UC-04: a "burocracia" roda antes da geração real do PDF.
-    setIsGeneratingPdf(true);
+    setPendingAction('pdf');
   }
 
-  function handlePdfLoaderComplete() {
-    setIsGeneratingPdf(false);
-    // TODO: substituir por geração real de PDF (jsPDF/react-pdf) quando o
-    // layout final da ficha estiver pronto. Placeholder valida o fluxo.
-    window.print();
+  function handleSaveCharacter() {
+    setSaveError(null);
+    setSaveSuccess(false);
+    setPendingAction('save');
+  }
+
+  function handleDownloadTxt() {
+    setPendingAction('txt');
+  }
+
+  async function handleLoaderComplete() {
+    const action = pendingAction;
+    setPendingAction(null);
+
+    if (action === 'pdf') {
+      // TODO: substituir por geração real de PDF (jsPDF/react-pdf) quando o
+      // layout final da ficha estiver pronto. Placeholder valida o fluxo.
+      window.print();
+      return;
+    }
+
+    if (action === 'txt') {
+      const text = generateCharacterSheetText({
+        character,
+        lifeStage,
+        finalAttributeTotals,
+        finalSkillTotals,
+        vigor,
+        remainingLuck,
+        classBonuses,
+        isAgent,
+      });
+      downloadCharacterSheetText(text, `${character.name || 'ficha-ace'}.txt`);
+      return;
+    }
+
+    if (action === 'save') {
+      if (!userId) {
+        setSaveError('Você precisa estar logado para salvar a ficha.');
+        return;
+      }
+      const { error } = await saveCharacterToSupabase(userId, character);
+      if (error) {
+        setSaveError(error.message);
+      } else {
+        setSaveSuccess(true);
+      }
+    }
   }
 
   return (
@@ -769,14 +814,24 @@ export default function CharacterCreate() {
               )}
             </div>
 
-            <button
-              onClick={handleExportPdf}
-              className="mt-6 px-4 py-2 rounded bg-gray-900 text-white text-sm"
-            >
-              Gerar PDF (Documento Confidencial)
-            </button>
+            <div className="flex flex-wrap gap-2 mt-6">
+              <button onClick={handleSaveCharacter} className="px-4 py-2 rounded bg-gray-900 text-white text-sm">
+                Salvar Ficha
+              </button>
+              <button onClick={handleDownloadTxt} className="px-4 py-2 rounded border text-sm">
+                Baixar Ficha (.txt)
+              </button>
+              <button onClick={handleExportPdf} className="px-4 py-2 rounded border text-sm">
+                Gerar PDF (Documento Confidencial)
+              </button>
+            </div>
+
+            {saveError && <p className="text-xs text-red-500 mt-2">{saveError}</p>}
+            {saveSuccess && <p className="text-xs text-green-600 mt-2">Ficha salva com sucesso.</p>}
+
             <p className="text-xs text-gray-400 mt-2">
-              Exportação real de PDF entra quando o layout da ficha estiver pronto.
+              Exportação real de PDF entra quando o layout da ficha estiver pronto — por enquanto, use
+              "Baixar Ficha (.txt)" pra ter um registro completo.
             </p>
           </section>
         )}
@@ -796,7 +851,7 @@ export default function CharacterCreate() {
         </div>
       </main>
 
-      <BureaucraticLoader isOpen={isGeneratingPdf} onComplete={handlePdfLoaderComplete} />
+      <BureaucraticLoader isOpen={pendingAction !== null} onComplete={handleLoaderComplete} />
     </div>
   );
 }

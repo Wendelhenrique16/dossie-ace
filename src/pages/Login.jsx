@@ -1,15 +1,17 @@
 // src/pages/Login.jsx
-// Login "de verdade" — só credenciais, sem nome/foto (isso é o Registro).
+// Login real via Supabase Auth (e-mail/senha).
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import BureaucraticLoader from '../components/BureaucraticLoader';
 
-export default function Login({ onLogin }) {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const authPromiseRef = useRef(null);
   const navigate = useNavigate();
 
   function handleSubmit(e) {
@@ -18,15 +20,21 @@ export default function Login({ onLogin }) {
       setError('E-mail e senha são obrigatórios.');
       return;
     }
-    // TODO: trocar por supabase.auth.signInWithPassword({ email, password })
-    // O nome do agente viria da conta já registrada (tabela profiles/users).
+    setError(null);
+    // Dispara a chamada real e a burocracia falsa em paralelo — o que
+    // demorar mais é quem manda no tempo total (ver handleLoaderComplete).
+    authPromiseRef.current = supabase.auth.signInWithPassword({ email, password });
     setIsProcessing(true);
   }
 
-  function handleLoaderComplete() {
+  async function handleLoaderComplete() {
+    const result = await authPromiseRef.current;
     setIsProcessing(false);
-    onLogin({ email });
-    navigate('/dashboard');
+    if (result?.error) {
+      setError(result.error.message);
+    } else {
+      navigate('/dashboard');
+    }
   }
 
   return (
