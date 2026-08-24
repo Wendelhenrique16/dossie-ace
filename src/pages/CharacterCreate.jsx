@@ -1,6 +1,6 @@
 // src/pages/CharacterCreate.jsx
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
 import { SKILLS, ATTRIBUTES, groupSkillsByCategory, SKILL_LEVEL_TO_DICE } from '../data/skills';
@@ -10,7 +10,7 @@ import { CAMINHOS } from '../data/caminhos';
 import { calculateClassBonuses } from '../logic/classBonuses';
 import BureaucraticLoader from '../components/BureaucraticLoader';
 import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
-import { saveCharacterToSupabase } from '../logic/saveCharacter';
+import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
 import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
 import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
@@ -37,6 +37,10 @@ function buildSteps(isAgent) {
 
 export default function CharacterCreate({ userId }) {
   const navigate = useNavigate();
+  const { id: routeCharacterId } = useParams(); // presente em /characters/:id, ausente em /characters/new
+  const [currentCharacterId, setCurrentCharacterId] = useState(routeCharacterId ?? null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(!!routeCharacterId);
+  const [loadError, setLoadError] = useState(null);
   const [currentStep, setCurrentStep] = useState('identity');
   const [activeModalPackage, setActiveModalPackage] = useState(null);
   const [sanityWarning, setSanityWarning] = useState(null);
@@ -56,6 +60,27 @@ export default function CharacterCreate({ userId }) {
     occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
     classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
   });
+
+  // Modo edição: se a URL tem /characters/:id, carrega a ficha salva e
+  // substitui o estado em branco por ela.
+  useEffect(() => {
+    if (!routeCharacterId) return;
+    let cancelled = false;
+
+    loadCharacter(routeCharacterId).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data) {
+        setLoadError(error?.message || 'Ficha não encontrada.');
+      } else {
+        setCharacter(data.data);
+      }
+      setIsLoadingExisting(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeCharacterId]);
 
   const isAgent = character.role === 'agente';
   const STEPS = useMemo(() => buildSteps(isAgent), [isAgent]);
@@ -252,13 +277,35 @@ export default function CharacterCreate({ userId }) {
         setSaveError('Você precisa estar logado para salvar a ficha.');
         return;
       }
-      const { error } = await saveCharacterToSupabase(userId, character);
+      const { data, error } = await saveCharacterToSupabase(userId, character, currentCharacterId);
       if (error) {
         setSaveError(error.message);
       } else {
         setSaveSuccess(true);
+        // Primeira vez salvando (era INSERT): guarda o id pra próximos
+        // saves virarem UPDATE em vez de criar fichas duplicadas, e troca
+        // a URL pra /characters/:id sem recarregar a página.
+        if (!currentCharacterId && data?.id) {
+          setCurrentCharacterId(data.id);
+          navigate(`/characters/${data.id}`, { replace: true });
+        }
       }
     }
+  }
+
+  if (isLoadingExisting) {
+    return <div className="theme-root-loading-placeholder p-6 text-sm opacity-70">Carregando ficha...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-red-500 mb-4">{loadError}</p>
+        <button onClick={() => navigate('/characters')} className="px-4 py-2 border rounded text-sm">
+          ← Voltar pra lista
+        </button>
+      </div>
+    );
   }
 
   return (

@@ -85,6 +85,14 @@ function App() {
                 </RequireAuth>
               }
             />
+            <Route
+              path="/characters/:id"
+              element={
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <CharacterCreate userId={session?.user?.id} />
+                </RequireAuth>
+              }
+            />
 
             {/* Qualquer rota desconhecida cai na tela inicial */}
             <Route path="*" element={<Navigate to="/" replace />} />

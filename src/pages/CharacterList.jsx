@@ -27,9 +27,7 @@ export default function CharacterList({ userId }) {
   }, [userId]);
 
   function handleOpenCharacter(character) {
-    // TODO: quando existir a tela de visualização/edição de ficha existente,
-    // trocar por navigate(`/characters/${character.id}`).
-    console.log('Abrir personagem:', character);
+    navigate(`/characters/${character.id}`);
   }
 
   return (
