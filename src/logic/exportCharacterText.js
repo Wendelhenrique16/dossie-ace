@@ -1,7 +1,7 @@
 // src/logic/exportCharacterText.js
 import { SKILLS, SKILL_LEVEL_TO_DICE, groupSkillsByCategory } from '../data/skills';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
-import { CLASSES } from '../data/classes';
+import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { OCCUPATION_CATEGORIES } from '../data/occupations';
@@ -16,16 +16,22 @@ function aspectLabel(id, catalog) {
 }
 
 /**
- * Monta o texto da ficha no formato oficial (mesmo layout do documento
- * original). Campos que ainda não são coletados na criação (Tier, Gênero,
- * Sexualidade, Religião, Estado Civil, Lore, Altura, Peso, Defesas etc.)
- * ficam em branco — dá pra preencher à mão depois de exportar.
+ * Monta a ficha como um array de linhas (cada item = 1 linha do documento).
+ * Usado tanto pelo export .txt quanto pelo export .pdf, pra não duplicar a
+ * lógica de montagem em dois lugares.
+ *
+ * Bônus de perícia (Ocupação + Classe/Arquétipo) aparecem DIRETO ao lado do
+ * dado, tipo "Combate: d8 (+5)" — são números fixos, não precisam de seção
+ * separada. O que vai pra seção "VANTAGENS" no final é só o que NÃO é um
+ * número somável numa perícia específica: efeito de Aspecto, Vantagem de
+ * Caminho, nota de Arquétipo e as Habilidades customizadas do jogador.
  */
-export function generateCharacterSheetText({
+export function buildCharacterSheetLines({
   character,
   lifeStage,
   finalAttributeTotals,
   finalSkillTotals,
+  skillResultBonuses,
   vigor,
   remainingLuck,
   classBonuses,
@@ -33,7 +39,9 @@ export function generateCharacterSheetText({
 }) {
   const lines = [];
 
-  const className = isAgent ? CLASSES[character.classPath.classId]?.label ?? '' : '';
+  const classId = character.classPath.classId;
+  const archetypeId = character.classPath.archetypeId;
+  const className = isAgent ? CLASSES[classId]?.label ?? '' : '';
   const caminhoName = isAgent ? CAMINHOS[character.classPath.caminhoId]?.label ?? '' : '';
   const specialtyPoints = isAgent ? classBonuses?.specialtyPoints ?? '' : '';
 
@@ -107,8 +115,13 @@ export function generateCharacterSheetText({
   groupSkillsByCategory(allSkillIds).forEach((group) => {
     lines.push(`- ${group.label}:`, '');
     group.skills.forEach((skillId) => {
+      // Nível (decide o dado) vem só de Antecedentes. Bônus de Ocupação e
+      // Classe/Arquétipo aparecem do lado, entre parênteses — são números
+      // que somam DEPOIS de rolar, nunca mudam qual dado é usado.
       const level = finalSkillTotals[skillId] ?? 0;
-      lines.push(`${SKILLS[skillId].label}: ${diceFor(level)}`);
+      const bonus = skillResultBonuses?.[skillId];
+      const bonusText = bonus ? ` (+${bonus})` : '';
+      lines.push(`${SKILLS[skillId].label}: ${diceFor(level)}${bonusText}`);
     });
     lines.push('');
   });
@@ -132,8 +145,68 @@ export function generateCharacterSheetText({
 
   lines.push('"Condições', '');
   lines.push('> Normal (sem penalidades)');
+  lines.push('');
 
-  return lines.join('\n');
+  // ========================================================================
+  // VANTAGENS — só o que NÃO é um número fixo somável numa perícia
+  // específica: efeito de Aspecto, nota de Arquétipo, Vantagem de Caminho e
+  // as Habilidades customizadas do jogador.
+  // ========================================================================
+  lines.push('"Vantagens e Efeitos Especiais', '');
+
+  const allAspectIds = [
+    ...character.aspects.mandatoryIds,
+    ...character.aspects.chosenPositiveIds,
+    ...character.aspects.chosenNegativeIds,
+  ];
+  if (allAspectIds.length > 0) {
+    lines.push('Aspectos:');
+    character.aspects.mandatoryIds.forEach((id) => {
+      const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
+      if (a) lines.push(`> ${a.label} — ${a.effect}`);
+    });
+    character.aspects.chosenPositiveIds.forEach((id) => {
+      const a = POSITIVE_ASPECTS.find((x) => x.id === id);
+      if (a) lines.push(`> ${a.label} — ${a.effect}`);
+    });
+    character.aspects.chosenNegativeIds.forEach((id) => {
+      const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
+      if (a) lines.push(`> ${a.label} — ${a.effect}`);
+    });
+    lines.push('');
+  }
+
+  if (isAgent && archetypeId) {
+    const archetype = getArchetypesForClass(classId).find((a) => a.id === archetypeId);
+    if (archetype?.note) {
+      lines.push('Arquétipo:');
+      lines.push(`> ${archetype.label} — ${archetype.note}`);
+      lines.push('');
+    }
+  }
+
+  if (isAgent && character.classPath.caminhoId) {
+    lines.push('Caminho:');
+    lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);
+    lines.push('');
+  }
+
+  if (character.customSkills.length > 0) {
+    lines.push('Habilidades:');
+    character.customSkills.forEach((sk) => {
+      const skillLabel = SKILLS[sk.skillId]?.label ?? sk.skillId;
+      lines.push(`> ${sk.name || '(sem nome)'} [${skillLabel}, custo: ${sk.cost}] — ${sk.narrative}`);
+    });
+  }
+
+  return lines;
+}
+
+/**
+ * Junta as linhas num texto único (.txt).
+ */
+export function generateCharacterSheetText(params) {
+  return buildCharacterSheetLines(params).join('\n');
 }
 
 /**

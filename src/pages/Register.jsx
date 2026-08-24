@@ -1,8 +1,8 @@
 // src/pages/Register.jsx
-// Registro real via Supabase Auth. Nome/foto ficam em user_metadata por
-// enquanto (foto ainda é só o placeholder visual do UC-01 original).
+// Registro real via Supabase Auth. Erro (ex: e-mail já cadastrado) aparece
+// na hora, sem abrir a burocracia falsa à toa.
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import BureaucraticLoader from '../components/BureaucraticLoader';
@@ -12,33 +12,38 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const authPromiseRef = useRef(null);
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (name.trim() === '') {
       setError('Identificação do Agente é obrigatória.');
       return;
     }
     setError(null);
-    authPromiseRef.current = supabase.auth.signUp({
+    setIsValidating(true);
+
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
     });
+
+    setIsValidating(false);
+
+    if (authError) {
+      setError(authError.message);
+      return;
+    }
+
     setIsProcessing(true);
   }
 
-  async function handleLoaderComplete() {
-    const result = await authPromiseRef.current;
+  function handleLoaderComplete() {
     setIsProcessing(false);
-    if (result?.error) {
-      setError(result.error.message);
-    } else {
-      navigate('/dashboard');
-    }
+    navigate('/dashboard');
   }
 
   function handleCancel() {
@@ -90,8 +95,8 @@ export default function Register() {
 
           {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 
-          <button type="submit" className="w-full mb-2">
-            Confirmar credenciais
+          <button type="submit" disabled={isValidating} className="w-full mb-2 disabled:opacity-50">
+            {isValidating ? 'Verificando...' : 'Confirmar credenciais'}
           </button>
           <button type="button" onClick={handleCancel} className="w-full btn-secondary">
             Cancelar

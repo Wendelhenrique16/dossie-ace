@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
-import { SKILLS, ATTRIBUTES, groupSkillsByCategory } from '../data/skills';
+import { SKILLS, ATTRIBUTES, groupSkillsByCategory, SKILL_LEVEL_TO_DICE } from '../data/skills';
 import { listSelectableOccupations, calculateOccupationBonuses } from '../logic/occupationBonuses';
 import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
@@ -12,6 +12,7 @@ import BureaucraticLoader from '../components/BureaucraticLoader';
 import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
 import { saveCharacterToSupabase } from '../logic/saveCharacter';
 import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
+import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
@@ -123,16 +124,23 @@ export default function CharacterCreate({ userId }) {
     return calculateClassBonuses(classId, archetypeId, weaponChoiceSkillId);
   }, [isAgent, character.classPath]);
 
-  const finalSkillTotals = useMemo(() => {
-    const totals = { ...skillTotalsFromBackgrounds };
+  // finalSkillTotals = SÓ o nível "puro" das perícias (o que decide o dado).
+  // Ocupação e Classe/Arquétipo dão bônus no RESULTADO da rolagem, não no
+  // nível — não podem entrar aqui, ou o dado mostrado fica errado.
+  const finalSkillTotals = skillTotalsFromBackgrounds;
+
+  // Bônus de resultado (somam depois de rolar, nunca mudam o dado) —
+  // Ocupação (+5/+3) e Classe/Arquétipo (+2/+3) funcionam da mesma forma.
+  const skillResultBonuses = useMemo(() => {
+    const bonuses = {};
     Object.entries(occupationBonuses.skillBonuses).forEach(([skillId, bonus]) => {
-      totals[skillId] = (totals[skillId] || 0) + bonus;
+      bonuses[skillId] = (bonuses[skillId] || 0) + bonus;
     });
     Object.entries(classBonuses.skillBonuses).forEach(([skillId, bonus]) => {
-      totals[skillId] = (totals[skillId] || 0) + bonus;
+      bonuses[skillId] = (bonuses[skillId] || 0) + bonus;
     });
-    return totals;
-  }, [skillTotalsFromBackgrounds, occupationBonuses, classBonuses]);
+    return bonuses;
+  }, [occupationBonuses, classBonuses]);
 
   const finalAttributeTotals = useMemo(() => {
     const totals = { ...attributeTotalsFromBackgrounds };
@@ -214,24 +222,27 @@ export default function CharacterCreate({ userId }) {
     const action = pendingAction;
     setPendingAction(null);
 
+    const exportParams = {
+      character,
+      lifeStage,
+      finalAttributeTotals,
+      finalSkillTotals,
+      skillResultBonuses,
+      vigor,
+      remainingLuck,
+      classBonuses,
+      isAgent,
+    };
+
     if (action === 'pdf') {
-      // TODO: substituir por geração real de PDF (jsPDF/react-pdf) quando o
-      // layout final da ficha estiver pronto. Placeholder valida o fluxo.
-      window.print();
+      // Básico e sem estilização por enquanto — mesma estrutura da ficha,
+      // só que já em PDF de verdade (melhor pra quem usa pelo celular).
+      downloadCharacterSheetPdf(exportParams, `${character.name || 'ficha-ace'}.pdf`);
       return;
     }
 
     if (action === 'txt') {
-      const text = generateCharacterSheetText({
-        character,
-        lifeStage,
-        finalAttributeTotals,
-        finalSkillTotals,
-        vigor,
-        remainingLuck,
-        classBonuses,
-        isAgent,
-      });
+      const text = generateCharacterSheetText(exportParams);
       downloadCharacterSheetText(text, `${character.name || 'ficha-ace'}.txt`);
       return;
     }
@@ -733,18 +744,24 @@ export default function CharacterCreate({ userId }) {
                 ))}
               </div>
               <div>
-                <div className="font-medium mb-1">Perícias (com bônus de ocupação já somados)</div>
+                <div className="font-medium mb-1">Perícias</div>
                 {Object.keys(finalSkillTotals).length === 0 ? (
                   <p className="text-gray-400">Nenhuma perícia distribuída ainda.</p>
                 ) : (
                   groupSkillsByCategory(Object.keys(finalSkillTotals)).map((group) => (
                     <div key={group.categoryId} className="mb-2">
                       <div className="text-xs font-semibold text-gray-400 uppercase">{group.label}</div>
-                      {group.skills.map((skillId) => (
-                        <div key={skillId}>
-                          {SKILLS[skillId]?.label ?? skillId}: {finalSkillTotals[skillId]}
-                        </div>
-                      ))}
+                      {group.skills.map((skillId) => {
+                        const level = finalSkillTotals[skillId] || 0;
+                        const dice = level > 0 ? SKILL_LEVEL_TO_DICE[Math.min(level, 9)] : 'd00';
+                        const bonus = skillResultBonuses[skillId];
+                        return (
+                          <div key={skillId}>
+                            {SKILLS[skillId]?.label ?? skillId}: {dice}
+                            {bonus ? ` (+${bonus})` : ''}
+                          </div>
+                        );
+                      })}
                     </div>
                   ))
                 )}

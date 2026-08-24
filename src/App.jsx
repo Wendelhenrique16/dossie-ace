@@ -73,7 +73,7 @@ function App() {
               path="/characters"
               element={
                 <RequireAuth isLoggedIn={isLoggedIn}>
-                  <CharacterList />
+                  <CharacterList userId={session?.user?.id} />
                 </RequireAuth>
               }
             />
