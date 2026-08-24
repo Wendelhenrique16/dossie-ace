@@ -65,7 +65,7 @@ export default function AceOSBoot({ onComplete }) {
     <div className="ace-boot-overlay">
       {phase === 'spinner' && (
         <div className="ace-boot-spinner-phase">
-          <div className="ace-boot-logo">🜘</div>
+          <div className="ace-boot-logo">⌬</div>
           <div className="ace-boot-dots">
             <span></span>
             <span></span>

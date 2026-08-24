@@ -25,7 +25,7 @@ export default function AppHeader({ userName, onLogout }) {
       </div>
       <div className="ace-logo-container">
         <div className="ace-title">ACE</div>
-        <div className="ace-logo-icon">🜘</div>
+        <div className="ace-logo-icon">⌬</div>
       </div>
     </header>
   );
