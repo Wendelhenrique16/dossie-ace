@@ -1,5 +1,5 @@
 // src/pages/CharacterCreate.jsx
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LIFE_STAGES } from '../data/lifeStages';
 import { BACKGROUND_PACKAGES } from '../data/backgrounds';
@@ -11,6 +11,7 @@ import { calculateClassBonuses } from '../logic/classBonuses';
 import BureaucraticLoader from '../components/BureaucraticLoader';
 import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
 import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
+import { calculatePendingConsequences, CONSEQUENCE_TYPE_LABELS } from '../logic/backgroundConsequences';
 import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
 import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
@@ -61,12 +62,29 @@ export default function CharacterCreate({ userId }) {
     classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
   });
 
-  // Modo edição: se a URL tem /characters/:id, carrega a ficha salva e
-  // substitui o estado em branco por ela.
-  useEffect(() => {
-    if (!routeCharacterId) return;
-    let cancelled = false;
+  const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
+  // Modo edição/recuperação: primeiro checa se existe um rascunho local
+  // (RNF-03 — não perder progresso em caso de refresh/oscilação). Se tiver,
+  // usa ele e nem busca no Supabase. Só busca do banco se não tiver rascunho.
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      try {
+        setCharacter(JSON.parse(savedDraft));
+        setIsLoadingExisting(false);
+        return;
+      } catch {
+        // rascunho corrompido — ignora e segue pro fluxo normal
+      }
+    }
+
+    if (!routeCharacterId) {
+      setIsLoadingExisting(false);
+      return;
+    }
+
+    let cancelled = false;
     loadCharacter(routeCharacterId).then(({ data, error }) => {
       if (cancelled) return;
       if (error || !data) {
@@ -80,7 +98,23 @@ export default function CharacterCreate({ userId }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeCharacterId]);
+
+  // Autosave a cada 10s (RF-06). Usa um ref pra sempre salvar o estado mais
+  // recente sem precisar recriar o interval a cada tecla digitada.
+  const characterRef = useRef(character);
+  useEffect(() => {
+    characterRef.current = character;
+  }, [character]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      localStorage.setItem(draftKey, JSON.stringify(characterRef.current));
+    }, 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
 
   const isAgent = character.role === 'agente';
   const STEPS = useMemo(() => buildSteps(isAgent), [isAgent]);
@@ -179,6 +213,11 @@ export default function CharacterCreate({ userId }) {
   }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses]);
 
   const isBroken = checkBrokenSanityState(purchasedCount);
+
+  const pendingConsequences = useMemo(() => {
+    if (!character.lifeStageId) return [];
+    return calculatePendingConsequences(character.lifeStageId, purchasedCount);
+  }, [character.lifeStageId, purchasedCount]);
 
   // Vigor oficial: dado máximo de Resistência + dado máximo de Constituição
   const vigor = useMemo(() => {
@@ -282,6 +321,7 @@ export default function CharacterCreate({ userId }) {
         setSaveError(error.message);
       } else {
         setSaveSuccess(true);
+        localStorage.removeItem(draftKey);
         // Primeira vez salvando (era INSERT): guarda o id pra próximos
         // saves virarem UPDATE em vez de criar fichas duplicadas, e troca
         // a URL pra /characters/:id sem recarregar a página.
@@ -458,12 +498,44 @@ export default function CharacterCreate({ userId }) {
                     </div>
                   )}
                 </div>
+
+                {pendingConsequences.length > 0 && (
+                  <div className="text-sm border-t pt-3 mt-3">
+                    <div className="font-medium mb-2">Consequências</div>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Catálogo de Vícios/Manias/Traumas ainda não implementado — só o placeholder por
+                      enquanto.
+                    </p>
+                    <div className="space-y-2">
+                      {pendingConsequences.map((slot, i) => (
+                        <div key={i} className="border rounded p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {CONSEQUENCE_TYPE_LABELS[slot.type] ?? slot.type}
+                            </span>
+                            <span className="text-xs text-gray-400">×{slot.count}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{slot.description}</p>
+                          <button
+                            disabled
+                            className="mt-2 text-xs px-2 py-1 rounded border opacity-40 cursor-not-allowed"
+                          >
+                            Selecionar (catálogo em breve)
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
             {activeModalPackage && (
               <BackgroundModal
                 packageId={activeModalPackage}
+                purchaseNumber={
+                  character.purchasedBackgrounds.filter((p) => p.packageId === activeModalPackage).length + 1
+                }
                 onConfirm={handleConfirmBackground}
                 onClose={() => setActiveModalPackage(null)}
               />

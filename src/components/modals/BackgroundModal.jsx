@@ -16,13 +16,18 @@ import {
   ATTRIBUTE_BONUS_PER_PACKAGE,
 } from '../../logic/backgroundDistribution';
 
-export default function BackgroundModal({ packageId, onConfirm, onClose }) {
+export default function BackgroundModal({ packageId, purchaseNumber = 1, onConfirm, onClose }) {
   const pkg = BACKGROUND_PACKAGES[packageId];
   const validSkills = getValidSkillsForPackage(packageId);
   const skillGroups = groupSkillsByCategory(validSkills);
   const [state, setState] = useState(() => createDistributionState(packageId));
 
   if (!pkg) return null;
+
+  // Escala Narrativa: mostra o tier correspondente a essa compra (capado no
+  // último tier definido, já que o livro só tem até a 4ª compra escrita).
+  const narrativeTier =
+    pkg.narrativeScale?.[Math.min(purchaseNumber, pkg.narrativeScale.length) - 1] ?? null;
 
   const handleIncrement = (skillId) => setState((s) => incrementSkill(s, skillId));
   const handleDecrement = (skillId) => setState((s) => decrementSkill(s, skillId));
@@ -47,6 +52,16 @@ export default function BackgroundModal({ packageId, onConfirm, onClose }) {
             ×
           </button>
         </div>
+
+        {/* Escala Narrativa — o "sabor" dessa compra específica */}
+        {narrativeTier && (
+          <div className="px-4 py-3 border-b bg-gray-50 text-sm">
+            <span className="font-medium">
+              {purchaseNumber}ª compra ({narrativeTier.title}):
+            </span>{' '}
+            <span className="text-gray-600">{narrativeTier.text}</span>
+          </div>
+        )}
 
         {/* Saldo de pontos */}
         <div className="px-4 py-3 flex items-center justify-between border-b">
