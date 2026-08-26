@@ -12,6 +12,7 @@ import BureaucraticLoader from '../components/BureaucraticLoader';
 import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
 import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
 import { calculatePendingConsequences, CONSEQUENCE_TYPE_LABELS } from '../logic/backgroundConsequences';
+import { rollRandomNegativeAspects, getManualNegativeAspectPool } from '../logic/aspectsSelection';
 import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
 import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
@@ -56,7 +57,7 @@ export default function CharacterCreate({ userId }) {
     lifeStageId: null,
     purchasedBackgrounds: [], // [{ packageId, allocations, attributeId }]
     maxSanity: 100,
-    aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [] },
+    aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
     customSkills: [], // [{ name, skillId, cost, effectType, narrative }]
     occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
     classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
@@ -219,6 +220,46 @@ export default function CharacterCreate({ userId }) {
     return calculatePendingConsequences(character.lifeStageId, purchasedCount);
   }, [character.lifeStageId, purchasedCount]);
 
+  // Quantos Aspectos Negativos Graves o personagem precisa ter (por excesso
+  // de pacotes). Usa o catálogo normal de Aspectos Negativos — não existe
+  // uma lista separada de "graves", como confirmado.
+  const graveAspectsNeeded = pendingConsequences
+    .filter((slot) => slot.type === 'aspecto_negativo_grave')
+    .reduce((sum, slot) => sum + slot.count, 0);
+
+  const [swappingGraveIndex, setSwappingGraveIndex] = useState(null);
+
+  function allSelectedAspectIds(excludeExcess = false) {
+    return [
+      ...character.aspects.mandatoryIds,
+      ...character.aspects.chosenPositiveIds,
+      ...character.aspects.chosenNegativeIds,
+      ...(excludeExcess ? [] : character.aspects.excessNegativeIds),
+    ];
+  }
+
+  function handleRollGraveAspects() {
+    const missing = graveAspectsNeeded - character.aspects.excessNegativeIds.length;
+    if (missing <= 0) return;
+    const rolled = rollRandomNegativeAspects(missing, allSelectedAspectIds());
+    setCharacter((c) => ({
+      ...c,
+      aspects: {
+        ...c.aspects,
+        excessNegativeIds: [...c.aspects.excessNegativeIds, ...rolled.map((a) => a.id)],
+      },
+    }));
+  }
+
+  function handleSwapGraveAspect(index, newId) {
+    setCharacter((c) => {
+      const ids = [...c.aspects.excessNegativeIds];
+      ids[index] = newId;
+      return { ...c, aspects: { ...c.aspects, excessNegativeIds: ids } };
+    });
+    setSwappingGraveIndex(null);
+  }
+
   // Vigor oficial: dado máximo de Resistência + dado máximo de Constituição
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
@@ -230,7 +271,7 @@ export default function CharacterCreate({ userId }) {
       lifeStageId: id,
       maxSanity: 100,
       purchasedBackgrounds: [],
-      aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [] },
+      aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
     }));
     setSanityWarning(null);
   }
@@ -502,29 +543,98 @@ export default function CharacterCreate({ userId }) {
                 {pendingConsequences.length > 0 && (
                   <div className="text-sm border-t pt-3 mt-3">
                     <div className="font-medium mb-2">Consequências</div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      Catálogo de Vícios/Manias/Traumas ainda não implementado — só o placeholder por
-                      enquanto.
-                    </p>
-                    <div className="space-y-2">
-                      {pendingConsequences.map((slot, i) => (
-                        <div key={i} className="border rounded p-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">
-                              {CONSEQUENCE_TYPE_LABELS[slot.type] ?? slot.type}
-                            </span>
-                            <span className="text-xs text-gray-400">×{slot.count}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{slot.description}</p>
-                          <button
-                            disabled
-                            className="mt-2 text-xs px-2 py-1 rounded border opacity-40 cursor-not-allowed"
-                          >
-                            Selecionar (catálogo em breve)
-                          </button>
+
+                    {graveAspectsNeeded > 0 && (
+                      <div className="border rounded p-2 mb-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">Aspecto Negativo Grave</span>
+                          <span className="text-xs text-gray-400">
+                            {character.aspects.excessNegativeIds.length}/{graveAspectsNeeded}
+                          </span>
                         </div>
-                      ))}
-                    </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Sorteado do catálogo normal de Aspectos Negativos (não existe lista própria de
+                          "graves").
+                        </p>
+
+                        {character.aspects.excessNegativeIds.length < graveAspectsNeeded && (
+                          <button
+                            onClick={handleRollGraveAspects}
+                            className="mt-2 text-xs px-2 py-1 rounded border"
+                          >
+                            Sortear {graveAspectsNeeded - character.aspects.excessNegativeIds.length}{' '}
+                            pendente(s)
+                          </button>
+                        )}
+
+                        {character.aspects.excessNegativeIds.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {character.aspects.excessNegativeIds.map((id, i) => {
+                              const aspect = NEGATIVE_ASPECTS.find((a) => a.id === id);
+                              return (
+                                <div key={i} className="flex items-center justify-between text-xs">
+                                  {swappingGraveIndex === i ? (
+                                    <select
+                                      autoFocus
+                                      className="w-full border rounded px-2 py-1"
+                                      defaultValue=""
+                                      onChange={(e) => e.target.value && handleSwapGraveAspect(i, e.target.value)}
+                                    >
+                                      <option value="">Escolher manualmente...</option>
+                                      {getManualNegativeAspectPool(allSelectedAspectIds()).map((opt) => (
+                                        <option key={opt.id} value={opt.id}>
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <>
+                                      <span>{aspect?.label ?? id}</span>
+                                      <button
+                                        onClick={() => setSwappingGraveIndex(i)}
+                                        className="text-gray-500 underline"
+                                      >
+                                        trocar
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {pendingConsequences.filter((s) => s.type !== 'aspecto_negativo_grave').length > 0 && (
+                      <>
+                        <p className="text-xs text-gray-400 mb-2">
+                          Catálogo de Vícios/Manias/Traumas ainda não implementado — só o placeholder por
+                          enquanto.
+                        </p>
+                        <div className="space-y-2">
+                          {pendingConsequences
+                            .filter((slot) => slot.type !== 'aspecto_negativo_grave')
+                            .map((slot, i) => (
+                              <div key={i} className="border rounded p-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium">
+                                    {CONSEQUENCE_TYPE_LABELS[slot.type] ?? slot.type}
+                                  </span>
+                                  <span className="text-xs text-gray-400">×{slot.count}</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">{slot.description}</p>
+                                <button
+                                  disabled
+                                  className="mt-2 text-xs px-2 py-1 rounded border opacity-40 cursor-not-allowed"
+                                >
+                                  Selecionar (catálogo em breve)
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </>
@@ -891,6 +1001,7 @@ export default function CharacterCreate({ userId }) {
                   ...character.aspects.mandatoryIds,
                   ...character.aspects.chosenPositiveIds,
                   ...character.aspects.chosenNegativeIds,
+                  ...character.aspects.excessNegativeIds,
                 ].length === 0 ? (
                   <p className="text-gray-400">Nenhum aspecto selecionado ainda.</p>
                 ) : (
@@ -906,6 +1017,10 @@ export default function CharacterCreate({ userId }) {
                     {character.aspects.chosenNegativeIds.map((id) => {
                       const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
                       return <div key={id}>{a?.label ?? id} (negativo)</div>;
+                    })}
+                    {character.aspects.excessNegativeIds.map((id) => {
+                      const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
+                      return <div key={id}>{a?.label ?? id} (grave)</div>;
                     })}
                   </>
                 )}

@@ -11,7 +11,10 @@ export default function AspectsStep({ character, setCharacter, lifeStageId, rema
     .filter(Boolean);
 
   function handleRollMandatory() {
-    const rolled = rollMandatoryAgeAspects(lifeStageId);
+    const rolled = rollMandatoryAgeAspects(lifeStageId, [
+      ...character.aspects.mandatoryIds,
+      ...character.aspects.excessNegativeIds,
+    ]);
     setCharacter((c) => ({
       ...c,
       aspects: { ...c.aspects, mandatoryIds: rolled.map((a) => a.id) },
@@ -70,7 +73,10 @@ export default function AspectsStep({ character, setCharacter, lifeStageId, rema
                         onChange={(e) => e.target.value && handleSwapMandatory(i, e.target.value)}
                       >
                         <option value="">Escolher manualmente...</option>
-                        {getManualAgeAspectPool(character.aspects.mandatoryIds).map((opt) => (
+                        {getManualAgeAspectPool([
+                          ...character.aspects.mandatoryIds,
+                          ...character.aspects.excessNegativeIds,
+                        ]).map((opt) => (
                           <option key={opt.id} value={opt.id}>
                             {opt.label}
                           </option>

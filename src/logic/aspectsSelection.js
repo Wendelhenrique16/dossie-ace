@@ -35,6 +35,25 @@ export function findAspectById(id) {
   );
 }
 
+/**
+ * Sorteia N aspectos negativos de qualquer tipo (não restrito a [IDADE]) —
+ * usado pra "Aspecto Negativo Grave" por excesso de pacotes, que não tem
+ * lista própria: é só sorteio do catálogo normal de Aspectos Negativos.
+ */
+export function rollRandomNegativeAspects(count, excludeIds = []) {
+  if (count <= 0) return [];
+  const pool = NEGATIVE_ASPECTS.filter((a) => !excludeIds.includes(a.id));
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+/**
+ * Pool completo pra escolha manual (troca de 1 item), sem filtro de [IDADE].
+ */
+export function getManualNegativeAspectPool(excludeIds = []) {
+  return NEGATIVE_ASPECTS.filter((a) => !excludeIds.includes(a.id));
+}
+
 export function listAllPositive() {
   return POSITIVE_ASPECTS;
 }

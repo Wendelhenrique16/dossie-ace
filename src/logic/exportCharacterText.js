@@ -79,7 +79,11 @@ export function buildCharacterSheetLines({
 
   lines.push('Aspectos:');
   lines.push('    "Negativos');
-  [...character.aspects.mandatoryIds, ...character.aspects.chosenNegativeIds].forEach((id) => {
+  [
+    ...character.aspects.mandatoryIds,
+    ...character.aspects.chosenNegativeIds,
+    ...character.aspects.excessNegativeIds,
+  ].forEach((id) => {
     lines.push(`> ${aspectLabel(id, NEGATIVE_ASPECTS)}`);
   });
   lines.push('      "Positivos');
@@ -88,9 +92,11 @@ export function buildCharacterSheetLines({
   });
   lines.push('');
 
-  const vicioIds = [...character.aspects.mandatoryIds, ...character.aspects.chosenNegativeIds].filter(
-    (id) => id === 'vicio'
-  );
+  const vicioIds = [
+    ...character.aspects.mandatoryIds,
+    ...character.aspects.chosenNegativeIds,
+    ...character.aspects.excessNegativeIds,
+  ].filter((id) => id === 'vicio');
   lines.push(`Vícios: ${vicioIds.length > 0 ? 'Vício' : ''}`);
   lines.push('Traumas: ');
   lines.push('Manias: ');
@@ -158,6 +164,7 @@ export function buildCharacterSheetLines({
     ...character.aspects.mandatoryIds,
     ...character.aspects.chosenPositiveIds,
     ...character.aspects.chosenNegativeIds,
+    ...character.aspects.excessNegativeIds,
   ];
   if (allAspectIds.length > 0) {
     lines.push('Aspectos:');
@@ -170,6 +177,10 @@ export function buildCharacterSheetLines({
       if (a) lines.push(`> ${a.label} — ${a.effect}`);
     });
     character.aspects.chosenNegativeIds.forEach((id) => {
+      const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
+      if (a) lines.push(`> ${a.label} — ${a.effect}`);
+    });
+    character.aspects.excessNegativeIds.forEach((id) => {
       const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
       if (a) lines.push(`> ${a.label} — ${a.effect}`);
     });

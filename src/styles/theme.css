@@ -12,6 +12,15 @@
  * ThemeToggle.jsx e App.jsx). Sem libs externas.
  */
 
+/* VCR OSD Mono — coloque o arquivo em src/assets/fonts/VCR_OSD_MONO.ttf */
+@font-face {
+  font-family: 'VCR OSD Mono';
+  src: url('../assets/fonts/VCR_OSD_MONO_1.001.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ---------- MODO ESCURO — paleta exata do mockup ---------- */
 .theme-root[data-theme='dark'] {
   --bg-color: #0a0a0a;
@@ -19,7 +28,7 @@
   --accent-color: #008f11;
   --warning-color: #ffcc00;
   --panel-bg: #111111;
-  --font-family: 'Courier New', Courier, monospace;
+  --font-family: 'VCR OSD Mono', 'Courier New', Courier, monospace;
   --border-radius: 0px;
 }
 
