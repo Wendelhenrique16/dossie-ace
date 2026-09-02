@@ -5,6 +5,7 @@ import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { OCCUPATION_CATEGORIES } from '../data/occupations';
+import { TRAUMAS } from '../data/traumas';
 
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
@@ -19,12 +20,6 @@ function aspectLabel(id, catalog) {
  * Monta a ficha como um array de linhas (cada item = 1 linha do documento).
  * Usado tanto pelo export .txt quanto pelo export .pdf, pra não duplicar a
  * lógica de montagem em dois lugares.
- *
- * Bônus de perícia (Ocupação + Classe/Arquétipo) aparecem DIRETO ao lado do
- * dado, tipo "Combate: d8 (+5)" — são números fixos, não precisam de seção
- * separada. O que vai pra seção "VANTAGENS" no final é só o que NÃO é um
- * número somável numa perícia específica: efeito de Aspecto, Vantagem de
- * Caminho, nota de Arquétipo e as Habilidades customizadas do jogador.
  */
 export function buildCharacterSheetLines({
   character,
@@ -98,7 +93,12 @@ export function buildCharacterSheetLines({
     ...character.aspects.excessNegativeIds,
   ].filter((id) => id === 'vicio');
   lines.push(`Vícios: ${vicioIds.length > 0 ? 'Vício' : ''}`);
-  lines.push('Traumas: ');
+
+  // Traumas unificados (Fobias + Manias)
+  const traumaLabels = (character.traumaIds || [])
+    .map((id) => TRAUMAS.find((t) => t.id === id)?.label ?? id)
+    .join(', ');
+  lines.push(`Traumas: ${traumaLabels}`);
   lines.push('Manias: ');
   lines.push('');
 
@@ -121,9 +121,6 @@ export function buildCharacterSheetLines({
   groupSkillsByCategory(allSkillIds).forEach((group) => {
     lines.push(`- ${group.label}:`, '');
     group.skills.forEach((skillId) => {
-      // Nível (decide o dado) vem só de Antecedentes. Bônus de Ocupação e
-      // Classe/Arquétipo aparecem do lado, entre parênteses — são números
-      // que somam DEPOIS de rolar, nunca mudam qual dado é usado.
       const level = finalSkillTotals[skillId] ?? 0;
       const bonus = skillResultBonuses?.[skillId];
       const bonusText = bonus ? ` (+${bonus})` : '';
@@ -153,11 +150,6 @@ export function buildCharacterSheetLines({
   lines.push('> Normal (sem penalidades)');
   lines.push('');
 
-  // ========================================================================
-  // VANTAGENS — só o que NÃO é um número fixo somável numa perícia
-  // específica: efeito de Aspecto, nota de Arquétipo, Vantagem de Caminho e
-  // as Habilidades customizadas do jogador.
-  // ========================================================================
   lines.push('"Vantagens e Efeitos Especiais', '');
 
   const allAspectIds = [
@@ -183,6 +175,16 @@ export function buildCharacterSheetLines({
     character.aspects.excessNegativeIds.forEach((id) => {
       const a = NEGATIVE_ASPECTS.find((x) => x.id === id);
       if (a) lines.push(`> ${a.label} — ${a.effect}`);
+    });
+    lines.push('');
+  }
+
+  // Descrições e detalhes dos Traumas
+  if (character.traumaIds && character.traumaIds.length > 0) {
+    lines.push('Traumas:');
+    character.traumaIds.forEach((id) => {
+      const t = TRAUMAS.find((x) => x.id === id);
+      if (t) lines.push(`> ${t.label} — ${t.description}`);
     });
     lines.push('');
   }
@@ -213,16 +215,10 @@ export function buildCharacterSheetLines({
   return lines;
 }
 
-/**
- * Junta as linhas num texto único (.txt).
- */
 export function generateCharacterSheetText(params) {
   return buildCharacterSheetLines(params).join('\n');
 }
 
-/**
- * Dispara o download do .txt no navegador.
- */
 export function downloadCharacterSheetText(text, filename = 'ficha-ace.txt') {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);

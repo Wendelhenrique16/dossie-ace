@@ -13,6 +13,8 @@ import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } fr
 import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
 import { calculatePendingConsequences, CONSEQUENCE_TYPE_LABELS } from '../logic/backgroundConsequences';
 import { rollRandomNegativeAspects, getManualNegativeAspectPool } from '../logic/aspectsSelection';
+import { rollRandomTraumas, getManualTraumaPool } from '../logic/traumaSelection';
+import { TRAUMAS } from '../data/traumas';
 import { generateCharacterSheetText, downloadCharacterSheetText } from '../logic/exportCharacterText';
 import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
@@ -58,6 +60,7 @@ export default function CharacterCreate({ userId }) {
     purchasedBackgrounds: [], // [{ packageId, allocations, attributeId }]
     maxSanity: 100,
     aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
+    traumaIds: [], // Fobias/Manias (catálogo unificado de Traumas)
     customSkills: [], // [{ name, skillId, cost, effectType, narrative }]
     occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
     classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
@@ -260,6 +263,32 @@ export default function CharacterCreate({ userId }) {
     setSwappingGraveIndex(null);
   }
 
+  // Trauma (Fobia/Mania) obrigatório — Jovem, 1º pacote extra
+  const traumaNeeded = pendingConsequences
+    .filter((slot) => slot.type === 'vicio_ou_mania')
+    .reduce((sum, slot) => sum + slot.count, 0);
+
+  const [swappingTraumaIndex, setSwappingTraumaIndex] = useState(null);
+
+  function handleRollTrauma() {
+    const missing = traumaNeeded - character.traumaIds.length;
+    if (missing <= 0) return;
+    const rolled = rollRandomTraumas(missing, character.traumaIds);
+    setCharacter((c) => ({
+      ...c,
+      traumaIds: [...c.traumaIds, ...rolled.map((t) => t.id)],
+    }));
+  }
+
+  function handleSwapTrauma(index, newId) {
+    setCharacter((c) => {
+      const ids = [...c.traumaIds];
+      ids[index] = newId;
+      return { ...c, traumaIds: ids };
+    });
+    setSwappingTraumaIndex(null);
+  }
+
   // Vigor oficial: dado máximo de Resistência + dado máximo de Constituição
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
@@ -272,6 +301,7 @@ export default function CharacterCreate({ userId }) {
       maxSanity: 100,
       purchasedBackgrounds: [],
       aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
+      traumaIds: [],
     }));
     setSanityWarning(null);
   }
@@ -606,15 +636,76 @@ export default function CharacterCreate({ userId }) {
                       </div>
                     )}
 
-                    {pendingConsequences.filter((s) => s.type !== 'aspecto_negativo_grave').length > 0 && (
+                    {traumaNeeded > 0 && (
+                      <div className="border rounded p-2 mb-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">Trauma (Fobia ou Mania)</span>
+                          <span className="text-xs text-gray-400">
+                            {character.traumaIds.length}/{traumaNeeded}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Sorteado do catálogo de Traumas (une Fobias e Manias numa lista só).
+                        </p>
+
+                        {character.traumaIds.length < traumaNeeded && (
+                          <button onClick={handleRollTrauma} className="mt-2 text-xs px-2 py-1 rounded border">
+                            Sortear {traumaNeeded - character.traumaIds.length} pendente(s)
+                          </button>
+                        )}
+
+                        {character.traumaIds.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {character.traumaIds.map((id, i) => {
+                              const trauma = TRAUMAS.find((t) => t.id === id);
+                              return (
+                                <div key={i} className="flex items-center justify-between text-xs">
+                                  {swappingTraumaIndex === i ? (
+                                    <select
+                                      autoFocus
+                                      className="w-full border rounded px-2 py-1"
+                                      defaultValue=""
+                                      onChange={(e) => e.target.value && handleSwapTrauma(i, e.target.value)}
+                                    >
+                                      <option value="">Escolher manualmente...</option>
+                                      {getManualTraumaPool(character.traumaIds).map((opt) => (
+                                        <option key={opt.id} value={opt.id}>
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <>
+                                      <span>
+                                        {trauma?.label ?? id}
+                                        {trauma?.description ? ` — ${trauma.description}` : ''}
+                                      </span>
+                                      <button
+                                        onClick={() => setSwappingTraumaIndex(i)}
+                                        className="text-gray-500 underline whitespace-nowrap ml-2"
+                                      >
+                                        trocar
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {pendingConsequences.filter(
+                      (s) => s.type !== 'aspecto_negativo_grave' && s.type !== 'vicio_ou_mania'
+                    ).length > 0 && (
                       <>
                         <p className="text-xs text-gray-400 mb-2">
-                          Catálogo de Vícios/Manias/Traumas ainda não implementado — só o placeholder por
-                          enquanto.
+                          Catálogo ainda não implementado pra esse tipo — só o placeholder por enquanto.
                         </p>
                         <div className="space-y-2">
                           {pendingConsequences
-                            .filter((slot) => slot.type !== 'aspecto_negativo_grave')
+                            .filter((slot) => slot.type !== 'aspecto_negativo_grave' && slot.type !== 'vicio_ou_mania')
                             .map((slot, i) => (
                               <div key={i} className="border rounded p-2">
                                 <div className="flex items-center justify-between">
@@ -1023,6 +1114,17 @@ export default function CharacterCreate({ userId }) {
                       return <div key={id}>{a?.label ?? id} (grave)</div>;
                     })}
                   </>
+                )}
+              </div>
+              <div>
+                <div className="font-medium mb-1">Traumas (Fobia/Mania)</div>
+                {character.traumaIds.length === 0 ? (
+                  <p className="text-gray-400">Nenhum trauma selecionado ainda.</p>
+                ) : (
+                  character.traumaIds.map((id) => {
+                    const t = TRAUMAS.find((x) => x.id === id);
+                    return <div key={id}>{t?.label ?? id}</div>;
+                  })
                 )}
               </div>
               <div>
