@@ -52,19 +52,7 @@ export default function CharacterCreate({ userId }) {
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const [character, setCharacter] = useState({
-    name: '',
-    concept: '',
-    role: 'civil', // 'civil' | 'agente'
-    lifeStageId: null,
-    purchasedBackgrounds: [], // [{ packageId, allocations, attributeId }]
-    maxSanity: 100,
-    aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
-    traumaIds: [], // Fobias/Manias (catálogo unificado de Traumas)
-    customSkills: [], // [{ name, skillId, cost, effectType, narrative }]
-    occupation: { primaryId: null, secondaryId: null, freeAttribute: null },
-    classPath: { classId: null, archetypeId: null, weaponChoiceSkillId: null, caminhoId: null },
-  });
+  const [character, setCharacter] = useState(() => normalizeCharacter());
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 

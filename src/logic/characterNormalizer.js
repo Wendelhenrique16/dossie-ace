@@ -1,32 +1,41 @@
 // src/logic/characterNormalizer.js
 export function normalizeCharacter(data = {}) {
-  return {
-    ...data,
+  const safeData = data ?? {};
 
-    traumaIds: data.traumaIds ?? [],
-    customSkills: data.customSkills ?? [],
+  return {
+    ...safeData,
+
+    name: safeData.name ?? '',
+    concept: safeData.concept ?? '',
+    role: safeData.role ?? 'civil',
+    lifeStageId: safeData.lifeStageId ?? null,
+    purchasedBackgrounds: safeData.purchasedBackgrounds ?? [],
+    maxSanity: safeData.maxSanity ?? 100,
+
+    traumaIds: safeData.traumaIds ?? [],
+    customSkills: safeData.customSkills ?? [],
 
     aspects: {
-      ...data.aspects,
-      mandatoryIds: data.aspects?.mandatoryIds ?? [],
-      chosenPositiveIds: data.aspects?.chosenPositiveIds ?? [],
-      chosenNegativeIds: data.aspects?.chosenNegativeIds ?? [],
-      excessNegativeIds: data.aspects?.excessNegativeIds ?? [],
+      ...safeData.aspects,
+      mandatoryIds: safeData.aspects?.mandatoryIds ?? [],
+      chosenPositiveIds: safeData.aspects?.chosenPositiveIds ?? [],
+      chosenNegativeIds: safeData.aspects?.chosenNegativeIds ?? [],
+      excessNegativeIds: safeData.aspects?.excessNegativeIds ?? [],
     },
 
     occupation: {
-      ...data.occupation,
-      primaryId: data.occupation?.primaryId ?? null,
-      secondaryId: data.occupation?.secondaryId ?? null,
-      freeAttribute: data.occupation?.freeAttribute ?? null,
+      ...safeData.occupation,
+      primaryId: safeData.occupation?.primaryId ?? null,
+      secondaryId: safeData.occupation?.secondaryId ?? null,
+      freeAttribute: safeData.occupation?.freeAttribute ?? null,
     },
 
     classPath: {
-      ...data.classPath,
-      classId: data.classPath?.classId ?? null,
-      archetypeId: data.classPath?.archetypeId ?? null,
-      weaponChoiceSkillId: data.classPath?.weaponChoiceSkillId ?? null,
-      caminhoId: data.classPath?.caminhoId ?? null,
+      ...safeData.classPath,
+      classId: safeData.classPath?.classId ?? null,
+      archetypeId: safeData.classPath?.archetypeId ?? null,
+      weaponChoiceSkillId: safeData.classPath?.weaponChoiceSkillId ?? null,
+      caminhoId: safeData.classPath?.caminhoId ?? null,
     },
   };
 }
