@@ -187,19 +187,35 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: 0;
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  .theme-root {
+    padding: 20px;
+  }
 }
 
 .terminal-frame {
   width: 100%;
   max-width: 1000px;
-  height: 80vh;
-  border: 2px solid var(--accent-color);
+  min-height: 100vh;
+  height: 100vh;
+  border: none;
   background-color: var(--panel-bg);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .terminal-frame {
+    height: 80vh;
+    min-height: auto;
+    border: 2px solid var(--accent-color);
+  }
 }
 
 .terminal-frame-content {
