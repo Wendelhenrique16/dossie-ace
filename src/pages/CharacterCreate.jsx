@@ -20,7 +20,7 @@ import { downloadCharacterSheetPdf } from '../logic/exportCharacterPdf';
 import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
-
+import { normalizeCharacter } from '../logic/characterNormalizer';
 function buildSteps(isAgent) {
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
@@ -75,7 +75,7 @@ export default function CharacterCreate({ userId }) {
     const savedDraft = localStorage.getItem(draftKey);
     if (savedDraft) {
       try {
-        setCharacter(JSON.parse(savedDraft));
+        setCharacter(normalizeCharacter(JSON.parse(savedDraft)));
         setIsLoadingExisting(false);
         return;
       } catch {
@@ -94,7 +94,7 @@ export default function CharacterCreate({ userId }) {
       if (error || !data) {
         setLoadError(error?.message || 'Ficha não encontrada.');
       } else {
-        setCharacter(data.data);
+        setCharacter(normalizeCharacter(data.data));
       }
       setIsLoadingExisting(false);
     });
