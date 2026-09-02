@@ -407,33 +407,37 @@ export default function CharacterCreate({ userId }) {
     );
   }
 
-  return (
-    <div className="flex h-full">
-      {/* Navegação lateral */}
-      <aside className="w-60 border-r bg-white p-4 space-y-1">
-        <button onClick={() => navigate('/dashboard')} className="text-xs text-gray-400 hover:text-gray-600 mb-2">
+return (
+    <div className="flex flex-col md:flex-row h-full">
+      {/* Navegação lateral no Desktop / Barra deslizável no Mobile */}
+      <aside className="w-full md:w-60 border-b md:border-b-0 md:border-r bg-white p-3 md:p-4 shrink-0">
+        <button onClick={() => navigate('/dashboard')} className="text-xs text-gray-400 hover:text-gray-600 mb-2 block">
           ← Voltar ao Dashboard
         </button>
-        <h1 className="text-sm font-semibold text-gray-400 uppercase mb-3">Ficha ACE</h1>
-        {STEPS.map((step, i) => (
-          <button
-            key={step.id}
-            onClick={() => setCurrentStep(step.id)}
-            className={`w-full text-left px-3 py-2 rounded text-sm ${
-              step.id === currentStep
-                ? 'bg-gray-900 text-white'
-                : i < stepIndex
-                ? 'text-gray-700 hover:bg-gray-100'
-                : 'text-gray-400 hover:bg-gray-100'
-            }`}
-          >
-            {step.label}
-          </button>
-        ))}
+        <h1 className="text-sm font-semibold text-gray-400 uppercase mb-2 hidden md:block">Ficha ACE</h1>
+        
+        {/* Contêiner de passos: scroll horizontal no mobile, vertical no desktop */}
+        <div className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0 no-scrollbar">
+          {STEPS.map((step, i) => (
+            <button
+              key={step.id}
+              onClick={() => setCurrentStep(step.id)}
+              className={`whitespace-nowrap md:whitespace-normal text-left px-3 py-1.5 md:py-2 rounded text-xs md:text-sm shrink-0 md:w-full ${
+                step.id === currentStep
+                  ? 'bg-gray-900 text-white'
+                  : i < stepIndex
+                  ? 'text-gray-700 hover:bg-gray-100'
+                  : 'text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              {step.label}
+            </button>
+          ))}
+        </div>
       </aside>
 
-      {/* Conteúdo principal */}
-      <main className="flex-1 p-6 max-w-2xl">
+      {/* Conteúdo principal com scroll independente e padding reduzido no mobile */}
+      <main className="flex-1 p-4 md:p-6 max-w-2xl overflow-y-auto">
         {/* Step 1: Detalhes */}
         {currentStep === 'identity' && (
           <section>
@@ -1178,8 +1182,7 @@ export default function CharacterCreate({ userId }) {
         )}
 
         {/* Botões de Navegação */}
-        <div className="flex justify-between mt-8 pt-4 border-t max-w-2xl">
-          <button onClick={goBack} disabled={stepIndex === 0} className="text-sm px-4 py-2 rounded border disabled:opacity-30">
+<div className="flex justify-between items-center mt-8 pt-4 border-t max-w-2xl gap-3 pb-6 md:pb-0">          <button onClick={goBack} disabled={stepIndex === 0} className="text-sm px-4 py-2 rounded border disabled:opacity-30">
             Voltar
           </button>
           <button

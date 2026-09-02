@@ -39,12 +39,11 @@ export default function BackgroundModal({ packageId, purchaseNumber = 1, onConfi
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        {/* Cabeçalho */}
-        <div className="p-4 border-b sticky top-0 bg-white flex items-center justify-between">
-          <div>
+return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden">       {/* Cabeçalho */}
+<div className="p-3 sm:p-4 border-b bg-white flex items-center justify-between shrink-0">
+            <div>
             <h2 className="text-lg font-semibold">{pkg.label}</h2>
             <p className="text-sm text-gray-500">{pkg.description}</p>
           </div>
@@ -54,6 +53,8 @@ export default function BackgroundModal({ packageId, purchaseNumber = 1, onConfi
         </div>
 
         {/* Escala Narrativa — o "sabor" dessa compra específica */}
+       {/* Início da área com scroll interno */}
+<div className="overflow-y-auto flex-1 overscroll-contain">
         {narrativeTier && (
           <div className="px-4 py-3 border-b bg-gray-50 text-sm">
             <span className="font-medium">
@@ -135,20 +136,21 @@ export default function BackgroundModal({ packageId, purchaseNumber = 1, onConfi
             </div>
           ))}
         </div>
-
-        {/* Ações do modal */}
-        <div className="p-4 border-t flex items-center justify-between sticky bottom-0 bg-white">
-          <button onClick={handleRandomize} className="text-sm px-3 py-2 rounded border">
+</div>
+{/* Fim da área com scroll interno */}
+{/* Ações do modal */}
+        <div className="p-3 sm:p-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white gap-2 shrink-0">
+          <button onClick={handleRandomize} className="text-xs sm:text-sm px-3 py-2 rounded border order-2 sm:order-1">
             Aleatorizar
           </button>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="text-sm px-3 py-2 rounded border">
+          <div className="flex gap-2 order-1 sm:order-2">
+            <button onClick={onClose} className="flex-1 sm:flex-initial text-xs sm:text-sm px-3 py-2 rounded border">
               Cancelar
             </button>
             <button
               onClick={handleConfirm}
               disabled={!canConfirm(state)}
-              className="text-sm px-4 py-2 rounded bg-gray-900 text-white disabled:opacity-30"
+              className="flex-1 sm:flex-initial text-xs sm:text-sm px-4 py-2 rounded bg-gray-900 text-white disabled:opacity-30"
             >
               Confirmar
             </button>
