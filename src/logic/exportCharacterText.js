@@ -6,7 +6,7 @@ import { CAMINHOS } from '../data/caminhos';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { OCCUPATION_CATEGORIES } from '../data/occupations';
 import { TRAUMAS } from '../data/traumas';
-
+import { getEffectiveMassCategory } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -102,11 +102,11 @@ export function buildCharacterSheetLines({
   lines.push('Manias: ');
   lines.push('');
 
-  lines.push('"Corpo', '');
-  lines.push('Altura: ');
-  lines.push('Peso: ');
-  lines.push('Aparência: ');
-  lines.push('');
+lines.push('"Corpo', '');
+lines.push('Altura: ');
+lines.push(`Peso: ${character.weightKg ?? ''}`);
+lines.push('Aparência: ');
+lines.push('');
 
   lines.push('〃Atributos', '');
   lines.push(`Existência: ${finalAttributeTotals.existencia ?? 0}`);
@@ -203,6 +203,14 @@ export function buildCharacterSheetLines({
     lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);
     lines.push('');
   }
+  if (character.weightKg) {
+  const massInfo = getEffectiveMassCategory(character.weightKg, finalSkillTotals.forca || 0);
+  lines.push('Categoria de Massa:');
+  lines.push(`> ${massInfo.effective.label} — Dano: ${massInfo.effective.damageEffect}`);
+  lines.push(`> Vantagem: ${massInfo.effective.advantage}`);
+  lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
+  lines.push('');
+}
 
   if (character.customSkills.length > 0) {
     lines.push('Habilidades:');

@@ -149,3 +149,36 @@ export function resolveSuccessLevel(rollTotal, dtBase = 21) {
   if (rollTotal < dtBase + 10) return 'sucesso_bom';
   return 'sucesso_extremo';
 }
+
+import { MASS_CATEGORIES } from '../data/massCategories';
+
+/**
+ * Categoria de Massa baseada no peso corporal (kg).
+ */
+export function getMassCategory(weightKg) {
+  return MASS_CATEGORIES.find((cat) => weightKg <= cat.maxWeightKg) ?? MASS_CATEGORIES[MASS_CATEGORIES.length - 1];
+}
+
+/**
+ * Massa Efetiva (Regra da Força Mínima): Força baixa rebaixa a categoria
+ * usada para Modificadores de Dano/Vantagens de Inércia — mas NÃO afeta
+ * as desvantagens estruturais, que seguem sempre o peso real.
+ * Força 6+: sem rebaixamento. Força 3-5: cai 1 degrau. Força 0-2: cai 2 degraus (mín. Pluma).
+ */
+export function getEffectiveMassCategory(weightKg, forcaLevel = 0) {
+  const baseCategory = getMassCategory(weightKg);
+  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === baseCategory.id);
+
+  let degrade = 0;
+  if (forcaLevel === 0) degrade = 2;       // sem treino
+  else if (forcaLevel === 1) degrade = 1;  // d4
+  // nível 2+ (d6 ou mais): degrade = 0
+
+  const effectiveIndex = Math.max(0, baseIndex - degrade);
+
+  return {
+    real: baseCategory,
+    effective: MASS_CATEGORIES[effectiveIndex],
+    wasDowngraded: effectiveIndex < baseIndex,
+  };
+}

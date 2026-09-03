@@ -9,7 +9,6 @@ import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { calculateClassBonuses } from '../logic/classBonuses';
 import BureaucraticLoader from '../components/BureaucraticLoader';
-import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor } from '../logic/characterCalculations';
 import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
 import { calculatePendingConsequences, CONSEQUENCE_TYPE_LABELS } from '../logic/backgroundConsequences';
 import { rollRandomNegativeAspects, getManualNegativeAspectPool } from '../logic/aspectsSelection';
@@ -21,6 +20,7 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
+import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory } from '../logic/characterCalculations';
 function buildSteps(isAgent) {
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
@@ -281,6 +281,10 @@ export default function CharacterCreate({ userId }) {
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
   }, [finalSkillTotals]);
+  const massInfo = useMemo(() => {
+  if (!character.weightKg) return null;
+  return getEffectiveMassCategory(character.weightKg, finalSkillTotals.forca || 0);
+}, [character.weightKg, finalSkillTotals]);
 
   function handleSelectLifeStage(id) {
     setCharacter((c) => ({
@@ -470,6 +474,16 @@ return (
                 </button>
               ))}
             </div>
+            <label className="block text-sm mb-1 mt-4">Peso (kg)</label>
+<input
+  type="number"
+  className="w-full border rounded px-3 py-2"
+  value={character.weightKg ?? ''}
+  onChange={(e) =>
+    setCharacter((c) => ({ ...c, weightKg: e.target.value ? Number(e.target.value) : null }))
+  }
+  placeholder="Ex: 78"
+/>
           </section>
         )}
 
@@ -1047,6 +1061,7 @@ return (
                 <strong>{character.maxSanity}</strong> · Vigor: <strong>{vigor}</strong> · Sorte Restante:{' '}
                 <strong>{remainingLuck}</strong>
               </div>
+              
               <div>
                 <div className="font-medium mb-1">Atributos</div>
                 {Object.entries(finalAttributeTotals).map(([id, value]) => (
@@ -1120,6 +1135,21 @@ return (
                 )}
               </div>
               <div>
+             {massInfo && (
+  <div>
+    <div className="font-medium mb-1">Categoria de Massa</div>
+    <div>
+      <strong>{massInfo.effective.label}</strong>
+      {massInfo.wasDowngraded && (
+        <span className="text-amber-600"> (peso real: {massInfo.real.label}, rebaixada por Força baixa)</span>
+      )}
+    </div>
+    <div className="text-xs text-gray-500 mt-1"><strong>Dano:</strong> {massInfo.effective.damageEffect}</div>
+    <div className="text-xs text-gray-500"><strong>Vantagem:</strong> {massInfo.effective.advantage}</div>
+    <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
+  </div>
+)}
+  
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
                 {character.customSkills.length === 0 ? (
                   <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
