@@ -218,3 +218,17 @@ export function calculateMaxSanity(purchasedBackgrounds, freePackages, hardLimit
   });
   return Math.max(1, total);
 }
+
+/**
+ * Sorteia quais atributos serão cortados pela metade ao escolher Maduro
+ * (Penalidade de Idade). Sem repetição.
+ */
+export function rollAgingPenaltyAttributes(eligibleAttributes, count) {
+  const pool = [...eligibleAttributes];
+  const picked = [];
+  while (picked.length < count && pool.length > 0) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked;
+}
