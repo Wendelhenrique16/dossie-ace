@@ -253,7 +253,7 @@ const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false);  const [cha
 
   // Trauma (Fobia/Mania) obrigatório — Jovem, 1º pacote extra
   const traumaNeeded = pendingConsequences
-    .filter((slot) => slot.type === 'vicio_ou_mania')
+    .filter((slot) => slot.type === 'trauma')
     .reduce((sum, slot) => sum + slot.count, 0);
 
   const [swappingTraumaIndex, setSwappingTraumaIndex] = useState(null);
@@ -786,7 +786,7 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                     )}
 
                     {pendingConsequences.filter(
-                      (s) => s.type !== 'aspecto_negativo_grave' && s.type !== 'vicio_ou_mania'
+                      (s) => s.type !== 'aspecto_negativo_grave' && s.type !== 'trauma'
                     ).length > 0 && (
                       <>
                         <p className="text-xs text-gray-400 mb-2">
@@ -794,7 +794,7 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                         </p>
                         <div className="space-y-2">
                           {pendingConsequences
-                            .filter((slot) => slot.type !== 'aspecto_negativo_grave' && slot.type !== 'vicio_ou_mania')
+                            .filter((slot) => slot.type !== 'aspecto_negativo_grave' && slot.type !== 'trauma')
                             .map((slot, i) => (
                               <div key={i} className="border rounded p-2">
                                 <div className="flex items-center justify-between">

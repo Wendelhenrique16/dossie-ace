@@ -16,13 +16,17 @@ export function calculatePendingConsequences(lifeStageId, purchasedCount) {
 
   const slots = [];
 
-  if (stage.mandatoryOnFirstExtra && purchasedCount > stage.freePackages) {
-    slots.push({
-      type: stage.mandatoryOnFirstExtra.type,
-      count: 1,
-      description: stage.mandatoryOnFirstExtra.description,
-    });
-  }
+const extraPurchased = Math.max(0, purchasedCount - stage.freePackages);
+if (extraPurchased > 0) {
+  // 1 Trauma no 1º pacote extra + mais 1 a cada 3 extras adicionais
+  // (1º extra = 1 trauma; 4º extra = 2º trauma; 7º extra = 3º trauma...)
+  const traumaCount = 1 + Math.floor((extraPurchased - 1) / 3);
+  slots.push({
+    type: 'trauma',
+    count: traumaCount,
+    description: 'Trauma obrigatório: 1 no primeiro pacote extra, +1 a cada 3 pacotes extras adicionais.',
+  });
+}
 
   if (stage.mandatoryOnCreation) {
     const m = stage.mandatoryOnCreation;
@@ -64,7 +68,7 @@ export function calculatePendingConsequences(lifeStageId, purchasedCount) {
 }
 
 export const CONSEQUENCE_TYPE_LABELS = {
-  vicio_ou_mania: 'Vício ou Mania (obrigatório)',
+  trauma: 'Trauma (obrigatório)', // era 'vicio_ou_mania'
   aspecto_negativo_idade: 'Aspecto Negativo de Idade',
   aspecto_positivo_experiencia: 'Aspecto Positivo de Experiência',
   aspecto_negativo_grave: 'Aspecto Negativo Grave',

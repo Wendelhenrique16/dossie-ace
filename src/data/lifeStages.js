@@ -12,10 +12,7 @@ export const LIFE_STAGES = {
     initialLuck: 20,
     // Penalidade por pacote extra (além dos gratuitos)
     extraPackageSanityCost: { dice: 1, sides: 6, modifier: 6 }, // 1d6+6
-    mandatoryOnFirstExtra: {
-      type: 'vicio_ou_mania',
-      description: 'Ao comprar o 1º pacote extra, escolha 1 Vício ou Mania obrigatório.',
-    },
+
     // A cada pacote comprado acima do limite seguro (6), até o hardLimit (12)
     penaltyAboveSafeLimit: {
       type: 'aspecto_negativo_grave',
