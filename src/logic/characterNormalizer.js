@@ -11,6 +11,7 @@ export function normalizeCharacter(data = {}) {
     lifeStageId: safeData.lifeStageId ?? null,
     purchasedBackgrounds: safeData.purchasedBackgrounds ?? [],
     maxSanity: safeData.maxSanity ?? 100,
+    weightKg: safeData.weightKg ?? null, 
 
     traumaIds: safeData.traumaIds ?? [],
     customSkills: safeData.customSkills ?? [],

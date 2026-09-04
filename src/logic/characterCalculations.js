@@ -149,3 +149,56 @@ export function resolveSuccessLevel(rollTotal, dtBase = 21) {
   if (rollTotal < dtBase + 10) return 'sucesso_bom';
   return 'sucesso_extremo';
 }
+
+import { MASS_CATEGORIES } from '../data/massCategories';
+
+/**
+ * Categoria de Massa baseada no peso corporal (kg).
+ */
+export function getMassCategory(weightKg) {
+  return MASS_CATEGORIES.find((cat) => weightKg <= cat.maxWeightKg) ?? MASS_CATEGORIES[MASS_CATEGORIES.length - 1];
+}
+/**
+ * Fraqueza REBAIXA o degrau (usado por Força→Dano e Constituição→Vigor).
+ * Nível 0 (sem treino): cai 2. Nível 1 (d4): cai 1. Nível 2+ (d6+): cai 0.
+ */
+function degradeStepsFromLevel(level) {
+  if (level >= 2) return 0;
+  if (level === 1) return 1;
+  return 2;
+}
+
+/**
+ * Fraqueza ELEVA o degrau (usado por Resistência→Stamina — é o único invertido).
+ * Nível 0: sobe 2. Nível 1 (d4): sobe 1. Nível 2+ (d6+): sobe 0.
+ */
+function elevateStepsFromLevel(level) {
+  if (level >= 2) return 0;
+  if (level === 1) return 1;
+  return 2;
+}
+
+function shiftCategoryIndex(baseIndex, steps, direction) {
+  const shifted = direction === 'down' ? baseIndex - steps : baseIndex + steps;
+  return Math.max(0, Math.min(MASS_CATEGORIES.length - 1, shifted));
+}
+
+/**
+ * Massa Efetiva (Regra da Estrutura Física): 3 eixos independentes.
+ * As Vantagens/Desvantagens (estruturais) sempre usam a categoria REAL (peso puro).
+ */
+export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituicaoLevel = 0, resistenciaLevel = 0 } = {}) {
+  const realCategory = getMassCategory(weightKg);
+  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
+
+  const damageIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down');
+  const vigorIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down');
+  const staminaIndex = shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up');
+
+  return {
+    real: realCategory,
+    damage: { category: MASS_CATEGORIES[damageIndex], wasChanged: damageIndex !== baseIndex },
+    vigor: { category: MASS_CATEGORIES[vigorIndex], wasChanged: vigorIndex !== baseIndex },
+    stamina: { category: MASS_CATEGORIES[staminaIndex], wasChanged: staminaIndex !== baseIndex },
+  };
+}
