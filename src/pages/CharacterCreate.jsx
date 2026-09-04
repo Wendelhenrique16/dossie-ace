@@ -20,7 +20,8 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
-import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory } from '../logic/characterCalculations';
+import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory, calculateMaxSanity } from '../logic/characterCalculations';
+
 function buildSteps(isAgent) {
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
@@ -51,7 +52,7 @@ export default function CharacterCreate({ userId }) {
   const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-
+const [distributeQueue, setDistributeQueue] = useState([]); // fila de índices pendentes pro "Distribuir tudo"
   const [character, setCharacter] = useState(() => normalizeCharacter());
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
@@ -289,40 +290,88 @@ const massInfo = useMemo(() => {
     resistenciaLevel: finalSkillTotals.resistencia || 0,
   });
 }, [character.weightKg, finalSkillTotals]);
+const maxSanity = useMemo(
+  () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
+  [character.purchasedBackgrounds, freePackages]
+);
 
-  function handleSelectLifeStage(id) {
-    setCharacter((c) => ({
+function handleSelectLifeStage(id) {
+  setCharacter((c) => ({
+    ...c,
+    lifeStageId: id,
+    purchasedBackgrounds: [],
+    aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
+    traumaIds: [],
+  }));
+  setSanityWarning(null);
+}
+
+function handlePurchaseBackground(packageId) {
+  setCharacter((c) => {
+    const isExtra = c.purchasedBackgrounds.length >= freePackages;
+    const sanityCost = isExtra ? rollExtraPackageSanityCost() : 0;
+    setSanityWarning(isExtra ? `Pacote extra adicionado: -${sanityCost} de Sanidade Máxima.` : null);
+    return {
       ...c,
-      lifeStageId: id,
-      maxSanity: 100,
-      purchasedBackgrounds: [],
-      aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
-      traumaIds: [],
-    }));
-    setSanityWarning(null);
-  }
+      purchasedBackgrounds: [
+        ...c.purchasedBackgrounds,
+        { packageId, allocations: {}, attributeId: null, sanityCost },
+      ],
+    };
+  });
+}
 
-  function handleConfirmBackground({ allocations, attributeId }) {
-    setCharacter((c) => {
-      let newMaxSanity = c.maxSanity;
-      let warning = null;
-      if (c.purchasedBackgrounds.length >= freePackages) {
-        const cost = rollExtraPackageSanityCost();
-        newMaxSanity = Math.max(1, c.maxSanity - cost);
-        warning = `Pacote extra adicionado: -${cost} de Sanidade Máxima.`;
-      }
-      setSanityWarning(warning);
-      return {
-        ...c,
-        purchasedBackgrounds: [
-          ...c.purchasedBackgrounds,
-          { packageId: activeModalPackage, allocations, attributeId },
-        ],
-        maxSanity: newMaxSanity,
-      };
+function handleRemoveBackground(index) {
+  setCharacter((c) => {
+    const updated = [...c.purchasedBackgrounds];
+    updated.splice(index, 1);
+    return { ...c, purchasedBackgrounds: updated };
+  });
+  setSanityWarning(null);
+}
+
+function openDistributionModal(instanceIndex) {
+  const entry = character.purchasedBackgrounds[instanceIndex];
+  setActiveModalPackage({ packageId: entry.packageId, instanceIndex });
+}
+
+function handleDistributeAllPending() {
+  const pendingIndices = character.purchasedBackgrounds
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
+    .map(({ index }) => index);
+  if (pendingIndices.length === 0) return;
+  setDistributeQueue(pendingIndices.slice(1));
+  openDistributionModal(pendingIndices[0]);
+}
+
+function handleConfirmBackground({ allocations, attributeId }) {
+  setCharacter((c) => {
+    const updated = [...c.purchasedBackgrounds];
+    updated[activeModalPackage.instanceIndex] = {
+      ...updated[activeModalPackage.instanceIndex],
+      allocations,
+      attributeId,
+    };
+    return { ...c, purchasedBackgrounds: updated };
+  });
+
+  if (distributeQueue.length > 0) {
+    const [nextIndex, ...rest] = distributeQueue;
+    setDistributeQueue(rest);
+    setActiveModalPackage({
+      packageId: character.purchasedBackgrounds[nextIndex].packageId,
+      instanceIndex: nextIndex,
     });
+  } else {
     setActiveModalPackage(null);
   }
+}
+
+function handleCloseModal() {
+  setDistributeQueue([]); // cancelar no meio da fila interrompe o "distribuir tudo"
+  setActiveModalPackage(null);
+}
 
   function handleAddCustomSkill() {
     setCharacter((c) => ({
@@ -353,17 +402,18 @@ const massInfo = useMemo(() => {
     const action = pendingAction;
     setPendingAction(null);
 
-    const exportParams = {
-      character,
-      lifeStage,
-      finalAttributeTotals,
-      finalSkillTotals,
-      skillResultBonuses,
-      vigor,
-      remainingLuck,
-      classBonuses,
-      isAgent,
-    };
+const exportParams = {
+  character,
+  lifeStage,
+  finalAttributeTotals,
+  finalSkillTotals,
+  skillResultBonuses,
+  vigor,
+  maxSanity, // novo
+  remainingLuck,
+  classBonuses,
+  isAgent,
+};
 
     if (action === 'pdf') {
       // Básico e sem estilização por enquanto — mesma estrutura da ficha,
@@ -558,21 +608,59 @@ return (
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-2 mb-4">
-                  {Object.values(BACKGROUND_PACKAGES).map((pkg) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setActiveModalPackage(pkg.id)}
-                      className="text-left border rounded p-3 hover:bg-gray-50"
-                    >
-                      <div className="font-medium">{pkg.label}</div>
-                      <div className="text-sm text-gray-500">{pkg.pointsPerPurchase} aumentos por compra</div>
-                    </button>
-                  ))}
-                </div>
+<div className="grid grid-cols-1 gap-2 mb-4">
+  {Object.values(BACKGROUND_PACKAGES).map((pkg) => (
+    <button
+      key={pkg.id}
+      onClick={() => handlePurchaseBackground(pkg.id)}
+      className="text-left border rounded p-3 hover:bg-gray-50"
+    >
+      <div className="font-medium">{pkg.label}</div>
+      <div className="text-sm text-gray-500">{pkg.pointsPerPurchase} aumentos por compra — clique para comprar</div>
+    </button>
+  ))}
+</div>
+
+{character.purchasedBackgrounds.length > 0 && (
+  <div className="mb-4">
+    <div className="flex items-center justify-between mb-2">
+      <h3 className="font-medium">Pacotes Comprados</h3>
+      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0) && (
+        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+          Distribuir tudo pendente
+        </button>
+      )}
+    </div>
+    <div className="space-y-2">
+      {character.purchasedBackgrounds.map((entry, index) => {
+        const pkg = BACKGROUND_PACKAGES[entry.packageId];
+        const isDistributed = Object.keys(entry.allocations).length > 0;
+        return (
+          <div key={index} className="border rounded p-3 flex items-center justify-between">
+            <div>
+              <div className="font-medium text-sm">{pkg.label} #{index + 1}</div>
+              <div className="text-xs text-gray-400">
+                {isDistributed ? '✓ Distribuído' : 'Pendente de distribuição'}
+                {index >= freePackages && ` · Extra (-${entry.sanityCost} Sanidade)`}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => openDistributionModal(index)} className="text-xs px-2 py-1 rounded border">
+                {isDistributed ? 'Editar' : 'Distribuir'}
+              </button>
+              <button onClick={() => handleRemoveBackground(index)} className="text-xs px-2 py-1 rounded border text-red-500">
+                Remover
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
                 <div className="text-sm border-t pt-3">
-                  Sanidade Máxima Atual: <strong>{character.maxSanity}</strong>
+Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                   {isBroken && (
                     <div className="text-red-600 mt-1 font-medium">
                       A Beira da Loucura — Sanidade travada em 1 permanente.
@@ -741,19 +829,23 @@ return (
               </>
             )}
 
-            {activeModalPackage && (
-              <BackgroundModal
-                packageId={activeModalPackage}
-                purchaseNumber={
-                  character.purchasedBackgrounds.filter((p) => p.packageId === activeModalPackage).length + 1
-                }
-                onConfirm={handleConfirmBackground}
-                onClose={() => setActiveModalPackage(null)}
-              />
-            )}
+ 
           </section>
         )}
-
+{activeModalPackage && (
+  <BackgroundModal
+    packageId={activeModalPackage.packageId}
+    purchaseNumber={
+      character.purchasedBackgrounds
+        .slice(0, activeModalPackage.instanceIndex + 1)
+        .filter((p) => p.packageId === activeModalPackage.packageId).length
+    }
+    initialAllocations={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.allocations}
+    initialAttributeId={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.attributeId}
+    onConfirm={handleConfirmBackground}
+    onClose={handleCloseModal}
+  />
+)}
         {/* Step 4: Aspectos (catálogo real + Sorte) */}
         {currentStep === 'aspects' && (
           <AspectsStep
@@ -1061,8 +1153,7 @@ return (
                 <p className="text-gray-500">{character.concept}</p>
               </div>
               <div>
-                Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima:{' '}
-                <strong>{character.maxSanity}</strong> · Vigor: <strong>{vigor}</strong> · Sorte Restante:{' '}
+                Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{vigor}</strong> · Sorte Restante:{' '}
                 <strong>{remainingLuck}</strong>
               </div>
               

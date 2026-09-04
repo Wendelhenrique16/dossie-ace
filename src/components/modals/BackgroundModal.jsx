@@ -16,12 +16,16 @@ import {
   ATTRIBUTE_BONUS_PER_PACKAGE,
 } from '../../logic/backgroundDistribution';
 
-export default function BackgroundModal({ packageId, purchaseNumber = 1, onConfirm, onClose }) {
+export default function BackgroundModal({ packageId, purchaseNumber = 1, initialAllocations, initialAttributeId, onConfirm, onClose }) {
   const pkg = BACKGROUND_PACKAGES[packageId];
   const validSkills = getValidSkillsForPackage(packageId);
   const skillGroups = groupSkillsByCategory(validSkills);
-  const [state, setState] = useState(() => createDistributionState(packageId));
-
+  const [state, setState] = useState(() =>
+    createDistributionState(
+      packageId,
+      initialAllocations ? { allocations: initialAllocations, attributeId: initialAttributeId } : null
+    )
+  );
   if (!pkg) return null;
 
   // Escala Narrativa: mostra o tier correspondente a essa compra (capado no
