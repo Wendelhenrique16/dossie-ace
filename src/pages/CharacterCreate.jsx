@@ -21,8 +21,7 @@ import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
 import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory, calculateMaxSanity } from '../logic/characterCalculations';
-
-function buildSteps(isAgent) {
+import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';function buildSteps(isAgent) {
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
     { id: 'lifeStage', label: '2. Fase da Vida' },
@@ -52,8 +51,8 @@ export default function CharacterCreate({ userId }) {
   const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-const [distributeQueue, setDistributeQueue] = useState([]); // fila de índices pendentes pro "Distribuir tudo"
-  const [character, setCharacter] = useState(() => normalizeCharacter());
+// Remove: const [distributeQueue, setDistributeQueue] = useState([]);
+const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false);  const [character, setCharacter] = useState(() => normalizeCharacter());
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
@@ -336,15 +335,18 @@ function openDistributionModal(instanceIndex) {
 }
 
 function handleDistributeAllPending() {
-  const pendingIndices = character.purchasedBackgrounds
-    .map((entry, index) => ({ entry, index }))
-    .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
-    .map(({ index }) => index);
-  if (pendingIndices.length === 0) return;
-  setDistributeQueue(pendingIndices.slice(1));
-  openDistributionModal(pendingIndices[0]);
+  setBulkDistributeOpen(true);
 }
-
+function handleConfirmBulkDistribution(results) {
+  setCharacter((c) => {
+    const updated = [...c.purchasedBackgrounds];
+    Object.entries(results).forEach(([instanceIndex, { allocations, attributeId }]) => {
+      updated[instanceIndex] = { ...updated[instanceIndex], allocations, attributeId };
+    });
+    return { ...c, purchasedBackgrounds: updated };
+  });
+  setBulkDistributeOpen(false);
+}
 function handleConfirmBackground({ allocations, attributeId }) {
   setCharacter((c) => {
     const updated = [...c.purchasedBackgrounds];
@@ -355,21 +357,10 @@ function handleConfirmBackground({ allocations, attributeId }) {
     };
     return { ...c, purchasedBackgrounds: updated };
   });
-
-  if (distributeQueue.length > 0) {
-    const [nextIndex, ...rest] = distributeQueue;
-    setDistributeQueue(rest);
-    setActiveModalPackage({
-      packageId: character.purchasedBackgrounds[nextIndex].packageId,
-      instanceIndex: nextIndex,
-    });
-  } else {
-    setActiveModalPackage(null);
-  }
+  setActiveModalPackage(null);
 }
 
 function handleCloseModal() {
-  setDistributeQueue([]); // cancelar no meio da fila interrompe o "distribuir tudo"
   setActiveModalPackage(null);
 }
 
@@ -844,6 +835,16 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
     initialAttributeId={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.attributeId}
     onConfirm={handleConfirmBackground}
     onClose={handleCloseModal}
+  />
+)}
+{bulkDistributeOpen && (
+  <UnifiedDistributionModal
+    pendingEntries={character.purchasedBackgrounds
+      .map((entry, instanceIndex) => ({ entry, instanceIndex }))
+      .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
+      .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
+    onConfirmAll={handleConfirmBulkDistribution}
+    onClose={() => setBulkDistributeOpen(false)}
   />
 )}
         {/* Step 4: Aspectos (catálogo real + Sorte) */}

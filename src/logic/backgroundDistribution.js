@@ -135,3 +135,86 @@ export function createDistributionState(packageId, existing = null) {
     selectedAttribute: null,
   };
 }
+
+/**
+ * Estado "unificado": um objeto com o estado normal de distribuição por
+ * pacote pendente (mesma estrutura de sempre), só que a UI vai somar tudo
+ * visualmente — a separação por pacote continua existindo por baixo.
+ */
+export function createUnifiedDistributionState(pendingEntries) {
+  const perPackage = {};
+  pendingEntries.forEach(({ instanceIndex, packageId }) => {
+    perPackage[instanceIndex] = createDistributionState(packageId);
+  });
+  return { perPackage };
+}
+
+export function getUnifiedSkillTotal(state, skillId) {
+  return Object.values(state.perPackage).reduce((sum, s) => sum + (s.allocations[skillId] || 0), 0);
+}
+
+export function getUnifiedRemainingPoints(state) {
+  return Object.values(state.perPackage).reduce((sum, s) => sum + s.remainingPoints, 0);
+}
+
+/**
+ * Clique no "+": escolhe automaticamente QUAL pacote pendente absorve o
+ * ponto. Só pacotes que (a) permitem essa perícia, (b) ainda têm saldo e
+ * (c) não bateram o teto de 2 nessa perícia entram na disputa. Preferência:
+ * completar um pacote que já tem 1 ponto nessa perícia antes de abrir outro.
+ */
+export function incrementUnifiedSkill(state, skillId, pendingEntries) {
+  const eligible = pendingEntries
+    .filter(({ packageId }) => getValidSkillsForPackage(packageId).includes(skillId))
+    .map(({ instanceIndex }) => instanceIndex)
+    .filter((idx) => {
+      const s = state.perPackage[idx];
+      return s.remainingPoints > 0 && (s.allocations[skillId] || 0) < 2;
+    });
+
+  if (eligible.length === 0) return state;
+
+  const target = eligible.find((idx) => (state.perPackage[idx].allocations[skillId] || 0) === 1) ?? eligible[0];
+
+  return {
+    ...state,
+    perPackage: { ...state.perPackage, [target]: incrementSkill(state.perPackage[target], skillId) },
+  };
+}
+
+/**
+ * Clique no "-": tira o ponto do pacote que tem MAIS pontos alocados
+ * naquela perícia primeiro (esvazia o "mais cheio" antes do "quase vazio").
+ */
+export function decrementUnifiedSkill(state, skillId) {
+  const holders = Object.entries(state.perPackage).filter(([, s]) => (s.allocations[skillId] || 0) > 0);
+  if (holders.length === 0) return state;
+
+  holders.sort((a, b) => (b[1].allocations[skillId] || 0) - (a[1].allocations[skillId] || 0));
+  const [targetIdx] = holders[0];
+
+  return {
+    ...state,
+    perPackage: { ...state.perPackage, [targetIdx]: decrementSkill(state.perPackage[targetIdx], skillId) },
+  };
+}
+
+export function selectUnifiedAttribute(state, instanceIndex, attributeId) {
+  return {
+    ...state,
+    perPackage: { ...state.perPackage, [instanceIndex]: selectAttribute(state.perPackage[instanceIndex], attributeId) },
+  };
+}
+
+export function randomizeUnifiedDistribution(state, pendingEntries) {
+  const perPackage = { ...state.perPackage };
+  pendingEntries.forEach(({ instanceIndex, packageId }) => {
+    const validSkills = getValidSkillsForPackage(packageId);
+    perPackage[instanceIndex] = randomizeDistribution(perPackage[instanceIndex], validSkills);
+  });
+  return { ...state, perPackage };
+}
+
+export function unifiedCanConfirm(state) {
+  return Object.values(state.perPackage).every((s) => canConfirm(s));
+}
