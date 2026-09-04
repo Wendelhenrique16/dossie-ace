@@ -281,9 +281,13 @@ export default function CharacterCreate({ userId }) {
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
   }, [finalSkillTotals]);
-  const massInfo = useMemo(() => {
+const massInfo = useMemo(() => {
   if (!character.weightKg) return null;
-  return getEffectiveMassCategory(character.weightKg, finalSkillTotals.forca || 0);
+  return getEffectiveMassCategory(character.weightKg, {
+    forcaLevel: finalSkillTotals.forca || 0,
+    constituicaoLevel: finalSkillTotals.constituicao || 0,
+    resistenciaLevel: finalSkillTotals.resistencia || 0,
+  });
 }, [character.weightKg, finalSkillTotals]);
 
   function handleSelectLifeStage(id) {
@@ -1135,17 +1139,23 @@ return (
                 )}
               </div>
               <div>
-             {massInfo && (
+{massInfo && (
   <div>
     <div className="font-medium mb-1">Categoria de Massa</div>
-    <div>
-      <strong>{massInfo.effective.label}</strong>
-      {massInfo.wasDowngraded && (
-        <span className="text-amber-600"> (peso real: {massInfo.real.label}, rebaixada por Força baixa)</span>
-      )}
+    <div>Peso real: <strong>{massInfo.real.label}</strong></div>
+    <div className="text-xs text-gray-500 mt-1">
+      <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
+      {massInfo.damage.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.damage.category.label} por Força baixa)</span>}
     </div>
-    <div className="text-xs text-gray-500 mt-1"><strong>Dano:</strong> {massInfo.effective.damageEffect}</div>
-    <div className="text-xs text-gray-500"><strong>Vantagem:</strong> {massInfo.effective.advantage}</div>
+    <div className="text-xs text-gray-500">
+      <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
+      {massInfo.vigor.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.vigor.category.label} por Constituição baixa)</span>}
+    </div>
+    <div className="text-xs text-gray-500">
+      <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
+      {massInfo.stamina.wasChanged && <span className="text-amber-600"> (elevado para {massInfo.stamina.category.label} por Resistência baixa)</span>}
+    </div>
+    <div className="text-xs text-gray-500 mt-1"><strong>Vantagem:</strong> {massInfo.real.advantage}</div>
     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
   </div>
 )}

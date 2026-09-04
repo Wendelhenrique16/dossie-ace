@@ -158,27 +158,47 @@ import { MASS_CATEGORIES } from '../data/massCategories';
 export function getMassCategory(weightKg) {
   return MASS_CATEGORIES.find((cat) => weightKg <= cat.maxWeightKg) ?? MASS_CATEGORIES[MASS_CATEGORIES.length - 1];
 }
+/**
+ * Fraqueza REBAIXA o degrau (usado por Força→Dano e Constituição→Vigor).
+ * Nível 0 (sem treino): cai 2. Nível 1 (d4): cai 1. Nível 2+ (d6+): cai 0.
+ */
+function degradeStepsFromLevel(level) {
+  if (level >= 2) return 0;
+  if (level === 1) return 1;
+  return 2;
+}
 
 /**
- * Massa Efetiva (Regra da Força Mínima): Força baixa rebaixa a categoria
- * usada para Modificadores de Dano/Vantagens de Inércia — mas NÃO afeta
- * as desvantagens estruturais, que seguem sempre o peso real.
- * Força 6+: sem rebaixamento. Força 3-5: cai 1 degrau. Força 0-2: cai 2 degraus (mín. Pluma).
+ * Fraqueza ELEVA o degrau (usado por Resistência→Stamina — é o único invertido).
+ * Nível 0: sobe 2. Nível 1 (d4): sobe 1. Nível 2+ (d6+): sobe 0.
  */
-export function getEffectiveMassCategory(weightKg, forcaLevel = 0) {
-  const baseCategory = getMassCategory(weightKg);
-  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === baseCategory.id);
+function elevateStepsFromLevel(level) {
+  if (level >= 2) return 0;
+  if (level === 1) return 1;
+  return 2;
+}
 
-  let degrade = 0;
-  if (forcaLevel === 0) degrade = 2;       // sem treino
-  else if (forcaLevel === 1) degrade = 1;  // d4
-  // nível 2+ (d6 ou mais): degrade = 0
+function shiftCategoryIndex(baseIndex, steps, direction) {
+  const shifted = direction === 'down' ? baseIndex - steps : baseIndex + steps;
+  return Math.max(0, Math.min(MASS_CATEGORIES.length - 1, shifted));
+}
 
-  const effectiveIndex = Math.max(0, baseIndex - degrade);
+/**
+ * Massa Efetiva (Regra da Estrutura Física): 3 eixos independentes.
+ * As Vantagens/Desvantagens (estruturais) sempre usam a categoria REAL (peso puro).
+ */
+export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituicaoLevel = 0, resistenciaLevel = 0 } = {}) {
+  const realCategory = getMassCategory(weightKg);
+  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
+
+  const damageIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down');
+  const vigorIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down');
+  const staminaIndex = shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up');
 
   return {
-    real: baseCategory,
-    effective: MASS_CATEGORIES[effectiveIndex],
-    wasDowngraded: effectiveIndex < baseIndex,
+    real: realCategory,
+    damage: { category: MASS_CATEGORIES[damageIndex], wasChanged: damageIndex !== baseIndex },
+    vigor: { category: MASS_CATEGORIES[vigorIndex], wasChanged: vigorIndex !== baseIndex },
+    stamina: { category: MASS_CATEGORIES[staminaIndex], wasChanged: staminaIndex !== baseIndex },
   };
 }

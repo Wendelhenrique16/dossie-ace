@@ -203,14 +203,22 @@ lines.push('');
     lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);
     lines.push('');
   }
-  if (character.weightKg) {
-  const massInfo = getEffectiveMassCategory(character.weightKg, finalSkillTotals.forca || 0);
+if (character.weightKg) {
+  const massInfo = getEffectiveMassCategory(character.weightKg, {
+    forcaLevel: finalSkillTotals.forca || 0,
+    constituicaoLevel: finalSkillTotals.constituicao || 0,
+    resistenciaLevel: finalSkillTotals.resistencia || 0,
+  });
   lines.push('Categoria de Massa:');
-  lines.push(`> ${massInfo.effective.label} — Dano: ${massInfo.effective.damageEffect}`);
-  lines.push(`> Vantagem: ${massInfo.effective.advantage}`);
+  lines.push(`> Peso real: ${massInfo.real.label}`);
+  lines.push(`> Dano: ${massInfo.damage.category.damageEffect}`);
+  lines.push(`> Vigor: ${massInfo.vigor.category.vigorEffect}`);
+  lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
+  lines.push(`> Vantagem: ${massInfo.real.advantage}`);
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
   lines.push('');
 }
+
 
   if (character.customSkills.length > 0) {
     lines.push('Habilidades:');
