@@ -28,6 +28,7 @@ export function buildCharacterSheetLines({
   finalSkillTotals,
   skillResultBonuses,
   vigor,
+  maxSanity, // novo
   remainingLuck,
   classBonuses,
   isAgent,
@@ -139,8 +140,7 @@ lines.push('');
   lines.push('"Vigor', '');
   lines.push(`Vigor: ${vigor}/${vigor}`);
   lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
-  lines.push(`Sanidade: ${character.maxSanity}/${character.maxSanity}`);
-  lines.push('');
+lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);  lines.push('');
 
   lines.push('"Ferimentos', '');
   lines.push('Local / Penalidade: Nenhum');

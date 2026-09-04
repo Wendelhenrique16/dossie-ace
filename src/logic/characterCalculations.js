@@ -202,3 +202,19 @@ export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituica
     stamina: { category: MASS_CATEGORIES[staminaIndex], wasChanged: staminaIndex !== baseIndex },
   };
 }
+
+/**
+ * Sanidade Máxima agora é DERIVADA, não um valor fixo salvo no personagem.
+ * Isso permite remover um pacote comprado sem "travar" o desconto: o
+ * cálculo sempre soma o sanityCost apenas das entradas que estão em
+ * posição >= freePackages no momento atual (recalcula sozinho ao remover).
+ */
+export function calculateMaxSanity(purchasedBackgrounds, freePackages, hardLimit = 12) {
+  if (purchasedBackgrounds.length > hardLimit) return 1; // A Beira da Loucura
+
+  let total = 100;
+  purchasedBackgrounds.forEach((entry, index) => {
+    if (index >= freePackages) total -= entry.sanityCost || 0;
+  });
+  return Math.max(1, total);
+}

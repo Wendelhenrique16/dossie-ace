@@ -9,7 +9,10 @@ export function normalizeCharacter(data = {}) {
     concept: safeData.concept ?? '',
     role: safeData.role ?? 'civil',
     lifeStageId: safeData.lifeStageId ?? null,
-    purchasedBackgrounds: safeData.purchasedBackgrounds ?? [],
+purchasedBackgrounds: (safeData.purchasedBackgrounds ?? []).map((entry) => ({
+  ...entry,
+  sanityCost: entry.sanityCost ?? 0, // fichas antigas não tinham esse campo
+})),
     maxSanity: safeData.maxSanity ?? 100,
     weightKg: safeData.weightKg ?? null, 
 

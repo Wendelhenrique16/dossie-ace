@@ -20,21 +20,7 @@ export function getValidSkillsForPackage(packageId) {
   return [...new Set([...skillsFromCategories, ...extra])];
 }
 
-/**
- * Estado inicial do modal ao abrir um pacote.
- */
-export function createDistributionState(packageId) {
-  const pkg = BACKGROUND_PACKAGES[packageId];
-  if (!pkg) throw new Error(`Pacote desconhecido: ${packageId}`);
 
-  return {
-    packageId,
-    totalPoints: pkg.pointsPerPurchase,
-    remainingPoints: pkg.pointsPerPurchase,
-    allocations: {}, // { skillId: pontosAlocados }
-    selectedAttribute: null, // atributo escolhido para o +2 fixo desta compra
-  };
-}
 
 /**
  * Seleciona qual Atributo recebe o bônus fixo de +2 nesta compra do pacote.
@@ -104,11 +90,48 @@ export function randomizeDistribution(state, validSkillIds) {
 
   return working;
 }
+/** 
+ * Estado inicial do modal ao abrir um pacote.
 
+export function createDistributionState(packageId) {
+  const pkg = BACKGROUND_PACKAGES[packageId];
+  if (!pkg) throw new Error(`Pacote desconhecido: ${packageId}`);
+
+  return {
+    packageId,
+    totalPoints: pkg.pointsPerPurchase,
+    remainingPoints: pkg.pointsPerPurchase,
+    allocations: {}, // { skillId: pontosAlocados }
+    selectedAttribute: null, // atributo escolhido para o +2 fixo desta compra
+  };
+} */
 /**
  * O modal só habilita "Confirmar" quando o saldo de perícias chega a 0
  * E um Atributo foi escolhido para o bônus fixo de +2.
  */
 export function canConfirm(state) {
   return state.remainingPoints === 0 && state.selectedAttribute !== null;
+}
+export function createDistributionState(packageId, existing = null) {
+  const pkg = BACKGROUND_PACKAGES[packageId];
+  if (!pkg) throw new Error(`Pacote desconhecido: ${packageId}`);
+
+  if (existing) {
+    const allocatedPoints = Object.values(existing.allocations || {}).reduce((a, b) => a + b, 0);
+    return {
+      packageId,
+      totalPoints: pkg.pointsPerPurchase,
+      remainingPoints: pkg.pointsPerPurchase - allocatedPoints,
+      allocations: { ...existing.allocations },
+      selectedAttribute: existing.attributeId ?? null,
+    };
+  }
+
+  return {
+    packageId,
+    totalPoints: pkg.pointsPerPurchase,
+    remainingPoints: pkg.pointsPerPurchase,
+    allocations: {},
+    selectedAttribute: null,
+  };
 }
