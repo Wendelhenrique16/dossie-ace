@@ -20,7 +20,11 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
-import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory, calculateMaxSanity, rollAgingPenaltyAttributes } from '../logic/characterCalculations';
+import {
+  rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
+  calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
+  applyMassDamageModifier, applyMassVigorModifier,
+} from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';function buildSteps(isAgent) {
 
 
@@ -293,6 +297,24 @@ const massInfo = useMemo(() => {
     resistenciaLevel: finalSkillTotals.resistencia || 0,
   });
 }, [character.weightKg, finalSkillTotals]);
+const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
+
+const massAdjustedVigor = useMemo(() => {
+  if (!massInfo) return { value: vigor, note: null };
+  return applyMassVigorModifier(vigor, massInfo.vigor.category.id, finalSkillTotals.constituicao || 0);
+}, [massInfo, vigor, finalSkillTotals]);
+
+const physicalDamage = useMemo(() => {
+  if (!massInfo) return null;
+  const baseDamage = calculatePhysicalDamageBase(
+    finalAttributeTotals.existencia || 0,
+    finalSkillTotals.forca || 0,
+    finalSkillTotals.combate || 0,
+    isLutador
+  );
+  return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
+}, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
+
 const maxSanity = useMemo(
   () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
   [character.purchasedBackgrounds, freePackages]
@@ -415,16 +437,8 @@ function handleCloseModal() {
     setPendingAction(null);
 
 const exportParams = {
-  character,
-  lifeStage,
-  finalAttributeTotals,
-  finalSkillTotals,
-  skillResultBonuses,
-  vigor,
-  maxSanity, // novo
-  remainingLuck,
-  classBonuses,
-  isAgent,
+  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
 };
 
     if (action === 'pdf') {
@@ -1214,10 +1228,19 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                 <span className="text-gray-400 capitalize">({character.role})</span>
                 <p className="text-gray-500">{character.concept}</p>
               </div>
-              <div>
-                Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{vigor}</strong> · Sorte Restante:{' '}
-                <strong>{remainingLuck}</strong>
-              </div>
+<div>
+  Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{massAdjustedVigor.value}</strong>
+  {massAdjustedVigor.note && <span className="text-amber-600 text-xs"> ({massAdjustedVigor.note})</span>}
+{' · '}Dano Físico: <strong>
+  {physicalDamage
+    ? physicalDamage.diceCount > 0
+      ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
+      : 'Trauma Direto automático'
+    : '—'}
+</strong>
+{physicalDamage?.note && <span className="text-amber-600 text-xs"> ({physicalDamage.note})</span>}
+  {' · '}Sorte Restante: <strong>{remainingLuck}</strong>
+</div>
               
               <div>
                 <div className="font-medium mb-1">Atributos</div>
@@ -1292,27 +1315,27 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                 )}
               </div>
               <div>
-{massInfo && (
-  <div>
-    <div className="font-medium mb-1">Categoria de Massa</div>
-    <div>Peso real: <strong>{massInfo.real.label}</strong></div>
-    <div className="text-xs text-gray-500 mt-1">
-      <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
-      {massInfo.damage.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.damage.category.label} por Força baixa)</span>}
-    </div>
-    <div className="text-xs text-gray-500">
-      <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
-      {massInfo.vigor.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.vigor.category.label} por Constituição baixa)</span>}
-    </div>
-    <div className="text-xs text-gray-500">
-      <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
-      {massInfo.stamina.wasChanged && <span className="text-amber-600"> (elevado para {massInfo.stamina.category.label} por Resistência baixa)</span>}
-    </div>
-    <div className="text-xs text-gray-500 mt-1"><strong>Vantagem:</strong> {massInfo.real.advantage}</div>
-    <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
-  </div>
-)}
-  
+                {massInfo && (
+                  <div>
+                    <div className="font-medium mb-1">Categoria de Massa</div>
+                    <div>Peso real: <strong>{massInfo.real.label}</strong></div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
+                      {massInfo.damage.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.damage.category.label} por Força baixa)</span>}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
+                      {massInfo.vigor.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.vigor.category.label} por Constituição baixa)</span>}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
+                      {massInfo.stamina.wasChanged && <span className="text-amber-600"> (elevado para {massInfo.stamina.category.label} por Resistência baixa)</span>}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1"><strong>Vantagem:</strong> {massInfo.real.advantage}</div>
+                    <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
+                  </div>
+                )}
+
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
                 {character.customSkills.length === 0 ? (
                   <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
