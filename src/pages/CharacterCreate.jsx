@@ -20,8 +20,10 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
-import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory, calculateMaxSanity } from '../logic/characterCalculations';
+import { rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory, calculateMaxSanity, rollAgingPenaltyAttributes } from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';function buildSteps(isAgent) {
+
+
   const steps = [
     { id: 'identity', label: '1. Detalhes do Personagem' },
     { id: 'lifeStage', label: '2. Fase da Vida' },
@@ -193,17 +195,19 @@ const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false);  const [cha
     return bonuses;
   }, [occupationBonuses, classBonuses]);
 
-  const finalAttributeTotals = useMemo(() => {
-    const totals = { ...attributeTotalsFromBackgrounds };
-    Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
-      totals[attrId] = (totals[attrId] || 0) + bonus;
-    });
-    Object.entries(classBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
-      totals[attrId] = (totals[attrId] || 0) + bonus;
-    });
-    return totals;
-  }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses]);
-
+const finalAttributeTotals = useMemo(() => {
+  const totals = { ...attributeTotalsFromBackgrounds };
+  Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+    totals[attrId] = (totals[attrId] || 0) + bonus;
+  });
+  Object.entries(classBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+    totals[attrId] = (totals[attrId] || 0) + bonus;
+  });
+  (character.agingPenalty?.halvedAttributeIds || []).forEach((attrId) => {
+    totals[attrId] = Math.floor((totals[attrId] || 0) / 2);
+  });
+  return totals;
+}, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses, character.agingPenalty]);
   const isBroken = checkBrokenSanityState(purchasedCount);
 
   const pendingConsequences = useMemo(() => {
@@ -295,16 +299,33 @@ const maxSanity = useMemo(
 );
 
 function handleSelectLifeStage(id) {
+  const stage = LIFE_STAGES[id];
+  const halvedAttributeIds = stage.agingPenalty
+    ? rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount)
+    : [];
+
   setCharacter((c) => ({
     ...c,
     lifeStageId: id,
     purchasedBackgrounds: [],
     aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
     traumaIds: [],
+    agingPenalty: { halvedAttributeIds },
   }));
   setSanityWarning(null);
 }
-
+function handleSwapAgingAttribute(index, newId) {
+  setCharacter((c) => {
+    const ids = [...c.agingPenalty.halvedAttributeIds];
+    ids[index] = newId;
+    return { ...c, agingPenalty: { halvedAttributeIds: ids } };
+  });
+}
+function handleRerollAgingPenalty() {
+  const stage = LIFE_STAGES.maduro;
+  const halvedAttributeIds = rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount);
+  setCharacter((c) => ({ ...c, agingPenalty: { halvedAttributeIds } }));
+}
 function handlePurchaseBackground(packageId) {
   setCharacter((c) => {
     const isExtra = c.purchasedBackgrounds.length >= freePackages;
@@ -560,6 +581,35 @@ return (
                 );
               })}
             </div>
+{character.lifeStageId === 'maduro' && (
+  <div className="border rounded p-3 mt-3">
+    <div className="font-medium text-sm mb-1">Penalidade de Idade</div>
+    <p className="text-xs text-gray-500 mb-2">
+      Atributos cortados pela metade (mínimo 2, sorteado — pode trocar manualmente):
+    </p>
+    <div className="space-y-1">
+      {character.agingPenalty.halvedAttributeIds.map((attrId, i) => (
+        <div key={i} className="flex items-center justify-between text-xs">
+          <span>{ATTRIBUTES[attrId]?.label ?? attrId}</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={attrId}
+            onChange={(e) => handleSwapAgingAttribute(i, e.target.value)}
+          >
+            {LIFE_STAGES.maduro.agingPenalty.eligibleAttributes.map((id) => (
+              <option key={id} value={id}>
+                {ATTRIBUTES[id].label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+    <button onClick={handleRerollAgingPenalty} className="mt-2 text-xs px-2 py-1 rounded border">
+      Sortear novamente todos
+    </button>
+  </div>
+)}
           </section>
         )}
 
@@ -785,17 +835,28 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                       </div>
                     )}
 
-                    {pendingConsequences.filter(
-                      (s) => s.type !== 'aspecto_negativo_grave' && s.type !== 'trauma'
-                    ).length > 0 && (
+{pendingConsequences.filter(
+  (s) =>
+    s.type !== 'aspecto_negativo_grave' &&
+    s.type !== 'trauma' &&
+    s.type !== 'aspecto_negativo_idade' &&
+    s.type !== 'aspecto_positivo_experiencia' &&
+    s.type !== 'atributo_penalidade'
+).length > 0 && (
                       <>
                         <p className="text-xs text-gray-400 mb-2">
                           Catálogo ainda não implementado pra esse tipo — só o placeholder por enquanto.
                         </p>
                         <div className="space-y-2">
                           {pendingConsequences
-                            .filter((slot) => slot.type !== 'aspecto_negativo_grave' && slot.type !== 'trauma')
-                            .map((slot, i) => (
+.filter(
+  (slot) =>
+    slot.type !== 'aspecto_negativo_grave' &&
+    slot.type !== 'trauma' &&
+    slot.type !== 'aspecto_negativo_idade' &&
+    slot.type !== 'aspecto_positivo_experiencia' &&
+    slot.type !== 'atributo_penalidade'
+)                            .map((slot, i) => (
                               <div key={i} className="border rounded p-2">
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">

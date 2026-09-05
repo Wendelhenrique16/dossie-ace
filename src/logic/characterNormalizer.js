@@ -26,7 +26,10 @@ purchasedBackgrounds: (safeData.purchasedBackgrounds ?? []).map((entry) => ({
       chosenNegativeIds: safeData.aspects?.chosenNegativeIds ?? [],
       excessNegativeIds: safeData.aspects?.excessNegativeIds ?? [],
     },
-
+    agingPenalty: {
+  ...safeData.agingPenalty,
+  halvedAttributeIds: safeData.agingPenalty?.halvedAttributeIds ?? [],
+},
     occupation: {
       ...safeData.occupation,
       primaryId: safeData.occupation?.primaryId ?? null,
@@ -41,5 +44,6 @@ purchasedBackgrounds: (safeData.purchasedBackgrounds ?? []).map((entry) => ({
       weaponChoiceSkillId: safeData.classPath?.weaponChoiceSkillId ?? null,
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
+    
   };
 }

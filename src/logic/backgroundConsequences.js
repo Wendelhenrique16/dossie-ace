@@ -52,17 +52,7 @@ if (extraPurchased > 0) {
     }
   }
 
-  if (stage.penaltyAboveHardThreshold) {
-    const p = stage.penaltyAboveHardThreshold;
-    const count = Math.max(0, Math.min(purchasedCount, p.appliesUntil) - p.appliesFrom);
-    if (count > 0) {
-      slots.push({
-        type: p.type,
-        count,
-        description: `-2 em um Atributo à escolha entre: ${p.eligibleAttributes.join(', ')}.`,
-      });
-    }
-  }
+
 
   return slots;
 }
@@ -72,5 +62,4 @@ export const CONSEQUENCE_TYPE_LABELS = {
   aspecto_negativo_idade: 'Aspecto Negativo de Idade',
   aspecto_positivo_experiencia: 'Aspecto Positivo de Experiência',
   aspecto_negativo_grave: 'Aspecto Negativo Grave',
-  atributo_penalidade: 'Penalidade de Atributo',
 };

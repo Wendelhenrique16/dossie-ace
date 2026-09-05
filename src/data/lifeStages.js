@@ -60,14 +60,10 @@ export const LIFE_STAGES = {
       appliesFrom: 6,
       appliesUntil: 9,
     },
-    // 9 -> 12: -2 em um atributo à escolha (Existência, Destreza ou Carisma)
-    penaltyAboveHardThreshold: {
-      type: 'atributo_penalidade',
-      value: -2,
-      eligibleAttributes: ['existencia', 'destreza', 'carisma'],
-      appliesFrom: 9,
-      appliesUntil: 12,
-    },
+agingPenalty: {
+  eligibleAttributes: ['existencia', 'destreza', 'inteligencia', 'carisma'],
+  minCount: 2,
+},
   },
 };
 
