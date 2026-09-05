@@ -232,3 +232,80 @@ export function rollAgingPenaltyAttributes(eligibleAttributes, count) {
   }
   return picked;
 }
+
+/**
+ * Dano Físico base: (Existência + dado de Força + dado de Combate) / 3,
+ * dividido por 2 de novo se o personagem for Lutador. Usa o DADO (valor
+ * máximo da face), não o nível da perícia.
+ */
+export function calculatePhysicalDamageBase(existenciaValue, forcaLevel, combateLevel, isLutador = false) {
+  const forcaDie = getSkillDieMaxValue(forcaLevel);
+  const combateDie = getSkillDieMaxValue(combateLevel);
+  let base = (existenciaValue + forcaDie + combateDie) / 3;
+  if (isLutador) base /= 2;
+  return base;
+}
+
+/**
+ * Aplica o modificador de Dano da Categoria de Massa EFETIVA (já rebaixada
+ * por Força). Massivo/Titânico não geram um número — viram Trauma Direto
+ * automático, então value fica null e quem exibe trata isso à parte.
+ */
+/**
+ * Aplica o modificador de Dano da Categoria de Massa EFETIVA. Retorna a
+ * notação de dado (quantidade + face), não um número cru — porque "Pesado"
+ * não soma valor, ele rola 2 dados do mesmo tipo (ex: 2d8), e os demais
+ * viram um único dado maior (ex: d10 vira d12 no Colosso).
+ */
+export function applyMassDamageModifier(baseDamage, massCategoryId) {
+  const baseDie = roundToNearestDie(baseDamage);
+
+  switch (massCategoryId) {
+    case 'pluma': {
+      const halvedDie = Math.max(2, roundToNearestDie(baseDamage / 2));
+      return { diceCount: 1, dieFace: halvedDie, note: 'Metade do Dano Físico, arredondado pro dado mais próximo (mín. d2)' };
+    }
+    case 'pesado':
+      return { diceCount: 2, dieFace: baseDie, note: 'Dado bônus: rola 2 dados do mesmo tipo em vez de 1' };
+    case 'colosso': {
+      const doubledDie = roundToNearestDie(baseDamage * 2);
+      return { diceCount: 1, dieFace: doubledDie, note: 'Dano dobrado, arredondado pro dado mais próximo' };
+    }
+    case 'massivo':
+    case 'titanico':
+      return { diceCount: 0, dieFace: null, note: 'Trauma Direto automático — ignora o cálculo padrão' };
+    default: // leve, medio
+      return { diceCount: 1, dieFace: baseDie, note: null };
+  }
+}
+export const STANDARD_DICE_FACES = [2, 4, 6, 8, 10, 12, 20, 24, 28];
+
+/**
+ * Arredonda um valor de dano pro dado padrão mais próximo (não existe d5,
+ * d7 etc — só os dados que realmente existem no sistema).
+ */
+export function roundToNearestDie(value) {
+  return STANDARD_DICE_FACES.reduce((closest, face) =>
+    Math.abs(face - value) < Math.abs(closest - value) ? face : closest
+  );
+}
+/**
+ * Aplica o modificador de Vigor da Categoria de Massa EFETIVA (já rebaixada
+ * por Constituição), usando o dado de Constituição pra somar/subtrair.
+ */
+export function applyMassVigorModifier(baseVigor, massCategoryId, constituicaoLevel) {
+  const constituicaoDie = getSkillDieMaxValue(constituicaoLevel);
+  switch (massCategoryId) {
+    case 'pluma':
+      return { value: Math.max(0, baseVigor - Math.floor(constituicaoDie / 2)), note: null };
+    case 'pesado':
+      return { value: baseVigor + constituicaoDie, note: null };
+    case 'colosso':
+      return { value: baseVigor + constituicaoDie * 2, note: null };
+    case 'massivo':
+    case 'titanico':
+      return { value: baseVigor, note: 'Escala colossal — valor de referência, ajustar por mesa' };
+    default: // leve, medio
+      return { value: baseVigor, note: null };
+  }
+}

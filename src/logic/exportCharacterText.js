@@ -137,11 +137,20 @@ lines.push('');
   lines.push('DT Social: ');
   lines.push('');
 
-  lines.push('"Vigor', '');
-  lines.push(`Vigor: ${vigor}/${vigor}`);
-  lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
-lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);  lines.push('');
-
+lines.push('"Vigor', '');
+lines.push(`Vigor: ${massAdjustedVigor.value}/${massAdjustedVigor.value}`);
+lines.push(
+  `Dano Físico: ${
+    physicalDamage
+      ? physicalDamage.diceCount > 0
+        ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
+        : 'Trauma Direto automático'
+      : ''
+  }`
+);
+lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
+lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);
+lines.push('');
   lines.push('"Ferimentos', '');
   lines.push('Local / Penalidade: Nenhum');
   lines.push('');
@@ -218,7 +227,6 @@ if (character.weightKg) {
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
   lines.push('');
 }
-
 
   if (character.customSkills.length > 0) {
     lines.push('Habilidades:');
