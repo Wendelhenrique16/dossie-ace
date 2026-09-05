@@ -321,6 +321,11 @@ function handleSwapAgingAttribute(index, newId) {
     return { ...c, agingPenalty: { halvedAttributeIds: ids } };
   });
 }
+function handleRerollAgingPenalty() {
+  const stage = LIFE_STAGES.maduro;
+  const halvedAttributeIds = rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount);
+  setCharacter((c) => ({ ...c, agingPenalty: { halvedAttributeIds } }));
+}
 function handlePurchaseBackground(packageId) {
   setCharacter((c) => {
     const isExtra = c.purchasedBackgrounds.length >= freePackages;
@@ -600,6 +605,9 @@ return (
         </div>
       ))}
     </div>
+    <button onClick={handleRerollAgingPenalty} className="mt-2 text-xs px-2 py-1 rounded border">
+      Sortear novamente todos
+    </button>
   </div>
 )}
           </section>
