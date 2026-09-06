@@ -446,7 +446,7 @@ function handleCreateBlankAbility() {
         contextText: '',
         conditional: null,
         cost: { weight: 1, form: COST_FORMS_BY_WEIGHT[1][0] },
-        effect: { weight: 1, names: [] },
+        effect: { weight: 1, names: [], description: '' },
       },
     ],
   }));
@@ -464,7 +464,7 @@ function handleSelectAbilityFromCatalog(ability) {
         contextText: '',
         conditional: ability.conditional ? { ...ability.conditional } : null,
         cost: { ...ability.cost },
-        effect: { weight: ability.effect.weight, names: [...ability.effect.names] },
+effect: { weight: ability.effect.weight, names: [...ability.effect.names], description: ability.effect.description },
       },
     ],
   }));
@@ -476,7 +476,7 @@ function handleToggleEffectName(instanceId, effectName) {
     const names = a.effect.names.includes(effectName)
       ? a.effect.names.filter((n) => n !== effectName)
       : [...a.effect.names, effectName];
-    return { ...a, effect: { weight: names.length ? getEffectWeight(names) : 1, names } };
+    return { ...a, effect: { ...a.effect, weight: names.length ? getEffectWeight(names) : 1, names } };
   });
 }
 function handleRemoveAbility(instanceId) {
@@ -1022,362 +1022,309 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
           />
         )}
 
-        {/* Step 5: Habilidades Customizadas */}
-        {currentStep === 'customSkills' && (
-          <section>
-            <div className="mb-6">
-<div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-  <h3 className="font-medium">Habilidades</h3>
-  <div className="flex gap-2">
-    <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-      + Do Catálogo
-    </button>
-    <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-      + A partir de Modelo
-    </button>
-    <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-      + Criar do Zero
-    </button>
-  </div>
-</div>
-
-  {character.selectedAbilities.length === 0 ? (
-    <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
-  ) : (
-    <div className="space-y-3">
-      {character.selectedAbilities.map((a) => (
-        <div key={a.instanceId} className="border rounded p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <input
-              className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
-              value={a.name}
-              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
-            />
-            <button
-              onClick={() => handleRemoveAbility(a.instanceId)}
-              className="text-xs text-red-500 underline ml-2"
-            >
-              Remover
-            </button>
-          </div>
-
-{/* Gatilho */}
-<div className="grid grid-cols-2 gap-2">
-  <div>
-    <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
-    <select
-      className="w-full border rounded px-2 py-1 text-xs"
-      value={a.trigger.type}
-      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
-    >
-      {TRIGGER_TYPES.map((t) => (
-        <option key={t} value={t}>{t}</option>
-      ))}
-    </select>
-  </div>
-  <div>
-    <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
-    <input
-      className="w-full border rounded px-2 py-1 text-xs"
-      placeholder="ex: antes de sacar a arma"
-      value={a.trigger.detail}
-      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
-    />
-  </div>
-</div>
-
-{/* Custo */}
-<div className="grid grid-cols-2 gap-2">
-  <div>
-    <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
-    <select
-      className="w-full border rounded px-2 py-1 text-xs"
-      value={a.cost.weight}
-      onChange={(e) => {
-        const weight = Number(e.target.value);
-        handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
-      }}
-    >
-      {[1, 2, 3].map((w) => (
-        <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
-      ))}
-    </select>
-  </div>
-  <div>
-    <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
-    <select
-      className="w-full border rounded px-2 py-1 text-xs"
-      value={a.cost.form}
-      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
-    >
-      {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
-        <option key={form} value={form}>{form}</option>
-      ))}
-    </select>
-  </div>
-</div>
-
-{/* Efeito — multi-select por checkbox, peso calculado automaticamente */}
-<div>
-  <label className="block text-xs text-gray-500 mb-1">
-    Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
-  </label>
-  <div className="flex flex-wrap gap-1">
-    {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
-      <button
-        key={name}
-        type="button"
-        onClick={() => handleToggleEffectName(a.instanceId, name)}
-        className={`px-2 py-1 rounded border text-xs ${
-          a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
-        }`}
-        title={def.description}
-      >
-        {name} ({def.weight})
-      </button>
-    ))}
-  </div>
-  {a.effect.names.length > 0 && (
-    <p className="text-xs text-gray-500 mt-1">
-      {a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ')}
+{/* Step 5: Habilidades */}
+{currentStep === 'customSkills' && (
+  <section>
+    <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
+    <p className="text-sm text-gray-500 mb-4">
+      Manobras e especializações técnicas ativas baseadas em Perícias.
     </p>
-  )}
-</div>
 
-{a.cost.weight !== a.effect.weight && (
-  <p className="text-xs text-amber-600">
-    ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
-    {a.cost.weight < a.effect.weight
-      ? ' pagar menos gera um excedente dobrado como consequência extra.'
-      : ' pagar mais é só desperdício de recurso (roleplay).'}
-  </p>
-)}
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
-              <select
-                className="w-full border rounded px-2 py-1 text-xs"
-                value={a.cost.weight}
-                onChange={(e) => {
-                  const weight = Number(e.target.value);
-                  const label = weight === 1 ? 'Leve' : weight === 2 ? 'Moderado' : 'Pesado';
-                  handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, weight, label } }));
-                }}
-              >
-                <option value={1}>1 — Leve</option>
-                <option value={2}>2 — Moderado</option>
-                <option value={3}>3 — Pesado</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Peso do Efeito</label>
-              <select
-                className="w-full border rounded px-2 py-1 text-xs"
-                value={a.effect.weight}
-                onChange={(e) =>
-                  handleUpdateAbility(a.instanceId, (ab) => ({
-                    ...ab,
-                    effect: { ...ab.effect, weight: Number(e.target.value) },
-                  }))
-                }
-              >
-                <option value={1}>1 — Leve</option>
-                <option value={2}>2 — Moderado</option>
-                <option value={3}>3 — Pesado</option>
-              </select>
-            </div>
-          </div>
-
-          {a.cost.weight !== a.effect.weight && (
-            <p className="text-xs text-amber-600">
-              ⚠ Custo e Efeito com pesos diferentes — se o Custo for menor, a diferença dobra como
-              consequência extra; se for maior, é só desperdício de recurso (roleplay).
-            </p>
-          )}
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
-            <input
-              className="w-full border rounded px-2 py-1 text-xs"
-              placeholder="ex: 1 Vigor"
-              value={a.cost.form}
-              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Efeito (descrição)</label>
-            <textarea
-              className="w-full border rounded px-2 py-1 text-xs"
-              rows={2}
-              value={a.effect.description}
-              onChange={(e) =>
-                handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))
-              }
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-xs text-gray-500">
-              <input
-                type="checkbox"
-                checked={!!a.conditional}
-                onChange={() => handleToggleAbilityConditional(a.instanceId)}
-              />
-              Condicional (reduz o Custo em troca de uma restrição)
-            </label>
-            {a.conditional && (
-              <div className="mt-2 space-y-2 pl-5">
-                <input
-                  className="w-full border rounded px-2 py-1 text-xs"
-                  placeholder="Descreva a condição (ex: sob forte estresse)"
-                  value={a.conditional.description}
-                  onChange={(e) =>
-                    handleUpdateAbility(a.instanceId, (ab) => ({
-                      ...ab,
-                      conditional: { ...ab.conditional, description: e.target.value },
-                    }))
-                  }
-                />
-                <select
-                  className="w-full border rounded px-2 py-1 text-xs"
-                  value={a.conditional.costReduction}
-                  onChange={(e) =>
-                    handleUpdateAbility(a.instanceId, (ab) => ({
-                      ...ab,
-                      conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
-                    }))
-                  }
-                >
-                  <option value={1}>Reduz -1 no peso do Custo</option>
-                  <option value="zera">Zera o Custo</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
-            <input
-              className="w-full border rounded px-2 py-1 text-xs"
-              placeholder="ex: usar um machado em combate"
-              value={a.contextText}
-              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
-            />
-          </div>
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h3 className="font-medium">Habilidades</h3>
+        <div className="flex gap-2">
+          <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+            + Do Catálogo
+          </button>
+          <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+            + A partir de Modelo
+          </button>
+          <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+            + Criar do Zero
+          </button>
         </div>
-      ))}
-    </div>
-  )}
-</div>
-{abilityModalOpen && (
-  <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
-)}
-{modelModalOpen && (
-  <AbilityCatalogModal
-    onSelect={handleSelectAbilityFromCatalog}
-    onClose={() => setModelModalOpen(false)}
-    filterCategory="modelo"
-    title="Criar a partir de um Modelo"
-  />
-)}
-            <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Manobras e especializações técnicas ativas baseadas em Perícias.
-            </p>
+      </div>
 
-            {character.customSkills.map((sk, index) => (
-              <div key={index} className="border rounded p-3 mb-3 bg-white space-y-2 text-sm">
+      {character.selectedAbilities.length === 0 ? (
+        <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
+      ) : (
+        <div className="space-y-3">
+          {character.selectedAbilities.map((a) => (
+            <div key={a.instanceId} className="border rounded p-3 space-y-2">
+              <div className="flex items-center justify-between">
                 <input
-                  placeholder="Nome da Habilidade (ex: Corte de Machado)"
-                  className="w-full border rounded px-2 py-1 font-medium"
-                  value={sk.name}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setCharacter((c) => {
-                      const updated = [...c.customSkills];
-                      updated[index].name = val;
-                      return { ...c, customSkills: updated };
-                    });
-                  }}
+                  className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
+                  value={a.name}
+                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
                 />
-                <div className="grid grid-cols-3 gap-2">
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={sk.cost}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCharacter((c) => {
-                        const updated = [...c.customSkills];
-                        updated[index].cost = val;
-                        return { ...c, customSkills: updated };
-                      });
-                    }}
-                  >
-                    <option value="1_vigor">1 de Vigor</option>
-                    <option value="2_vigor">2 de Vigor</option>
-                    <option value="1_sanidade">1 de Sanidade</option>
-                    <option value="reacao">Reação</option>
-                  </select>
+                <button onClick={() => handleRemoveAbility(a.instanceId)} className="text-xs text-red-500 underline ml-2">
+                  Remover
+                </button>
+              </div>
 
+              {/* Gatilho */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
                   <select
-                    className="border rounded px-2 py-1"
-                    value={sk.effectType}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCharacter((c) => {
-                        const updated = [...c.customSkills];
-                        updated[index].effectType = val;
-                        return { ...c, customSkills: updated };
-                      });
-                    }}
+                    className="w-full border rounded px-2 py-1 text-xs"
+                    value={a.trigger.type}
+                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
                   >
-                    <option value="facilitar">Facilitar Cenário</option>
-                    <option value="tempo">Fazer Mais Rápido</option>
-                    <option value="rendimento">Aumentar Resultado</option>
-                    <option value="falha">Salvar em Falha</option>
+                    {TRIGGER_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
                   </select>
-
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
                   <input
-                    placeholder="Perícia (ex: Armas Brancas)"
-                    className="border rounded px-2 py-1"
-                    value={sk.skillId}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCharacter((c) => {
-                        const updated = [...c.customSkills];
-                        updated[index].skillId = val;
-                        return { ...c, customSkills: updated };
-                      });
-                    }}
+                    className="w-full border rounded px-2 py-1 text-xs"
+                    placeholder="ex: antes de sacar a arma"
+                    value={a.trigger.detail}
+                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
                   />
                 </div>
+              </div>
+
+              {/* Custo */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
+                  <select
+                    className="w-full border rounded px-2 py-1 text-xs"
+                    value={a.cost.weight}
+                    onChange={(e) => {
+                      const weight = Number(e.target.value);
+                      handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
+                    }}
+                  >
+                    {[1, 2, 3].map((w) => (
+                      <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
+                  <select
+                    className="w-full border rounded px-2 py-1 text-xs"
+                    value={a.cost.form}
+                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
+                  >
+                    {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
+                      <option key={form} value={form}>{form}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Legenda dos Efeitos escolhidos — só explica, NÃO editável */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
+                </label>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => handleToggleEffectName(a.instanceId, name)}
+                      className={`px-2 py-1 rounded border text-xs ${
+                        a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {name} ({def.weight})
+                    </button>
+                  ))}
+                </div>
+
+                {a.effect.names.length > 0 && (
+                  <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1">
+                    {a.effect.names.map((n) => (
+                      <div key={n}>
+                        <strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Descrição específica da habilidade — editável, pré-preenchida ao escolher do catálogo */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Descrição</label>
                 <textarea
-                  placeholder="Descrição da interpretação / motivo da habilidade..."
                   className="w-full border rounded px-2 py-1 text-xs"
                   rows={2}
-                  value={sk.narrative}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setCharacter((c) => {
-                      const updated = [...c.customSkills];
-                      updated[index].narrative = val;
-                      return { ...c, customSkills: updated };
-                    });
-                  }}
+                  placeholder="Descreva o que essa habilidade faz na prática"
+                  value={a.effect.description}
+                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))}
                 />
               </div>
-            ))}
 
-            <button
-              onClick={handleAddCustomSkill}
-              className="px-3 py-2 rounded bg-gray-200 text-sm hover:bg-gray-300"
-            >
-              + Adicionar Habilidade
-            </button>
-          </section>
-        )}
+              {a.cost.weight !== a.effect.weight && (
+                <p className="text-xs text-amber-600">
+                  ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
+                  {a.cost.weight < a.effect.weight
+                    ? ' pagar menos gera um excedente dobrado como consequência extra.'
+                    : ' pagar mais é só desperdício de recurso (roleplay).'}
+                </p>
+              )}
+
+              <div>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={!!a.conditional}
+                    onChange={() => handleToggleAbilityConditional(a.instanceId)}
+                  />
+                  Condicional (reduz o Custo em troca de uma restrição)
+                </label>
+                {a.conditional && (
+                  <div className="mt-2 space-y-2 pl-5">
+                    <input
+                      className="w-full border rounded px-2 py-1 text-xs"
+                      placeholder="Descreva a condição (ex: sob forte estresse)"
+                      value={a.conditional.description}
+                      onChange={(e) =>
+                        handleUpdateAbility(a.instanceId, (ab) => ({
+                          ...ab,
+                          conditional: { ...ab.conditional, description: e.target.value },
+                        }))
+                      }
+                    />
+                    <select
+                      className="w-full border rounded px-2 py-1 text-xs"
+                      value={a.conditional.costReduction}
+                      onChange={(e) =>
+                        handleUpdateAbility(a.instanceId, (ab) => ({
+                          ...ab,
+                          conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
+                        }))
+                      }
+                    >
+                      <option value={1}>Reduz -1 no peso do Custo</option>
+                      <option value="zera">Zera o Custo</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
+                <input
+                  className="w-full border rounded px-2 py-1 text-xs"
+                  placeholder="ex: usar um machado em combate"
+                  value={a.contextText}
+                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {abilityModalOpen && (
+      <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
+    )}
+    {modelModalOpen && (
+      <AbilityCatalogModal
+        onSelect={handleSelectAbilityFromCatalog}
+        onClose={() => setModelModalOpen(false)}
+        filterCategory="modelo"
+        title="Criar a partir de um Modelo"
+      />
+    )}
+
+    {character.customSkills.map((sk, index) => (
+      <div key={index} className="border rounded p-3 mb-3 bg-white space-y-2 text-sm">
+        <input
+          placeholder="Nome da Habilidade (ex: Corte de Machado)"
+          className="w-full border rounded px-2 py-1 font-medium"
+          value={sk.name}
+          onChange={(e) => {
+            const val = e.target.value;
+            setCharacter((c) => {
+              const updated = [...c.customSkills];
+              updated[index].name = val;
+              return { ...c, customSkills: updated };
+            });
+          }}
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <select
+            className="border rounded px-2 py-1"
+            value={sk.cost}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCharacter((c) => {
+                const updated = [...c.customSkills];
+                updated[index].cost = val;
+                return { ...c, customSkills: updated };
+              });
+            }}
+          >
+            <option value="1_vigor">1 de Vigor</option>
+            <option value="2_vigor">2 de Vigor</option>
+            <option value="1_sanidade">1 de Sanidade</option>
+            <option value="reacao">Reação</option>
+          </select>
+
+          <select
+            className="border rounded px-2 py-1"
+            value={sk.effectType}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCharacter((c) => {
+                const updated = [...c.customSkills];
+                updated[index].effectType = val;
+                return { ...c, customSkills: updated };
+              });
+            }}
+          >
+            <option value="facilitar">Facilitar Cenário</option>
+            <option value="tempo">Fazer Mais Rápido</option>
+            <option value="rendimento">Aumentar Resultado</option>
+            <option value="falha">Salvar em Falha</option>
+          </select>
+
+          <input
+            placeholder="Perícia (ex: Armas Brancas)"
+            className="border rounded px-2 py-1"
+            value={sk.skillId}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCharacter((c) => {
+                const updated = [...c.customSkills];
+                updated[index].skillId = val;
+                return { ...c, customSkills: updated };
+              });
+            }}
+          />
+        </div>
+        <textarea
+          placeholder="Descrição da interpretação / motivo da habilidade..."
+          className="w-full border rounded px-2 py-1 text-xs"
+          rows={2}
+          value={sk.narrative}
+          onChange={(e) => {
+            const val = e.target.value;
+            setCharacter((c) => {
+              const updated = [...c.customSkills];
+              updated[index].narrative = val;
+              return { ...c, customSkills: updated };
+            });
+          }}
+        />
+      </div>
+    ))}
+
+    <button onClick={handleAddCustomSkill} className="px-3 py-2 rounded bg-gray-200 text-sm hover:bg-gray-300">
+      + Adicionar Habilidade
+    </button>
+  </section>
+)}
 
         {/* Step 6: Ocupação */}
         {currentStep === 'occupation' && (
@@ -1689,7 +1636,7 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
   ) : (
     character.selectedAbilities.map((a) => (
       <div key={a.instanceId} className="text-xs border-b py-1">
-<strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ')}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
+<strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.description}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
       </div>
     ))
   )}

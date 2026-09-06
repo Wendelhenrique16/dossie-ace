@@ -29,7 +29,11 @@ selectedAbilities: (safeData.selectedAbilities ?? []).map((a) => ({
   contextText: a.contextText ?? '',
   conditional: a.conditional ?? null, // null | { description, costReduction: 1 | 'zera' }
   cost: a.cost ?? { weight: 1, form: '1 Vigor' },
-  effect: a.effect ?? { weight: 1, names: [] },
+effect: {
+  weight: a.effect?.weight ?? 1,
+  names: a.effect?.names ?? [],
+  description: a.effect?.description ?? '',
+},
 })),
 
     aspects: {

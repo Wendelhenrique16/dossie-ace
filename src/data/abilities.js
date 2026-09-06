@@ -30,149 +30,161 @@ export function getEffectWeight(names) {
   return Math.max(...names.map((n) => EFFECT_DEFINITIONS[n]?.weight ?? 1));
 }
 
-const ability = (id, name, category, triggerType, triggerDetail, cost, effectNames, extra = {}) => ({
+// description = texto específico dessa habilidade (o que ela faz na prática),
+// pré-preenchido no campo editável "Descrição" ao escolher do catálogo.
+// EFFECT_DEFINITIONS[nome].description é o texto GENÉRICO do Efeito em si
+// (o que "Facilitar" significa em qualquer habilidade) — não editável,
+// mostrado como legenda de apoio.
+const ability = (id, name, category, triggerType, triggerDetail, cost, effectNames, description, extra = {}) => ({
   id,
   name,
   category,
   trigger: { type: triggerType, detail: triggerDetail },
   conditional: null,
   cost,
-  effect: { weight: getEffectWeight(effectNames), names: effectNames },
+  effect: { weight: getEffectWeight(effectNames), names: effectNames, description },
   ...extra,
 });
 
 export const ABILITIES = {
   // ---- COMBATE ----
   manobra_agil: ability('manobra_agil', 'Manobra Ágil', 'combate', 'Ativo', 'antes de Derrubar, Imobilizar ou Desarmar',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar']),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'A manobra de combate gasta 1 ação a menos.'),
 
   chuva_de_golpes: {
     ...ability('chuva_de_golpes', 'Chuva de Golpes', 'combate', 'Ativo', 'ao focar todos os ataques no mesmo alvo',
-      { weight: 2, form: '2 Vigor' }, ['Blindar']),
+      { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora a penalidade acumulada por realizar múltiplos ataques corpo a corpo no mesmo turno.'),
     conditional: { description: 'O alvo está atordoado, desequilibrado ou flanqueado', costReduction: 1 },
   },
 
   ambidestria: ability('ambidestria', 'Ambidestria', 'combate', 'Ativo', '',
-    { weight: 2, form: '2 Vigor' }, ['Blindar']),
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora a penalidade por atacar com duas armas diferentes no mesmo turno.'),
 
   revidar: {
     ...ability('revidar', 'Revidar', 'combate', 'Reativo', 'logo após Esquivar ou Bloquear com sucesso',
-      { weight: 1, form: '1 Vigor' }, ['Facilitar']),
+      { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido no ataque de resposta imediata.'),
     conditional: { description: 'O atacante está a alcance corpo a corpo', costReduction: 'zera' },
   },
 
   recuo_controlado: ability('recuo_controlado', 'Recuo Controlado', 'combate', 'Ativo', 'ao atirar em rajada',
-    { weight: 2, form: '2 Vigor' }, ['Blindar']),
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora a penalidade de recuo ao disparar em modo Automático ou usar Fogo de Supressão.'),
 
   evasao_perfeita: ability('evasao_perfeita', 'Evasão Perfeita', 'combate', 'Reativo', 'ao rolar defesa contra um ataque físico',
-    { weight: 2, form: '2 Vigor' }, ['Amplificar']),
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal na Esquiva é tratado como Sucesso Bom.'),
 
   golpe_certeiro: {
     ...ability('golpe_certeiro', 'Golpe Certeiro', 'combate', 'Ativo', 'antes de um ataque preparado, sem ter se movido no turno',
-      { weight: 2, form: '2 Vigor' }, ['Facilitar', 'Garantir']),
+      { weight: 2, form: '2 Vigor' }, ['Facilitar', 'Garantir'], 'Rebaixa em 1 o grau de sucesso exigido pra acertar um ponto vital, e essa rolagem não pode cair em Falha Crítica.'),
     conditional: { description: 'Não se moveu neste turno', costReduction: 1 },
   },
 
   recarga_rapida: ability('recarga_rapida', 'Recarga Rápida', 'combate', 'Ativo', 'ao trocar o carregador ou recarregar munição',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar']),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'A ação de recarregar gasta 1 ação a menos.'),
 
   saque_rapido: ability('saque_rapido', 'Saque Rápido', 'combate', 'Ativo', 'no momento de sacar a arma',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar']),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'A ação de sacar uma arma gasta 1 ação a menos (torna-se ação livre).'),
 
   mira_rapida: ability('mira_rapida', 'Mira Rápida', 'combate', 'Ativo', 'antes de realizar um disparo',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar']),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'A ação preparatória de Mirar gasta 1 ação a menos.'),
 
   improviso_letal: ability('improviso_letal', 'Improviso Letal', 'combate', 'Ativo', 'ao usar um item fora do padrão como arma',
-    { weight: 1, form: '1 Vigor' }, ['Amplificar']),
+    { weight: 1, form: '1 Vigor' }, ['Amplificar'], 'Um Sucesso normal ao atacar com o item improvisado é tratado como Sucesso Bom.'),
 
   reflexo_de_arremesso: ability('reflexo_de_arremesso', 'Reflexo de Arremesso', 'combate', 'Ativo', 'antes de arremessar um objeto que não é arma de arremesso dedicada',
-    { weight: 1, form: '1 Vigor' }, ['Garantir']),
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'Essa rolagem de ataque não pode cair em Falha Crítica.'),
 
   // ---- MOVIMENTO E FURTIVIDADE ----
   passo_de_sombra: {
     ...ability('passo_de_sombra', 'Passo de Sombra', 'movimento', 'Reativo', 'logo após um ataque furtivo',
-      { weight: 1, form: '1 ação/reação (Stamina)' }, ['Agilizar']),
+      { weight: 1, form: '1 ação/reação (Stamina)' }, ['Agilizar'], 'Mover-se e voltar a se esconder gasta 1 ação a menos.'),
     conditional: { description: 'Sem armadura pesada e sob cobertura', costReduction: 'zera' },
   },
 
   salto_calculado: ability('salto_calculado', 'Salto Calculado', 'movimento', 'Ativo', 'antes de um salto, escalada ou acrobacia',
-    { weight: 1, form: '1 Vigor' }, ['Garantir']),
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'Essa ação não pode cair em Falha Crítica.'),
 
   fuga_agil: ability('fuga_agil', 'Fuga Ágil', 'movimento', 'Reativo', 'ao tentar se afastar de um perigo iminente',
-    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Agilizar']),
+    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Agilizar'], 'A ação de se afastar gasta 1 ação a menos.'),
 
   acrobata_nato: ability('acrobata_nato', 'Acrobata Nato', 'movimento', 'Ativo', 'antes de um teste de Acrobacias envolvendo cambalhotas, saltos ou manobras aéreas',
-    { weight: 1, form: '1 Vigor' }, ['Amplificar']),
+    { weight: 1, form: '1 Vigor' }, ['Amplificar'], 'Um Sucesso normal em Acrobacias é tratado como Sucesso Bom.'),
 
   queda_controlada: ability('queda_controlada', 'Queda Controlada', 'movimento', 'Reativo', 'ao sofrer uma queda ou ser derrubado',
-    { weight: 1, form: '1 Vigor' }, ['Garantir']),
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Acrobacias pra amortecer a queda não pode cair em Falha Crítica.'),
 
   // ---- SOCIAL ----
   leitura_de_sala: ability('leitura_de_sala', 'Leitura de Sala', 'social', 'Ativo', 'ao entrar em um ambiente social novo',
-    { weight: 1, form: '1 Sanidade' }, ['Facilitar']),
+    { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido pra identificar a dinâmica social do ambiente.'),
 
   blefe_perfeito: ability('blefe_perfeito', 'Blefe Perfeito', 'social', 'Ativo', 'antes de mentir ou blefar',
-    { weight: 2, form: '2 Sanidade' }, ['Amplificar']),
+    { weight: 2, form: '2 Sanidade' }, ['Amplificar'], 'Um Sucesso normal em Lábia é tratado como Sucesso Bom.'),
 
   presenca_imponente: ability('presenca_imponente', 'Presença Imponente', 'social', 'Ativo', 'antes de intimidar',
-    { weight: 1, form: '1 Vigor' }, ['Garantir']),
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Intimidar não pode cair em Falha Crítica.'),
 
   // ---- MENTAL E SANIDADE ----
   compartimentalizar: ability('compartimentalizar', 'Compartimentalizar', 'mental', 'Reativo', 'ao sofrer uma perda de Sanidade',
-    { weight: 2, form: '2 Vigor' }, ['Blindar']),
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada de choque/trauma recente.'),
 
   foco_em_crise: {
     ...ability('foco_em_crise', 'Foco em Crise', 'mental', 'Reativo', 'ao falhar em um teste de Vontade',
-      { weight: 3, form: '3+ Vigor ou Sanidade combinados' }, ['Reverter']),
+      { weight: 3, form: '3+ Vigor ou Sanidade combinados' }, ['Reverter'], 'A falha nesse teste de Vontade é tratada como sucesso normal.'),
     conditional: { description: 'O Vigor está abaixo da metade', costReduction: 1 },
   },
 
   // ---- UTILIDADE E SUPORTE ----
   gambiarra_rapida: ability('gambiarra_rapida', 'Gambiarra Rápida', 'utilidade', 'Ativo', 'ao reparar algo sob pressão',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar']),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'O reparo gasta 1 ação a menos.'),
 
   olho_clinico: ability('olho_clinico', 'Olho Clínico', 'utilidade', 'Ativo', 'ao investigar uma cena',
-    { weight: 1, form: '1 Sanidade' }, ['Compensar']),
+    { weight: 1, form: '1 Sanidade' }, ['Compensar'], 'Uma falha na investigação ainda revela um detalhe parcial relacionado.'),
 
   preparo_tatico: ability('preparo_tatico', 'Preparo Tático', 'utilidade', 'Ativo', 'ao montar explosivos, armadilhas ou dispositivos improvisados',
-    { weight: 1, form: '1 Vigor' }, ['Garantir']),
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'A montagem não pode cair em Falha Crítica.'),
 
   primeiros_socorros_de_combate: {
     ...ability('primeiros_socorros_de_combate', 'Primeiros Socorros de Combate', 'utilidade', 'Ativo', 'ao tratar um aliado sangrando sob fogo',
-      { weight: 2, form: '2 Vigor' }, ['Agilizar', 'Garantir']),
+      { weight: 2, form: '2 Vigor' }, ['Agilizar', 'Garantir'], 'O tratamento gasta 1 ação a menos e não pode cair em Falha Crítica.'),
     conditional: { description: 'Dividindo a mesma cobertura que o aliado', costReduction: 1 },
   },
 
   instinto_de_sobrevivencia: ability('instinto_de_sobrevivencia', 'Instinto de Sobrevivência', 'utilidade', 'Reativo', 'ao sofrer dano que engatilhe uma Condição grave',
-    { weight: 2, form: '2 Vigor' }, ['Amplificar']),
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal no teste de resistência (Constituição/Vontade) é tratado como Sucesso Bom.'),
 
   // ---- MODELOS (o jogador preenche o contexto entre colchetes) ----
   modelo_maestria: ability('modelo_maestria', 'Maestria', 'modelo', 'Ativo', '',
-    { weight: 1, form: '1 Vigor' }, ['Facilitar'], { hasContext: true, contextLabel: 'ação, item ou situação' }),
+    { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido no contexto escolhido.',
+    { hasContext: true, contextLabel: 'ação, item ou situação' }),
 
   modelo_agilizar: ability('modelo_agilizar', 'Agilizar', 'modelo', 'Ativo', '',
-    { weight: 1, form: '1 Vigor' }, ['Agilizar'], { hasContext: true, contextLabel: 'ação específica' }),
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'A ação escolhida gasta 1 ação a menos.',
+    { hasContext: true, contextLabel: 'ação específica' }),
 
   modelo_automatizar: {
     ...ability('modelo_automatizar', 'Automatizar', 'modelo', 'Ativo', '',
-      { weight: 1, form: '1 Vigor' }, ['Garantir'], { hasContext: true, contextLabel: 'ação repetitiva' }),
+      { weight: 1, form: '1 Vigor' }, ['Garantir'], 'Não pode cair em Falha Crítica na ação escolhida.',
+      { hasContext: true, contextLabel: 'ação repetitiva' }),
     conditional: { description: 'A ação já foi feita pelo menos uma vez nessa cena', costReduction: 'zera' },
   },
 
   modelo_improvisar: ability('modelo_improvisar', 'Improvisar com', 'modelo', 'Ativo', '',
-    { weight: 1, form: '1 Vigor' }, ['Amplificar'], { hasContext: true, contextLabel: 'item fora do padrão' }),
+    { weight: 1, form: '1 Vigor' }, ['Amplificar'], 'Um Sucesso normal usando o item escolhido é tratado como Sucesso Bom.',
+    { hasContext: true, contextLabel: 'item fora do padrão' }),
 
   modelo_maestria_pressao: {
     ...ability('modelo_maestria_pressao', 'Maestria sob Pressão', 'modelo', 'Reativo', 'em uma situação de perigo iminente/pressão',
-      { weight: 2, form: '1 Vigor + 1 Sanidade' }, ['Agilizar', 'Amplificar'], { hasContext: true, contextLabel: 'ação + perícia' }),
+      { weight: 2, form: '1 Vigor + 1 Sanidade' }, ['Agilizar', 'Amplificar'], 'A ação escolhida gasta 1 ação a menos e um Sucesso normal nela é tratado como Sucesso Bom, só enquanto a pressão durar.',
+      { hasContext: true, contextLabel: 'ação + perícia' }),
     conditional: { description: 'Só utilizável enquanto estiver sob a condição de pressão descrita', costReduction: 1 },
   },
 
   modelo_condicionamento: ability('modelo_condicionamento', 'Condicionamento de', 'modelo', 'Ativo', '',
-    { weight: 1, form: '1 Vigor' }, ['Blindar'], { hasContext: true, contextLabel: 'tipo de esforço físico' }),
+    { weight: 1, form: '1 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada do tipo de esforço escolhido.',
+    { hasContext: true, contextLabel: 'tipo de esforço físico' }),
 
   modelo_mobilidade: ability('modelo_mobilidade', 'Mobilidade em', 'modelo', 'Ativo', '',
-    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], { hasContext: true, contextLabel: 'ação de deslocamento' }),
+    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'Não pode cair em Falha Crítica na ação de deslocamento escolhida.',
+    { hasContext: true, contextLabel: 'ação de deslocamento' }),
 };
 
 export const ABILITY_CATEGORY_LABELS = {

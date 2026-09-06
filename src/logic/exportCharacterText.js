@@ -233,7 +233,7 @@ if (character.weightKg) {
 character.selectedAbilities.forEach((a) => {
   const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
   const triggerText = `${a.trigger.type}${a.trigger.detail ? ` (${a.trigger.detail})` : ''}`;
-  const effectText = a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ');
+  const effectText = a.effect.description;
   const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
   lines.push(`> ${name} — ${triggerText} · ${a.cost.form} → ${effectText}${conditionalText}`);
 });
