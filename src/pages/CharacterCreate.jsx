@@ -218,8 +218,11 @@ const finalAttributeTotals = useMemo(() => {
   return totals;
 }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses, character.agingPenalty]);
   const isBroken = checkBrokenSanityState(purchasedCount);
+
+  const [modelModalOpen, setModelModalOpen] = useState(false);
 const [abilityModalOpen, setAbilityModalOpen] = useState(false);
-  const pendingConsequences = useMemo(() => {
+  
+const pendingConsequences = useMemo(() => {
     if (!character.lifeStageId) return [];
     return calculatePendingConsequences(character.lifeStageId, purchasedCount);
   }, [character.lifeStageId, purchasedCount]);
@@ -430,6 +433,24 @@ function handleCloseModal() {
     return { ...c, selectedAbilities: [...c.selectedAbilities, { abilityId, contextText: '' }] };
   });
 }
+function handleCreateBlankAbility() {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: [
+      ...c.selectedAbilities,
+      {
+        instanceId: `${Date.now()}-${Math.random()}`,
+        abilityId: null, // criada do zero, sem origem no catálogo
+        name: 'Nova Habilidade',
+        trigger: '',
+        contextText: '',
+        conditional: null,
+        cost: { weight: 1, label: 'Leve', form: '' },
+        effect: { weight: 1, names: [], description: '' },
+      },
+    ],
+  }));
+}
 function handleSelectAbilityFromCatalog(ability) {
   setCharacter((c) => ({
     ...c,
@@ -448,6 +469,7 @@ function handleSelectAbilityFromCatalog(ability) {
     ],
   }));
   setAbilityModalOpen(false);
+  setModelModalOpen(false); // fecha qualquer um dos dois que estava aberto
 }
 
 function handleRemoveAbility(instanceId) {
@@ -997,15 +1019,20 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
         {currentStep === 'customSkills' && (
           <section>
             <div className="mb-6">
-  <div className="flex items-center justify-between mb-2">
-    <h3 className="font-medium">Habilidades</h3>
-    <button
-      onClick={() => setAbilityModalOpen(true)}
-      className="text-xs px-3 py-1.5 rounded border bg-gray-50"
-    >
-      + Adicionar Habilidade
+<div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+  <h3 className="font-medium">Habilidades</h3>
+  <div className="flex gap-2">
+    <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + Do Catálogo
+    </button>
+    <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + A partir de Modelo
+    </button>
+    <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + Criar do Zero
     </button>
   </div>
+</div>
 
   {character.selectedAbilities.length === 0 ? (
     <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
@@ -1154,11 +1181,15 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
     </div>
   )}
 </div>
-
 {abilityModalOpen && (
+  <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
+)}
+{modelModalOpen && (
   <AbilityCatalogModal
     onSelect={handleSelectAbilityFromCatalog}
-    onClose={() => setAbilityModalOpen(false)}
+    onClose={() => setModelModalOpen(false)}
+    filterCategory="modelo"
+    title="Criar a partir de um Modelo"
   />
 )}
             <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
