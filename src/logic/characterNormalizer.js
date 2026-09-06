@@ -20,13 +20,20 @@ purchasedBackgrounds: (safeData.purchasedBackgrounds ?? []).map((entry) => ({
     customSkills: safeData.customSkills ?? [],
 selectedAbilities: (safeData.selectedAbilities ?? []).map((a) => ({
   instanceId: a.instanceId,
-  abilityId: a.abilityId ?? null, // origem no catálogo, null se editado a ponto de não fazer mais sentido rastrear
+  abilityId: a.abilityId ?? null,
   name: a.name ?? '',
-  trigger: a.trigger ?? '',
+  trigger: {
+    type: a.trigger?.type ?? 'Ativo',
+    detail: a.trigger?.detail ?? '',
+  },
   contextText: a.contextText ?? '',
-  conditional: a.conditional ?? null, // null | { description, costReduction }
-  cost: a.cost ?? { weight: 1, label: 'Leve', form: '' },
-  effect: a.effect ?? { weight: 1, names: [], description: '' },
+  conditional: a.conditional ?? null, // null | { description, costReduction: 1 | 'zera' }
+  cost: a.cost ?? { weight: 1, form: '1 Vigor' },
+effect: {
+  weight: a.effect?.weight ?? 1,
+  names: a.effect?.names ?? [],
+  description: a.effect?.description ?? '',
+},
 })),
 
     aspects: {
