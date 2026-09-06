@@ -230,15 +230,13 @@ if (character.weightKg) {
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
   lines.push('');
 }
-if (character.selectedAbilities.length > 0) {
-  lines.push('Habilidades:');
-  character.selectedAbilities.forEach((a) => {
-    const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
-    const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
-    lines.push(`> ${name} — ${a.trigger} · ${a.cost.form} → ${a.effect.description}${conditionalText}`);
-  });
-  lines.push('');
-}
+character.selectedAbilities.forEach((a) => {
+  const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
+  const triggerText = `${a.trigger.type}${a.trigger.detail ? ` (${a.trigger.detail})` : ''}`;
+  const effectText = a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ');
+  const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
+  lines.push(`> ${name} — ${triggerText} · ${a.cost.form} → ${effectText}${conditionalText}`);
+});
 
   if (character.customSkills.length > 0) {
     lines.push('Habilidades:');

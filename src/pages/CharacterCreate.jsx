@@ -21,7 +21,7 @@ import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
 import AbilityCatalogModal from '../components/modals/AbilityCatalogModal';
-
+import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINITIONS, getEffectWeight } from '../data/abilities';
 
 import { ABILITIES, groupAbilitiesByCategory } from '../data/abilities';
 import {
@@ -440,13 +440,13 @@ function handleCreateBlankAbility() {
       ...c.selectedAbilities,
       {
         instanceId: `${Date.now()}-${Math.random()}`,
-        abilityId: null, // criada do zero, sem origem no catálogo
+        abilityId: null,
         name: 'Nova Habilidade',
-        trigger: '',
+        trigger: { type: 'Ativo', detail: '' },
         contextText: '',
         conditional: null,
-        cost: { weight: 1, label: 'Leve', form: '' },
-        effect: { weight: 1, names: [], description: '' },
+        cost: { weight: 1, form: COST_FORMS_BY_WEIGHT[1][0] },
+        effect: { weight: 1, names: [] },
       },
     ],
   }));
@@ -460,18 +460,25 @@ function handleSelectAbilityFromCatalog(ability) {
         instanceId: `${Date.now()}-${Math.random()}`,
         abilityId: ability.id,
         name: ability.name,
-        trigger: ability.trigger,
+        trigger: { ...ability.trigger },
         contextText: '',
         conditional: ability.conditional ? { ...ability.conditional } : null,
         cost: { ...ability.cost },
-        effect: { ...ability.effect, names: [...ability.effect.names] },
+        effect: { weight: ability.effect.weight, names: [...ability.effect.names] },
       },
     ],
   }));
   setAbilityModalOpen(false);
-  setModelModalOpen(false); // fecha qualquer um dos dois que estava aberto
+  setModelModalOpen(false);
 }
-
+function handleToggleEffectName(instanceId, effectName) {
+  handleUpdateAbility(instanceId, (a) => {
+    const names = a.effect.names.includes(effectName)
+      ? a.effect.names.filter((n) => n !== effectName)
+      : [...a.effect.names, effectName];
+    return { ...a, effect: { weight: names.length ? getEffectWeight(names) : 1, names } };
+  });
+}
 function handleRemoveAbility(instanceId) {
   setCharacter((c) => ({
     ...c,
@@ -486,7 +493,7 @@ function handleUpdateAbility(instanceId, updater) {
   }));
 }
 
-function handleToggleAbilityConditional(instanceId) {
+function handleToGgleAbilityConditional(instanceId) {
   handleUpdateAbility(instanceId, (a) => ({
     ...a,
     conditional: a.conditional ? null : { description: '', costReduction: 1 },
@@ -1054,14 +1061,97 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
             </button>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
-            <input
-              className="w-full border rounded px-2 py-1 text-xs"
-              value={a.trigger}
-              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: e.target.value }))}
-            />
-          </div>
+{/* Gatilho */}
+<div className="grid grid-cols-2 gap-2">
+  <div>
+    <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
+    <select
+      className="w-full border rounded px-2 py-1 text-xs"
+      value={a.trigger.type}
+      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
+    >
+      {TRIGGER_TYPES.map((t) => (
+        <option key={t} value={t}>{t}</option>
+      ))}
+    </select>
+  </div>
+  <div>
+    <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
+    <input
+      className="w-full border rounded px-2 py-1 text-xs"
+      placeholder="ex: antes de sacar a arma"
+      value={a.trigger.detail}
+      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
+    />
+  </div>
+</div>
+
+{/* Custo */}
+<div className="grid grid-cols-2 gap-2">
+  <div>
+    <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
+    <select
+      className="w-full border rounded px-2 py-1 text-xs"
+      value={a.cost.weight}
+      onChange={(e) => {
+        const weight = Number(e.target.value);
+        handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
+      }}
+    >
+      {[1, 2, 3].map((w) => (
+        <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
+      ))}
+    </select>
+  </div>
+  <div>
+    <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
+    <select
+      className="w-full border rounded px-2 py-1 text-xs"
+      value={a.cost.form}
+      onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
+    >
+      {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
+        <option key={form} value={form}>{form}</option>
+      ))}
+    </select>
+  </div>
+</div>
+
+{/* Efeito — multi-select por checkbox, peso calculado automaticamente */}
+<div>
+  <label className="block text-xs text-gray-500 mb-1">
+    Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
+  </label>
+  <div className="flex flex-wrap gap-1">
+    {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
+      <button
+        key={name}
+        type="button"
+        onClick={() => handleToggleEffectName(a.instanceId, name)}
+        className={`px-2 py-1 rounded border text-xs ${
+          a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+        }`}
+        title={def.description}
+      >
+        {name} ({def.weight})
+      </button>
+    ))}
+  </div>
+  {a.effect.names.length > 0 && (
+    <p className="text-xs text-gray-500 mt-1">
+      {a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ')}
+    </p>
+  )}
+</div>
+
+{a.cost.weight !== a.effect.weight && (
+  <p className="text-xs text-amber-600">
+    ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
+    {a.cost.weight < a.effect.weight
+      ? ' pagar menos gera um excedente dobrado como consequência extra.'
+      : ' pagar mais é só desperdício de recurso (roleplay).'}
+  </p>
+)}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -1599,8 +1689,7 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
   ) : (
     character.selectedAbilities.map((a) => (
       <div key={a.instanceId} className="text-xs border-b py-1">
-        <strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger} · {a.cost.form} → {a.effect.description}
-        {a.conditional && ` (Condicional: ${a.conditional.description})`}
+<strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.names.map((n) => EFFECT_DEFINITIONS[n].description).join(' + ')}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
       </div>
     ))
   )}
