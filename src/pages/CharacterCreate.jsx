@@ -20,12 +20,17 @@ import BackgroundModal from '../components/modals/BackgroundModal';
 import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
+import AbilityCatalogModal from '../components/modals/AbilityCatalogModal';
+
+
+import { ABILITIES, groupAbilitiesByCategory } from '../data/abilities';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
   applyMassDamageModifier, applyMassVigorModifier,
 } from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';function buildSteps(isAgent) {
+  
 
 
   const steps = [
@@ -214,7 +219,10 @@ const finalAttributeTotals = useMemo(() => {
 }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses, character.agingPenalty]);
   const isBroken = checkBrokenSanityState(purchasedCount);
 
-  const pendingConsequences = useMemo(() => {
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+const [abilityModalOpen, setAbilityModalOpen] = useState(false);
+  
+const pendingConsequences = useMemo(() => {
     if (!character.lifeStageId) return [];
     return calculatePendingConsequences(character.lifeStageId, purchasedCount);
   }, [character.lifeStageId, purchasedCount]);
@@ -416,6 +424,81 @@ function handleCloseModal() {
       ],
     }));
   }
+  function handleToggleAbility(abilityId) {
+  setCharacter((c) => {
+    const exists = c.selectedAbilities.some((a) => a.abilityId === abilityId);
+    if (exists) {
+      return { ...c, selectedAbilities: c.selectedAbilities.filter((a) => a.abilityId !== abilityId) };
+    }
+    return { ...c, selectedAbilities: [...c.selectedAbilities, { abilityId, contextText: '' }] };
+  });
+}
+function handleCreateBlankAbility() {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: [
+      ...c.selectedAbilities,
+      {
+        instanceId: `${Date.now()}-${Math.random()}`,
+        abilityId: null, // criada do zero, sem origem no catálogo
+        name: 'Nova Habilidade',
+        trigger: '',
+        contextText: '',
+        conditional: null,
+        cost: { weight: 1, label: 'Leve', form: '' },
+        effect: { weight: 1, names: [], description: '' },
+      },
+    ],
+  }));
+}
+function handleSelectAbilityFromCatalog(ability) {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: [
+      ...c.selectedAbilities,
+      {
+        instanceId: `${Date.now()}-${Math.random()}`,
+        abilityId: ability.id,
+        name: ability.name,
+        trigger: ability.trigger,
+        contextText: '',
+        conditional: ability.conditional ? { ...ability.conditional } : null,
+        cost: { ...ability.cost },
+        effect: { ...ability.effect, names: [...ability.effect.names] },
+      },
+    ],
+  }));
+  setAbilityModalOpen(false);
+  setModelModalOpen(false); // fecha qualquer um dos dois que estava aberto
+}
+
+function handleRemoveAbility(instanceId) {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: c.selectedAbilities.filter((a) => a.instanceId !== instanceId),
+  }));
+}
+
+function handleUpdateAbility(instanceId, updater) {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: c.selectedAbilities.map((a) => (a.instanceId === instanceId ? updater(a) : a)),
+  }));
+}
+
+function handleToggleAbilityConditional(instanceId) {
+  handleUpdateAbility(instanceId, (a) => ({
+    ...a,
+    conditional: a.conditional ? null : { description: '', costReduction: 1 },
+  }));
+}
+
+function handleSetAbilityContext(abilityId, text) {
+  setCharacter((c) => ({
+    ...c,
+    selectedAbilities: c.selectedAbilities.map((a) => (a.abilityId === abilityId ? { ...a, contextText: text } : a)),
+  }));
+}
 
   function handleExportPdf() {
     // UC-04: a "burocracia" roda antes da geração real do PDF.
@@ -935,6 +1018,180 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
         {/* Step 5: Habilidades Customizadas */}
         {currentStep === 'customSkills' && (
           <section>
+            <div className="mb-6">
+<div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+  <h3 className="font-medium">Habilidades</h3>
+  <div className="flex gap-2">
+    <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + Do Catálogo
+    </button>
+    <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + A partir de Modelo
+    </button>
+    <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+      + Criar do Zero
+    </button>
+  </div>
+</div>
+
+  {character.selectedAbilities.length === 0 ? (
+    <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
+  ) : (
+    <div className="space-y-3">
+      {character.selectedAbilities.map((a) => (
+        <div key={a.instanceId} className="border rounded p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <input
+              className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
+              value={a.name}
+              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
+            />
+            <button
+              onClick={() => handleRemoveAbility(a.instanceId)}
+              className="text-xs text-red-500 underline ml-2"
+            >
+              Remover
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-xs"
+              value={a.trigger}
+              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: e.target.value }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
+              <select
+                className="w-full border rounded px-2 py-1 text-xs"
+                value={a.cost.weight}
+                onChange={(e) => {
+                  const weight = Number(e.target.value);
+                  const label = weight === 1 ? 'Leve' : weight === 2 ? 'Moderado' : 'Pesado';
+                  handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, weight, label } }));
+                }}
+              >
+                <option value={1}>1 — Leve</option>
+                <option value={2}>2 — Moderado</option>
+                <option value={3}>3 — Pesado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Peso do Efeito</label>
+              <select
+                className="w-full border rounded px-2 py-1 text-xs"
+                value={a.effect.weight}
+                onChange={(e) =>
+                  handleUpdateAbility(a.instanceId, (ab) => ({
+                    ...ab,
+                    effect: { ...ab.effect, weight: Number(e.target.value) },
+                  }))
+                }
+              >
+                <option value={1}>1 — Leve</option>
+                <option value={2}>2 — Moderado</option>
+                <option value={3}>3 — Pesado</option>
+              </select>
+            </div>
+          </div>
+
+          {a.cost.weight !== a.effect.weight && (
+            <p className="text-xs text-amber-600">
+              ⚠ Custo e Efeito com pesos diferentes — se o Custo for menor, a diferença dobra como
+              consequência extra; se for maior, é só desperdício de recurso (roleplay).
+            </p>
+          )}
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-xs"
+              placeholder="ex: 1 Vigor"
+              value={a.cost.form}
+              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Efeito (descrição)</label>
+            <textarea
+              className="w-full border rounded px-2 py-1 text-xs"
+              rows={2}
+              value={a.effect.description}
+              onChange={(e) =>
+                handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))
+              }
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-xs text-gray-500">
+              <input
+                type="checkbox"
+                checked={!!a.conditional}
+                onChange={() => handleToggleAbilityConditional(a.instanceId)}
+              />
+              Condicional (reduz o Custo em troca de uma restrição)
+            </label>
+            {a.conditional && (
+              <div className="mt-2 space-y-2 pl-5">
+                <input
+                  className="w-full border rounded px-2 py-1 text-xs"
+                  placeholder="Descreva a condição (ex: sob forte estresse)"
+                  value={a.conditional.description}
+                  onChange={(e) =>
+                    handleUpdateAbility(a.instanceId, (ab) => ({
+                      ...ab,
+                      conditional: { ...ab.conditional, description: e.target.value },
+                    }))
+                  }
+                />
+                <select
+                  className="w-full border rounded px-2 py-1 text-xs"
+                  value={a.conditional.costReduction}
+                  onChange={(e) =>
+                    handleUpdateAbility(a.instanceId, (ab) => ({
+                      ...ab,
+                      conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
+                    }))
+                  }
+                >
+                  <option value={1}>Reduz -1 no peso do Custo</option>
+                  <option value="zera">Zera o Custo</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
+            <input
+              className="w-full border rounded px-2 py-1 text-xs"
+              placeholder="ex: usar um machado em combate"
+              value={a.contextText}
+              onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+{abilityModalOpen && (
+  <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
+)}
+{modelModalOpen && (
+  <AbilityCatalogModal
+    onSelect={handleSelectAbilityFromCatalog}
+    onClose={() => setModelModalOpen(false)}
+    filterCategory="modelo"
+    title="Criar a partir de um Modelo"
+  />
+)}
             <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
             <p className="text-sm text-gray-500 mb-4">
               Manobras e especializações técnicas ativas baseadas em Perícias.
@@ -1335,7 +1592,19 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
                   </div>
                 )}
-
+<div>
+  <div className="font-medium mb-1">Habilidades</div>
+  {character.selectedAbilities.length === 0 ? (
+    <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
+  ) : (
+    character.selectedAbilities.map((a) => (
+      <div key={a.instanceId} className="text-xs border-b py-1">
+        <strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger} · {a.cost.form} → {a.effect.description}
+        {a.conditional && ` (Condicional: ${a.conditional.description})`}
+      </div>
+    ))
+  )}
+</div>
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
                 {character.customSkills.length === 0 ? (
                   <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
