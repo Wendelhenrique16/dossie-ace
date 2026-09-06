@@ -7,6 +7,9 @@ import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { OCCUPATION_CATEGORIES } from '../data/occupations';
 import { TRAUMAS } from '../data/traumas';
 import { getEffectiveMassCategory } from './characterCalculations';
+import { ABILITIES } from '../data/abilities';
+
+
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -225,6 +228,15 @@ if (character.weightKg) {
   lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
   lines.push(`> Vantagem: ${massInfo.real.advantage}`);
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
+  lines.push('');
+}
+if (character.selectedAbilities.length > 0) {
+  lines.push('Habilidades:');
+  character.selectedAbilities.forEach((a) => {
+    const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
+    const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
+    lines.push(`> ${name} — ${a.trigger} · ${a.cost.form} → ${a.effect.description}${conditionalText}`);
+  });
   lines.push('');
 }
 
