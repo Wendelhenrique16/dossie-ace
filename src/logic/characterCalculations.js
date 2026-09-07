@@ -187,13 +187,14 @@ function shiftCategoryIndex(baseIndex, steps, direction) {
  * Massa Efetiva (Regra da Estrutura Física): 3 eixos independentes.
  * As Vantagens/Desvantagens (estruturais) sempre usam a categoria REAL (peso puro).
  */
-export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituicaoLevel = 0, resistenciaLevel = 0 } = {}) {
+export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituicaoLevel = 0, resistenciaLevel = 0, archetypeShifts = {} } = {}) {
   const realCategory = getMassCategory(weightKg);
   const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
+  const clamp = (i) => Math.max(0, Math.min(MASS_CATEGORIES.length - 1, i));
 
-  const damageIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down');
-  const vigorIndex = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down');
-  const staminaIndex = shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up');
+  const damageIndex = clamp(shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down') + (archetypeShifts.damage || 0));
+  const vigorIndex = clamp(shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down') + (archetypeShifts.vigor || 0));
+  const staminaIndex = clamp(shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up') + (archetypeShifts.stamina || 0));
 
   return {
     real: realCategory,
