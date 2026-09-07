@@ -185,6 +185,160 @@ export const ABILITIES = {
   modelo_mobilidade: ability('modelo_mobilidade', 'Mobilidade em', 'modelo', 'Ativo', '',
     { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'Não pode cair em Falha Crítica na ação de deslocamento escolhida.',
     { hasContext: true, contextLabel: 'ação de deslocamento' }),
+
+  // ---- HABILIDADES DE ASSINATURA (3 por Arquétipo) ----
+
+  // Parrudo
+  golpe_bruto: ability('golpe_bruto', 'Golpe Bruto', 'assinatura', 'Ativo', 'antes de um ataque corpo a corpo',
+    { weight: 1, form: '1 Vigor' }, ['Amplificar'], 'Um Sucesso normal no ataque desarmado é tratado como Sucesso Bom.',
+    { archetypeId: 'parrudo' }),
+  forca_bruta: ability('forca_bruta', 'Força Bruta', 'assinatura', 'Ativo', 'ao quebrar, arrombar ou erguer algo usando Força',
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'Esse teste de Força não pode cair em Falha Crítica.',
+    { archetypeId: 'parrudo' }),
+  pele_de_aco: ability('pele_de_aco', 'Pele de Aço', 'assinatura', 'Reativo', 'ao sofrer dano físico',
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada de ferimentos leves.',
+    { archetypeId: 'parrudo' }),
+
+  // Veterano
+  folego_de_veterano: ability('folego_de_veterano', 'Fôlego de Veterano', 'assinatura', 'Ativo', 'ao sustentar esforço físico prolongado',
+    { weight: 1, form: '1 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade de cansaço acumulado.',
+    { archetypeId: 'veterano' }),
+  cicatrizes_de_guerra: ability('cicatrizes_de_guerra', 'Cicatrizes de Guerra', 'assinatura', 'Reativo', 'ao sofrer um Ferimento',
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'O teste de Constituição/Vontade pra resistir ao colapso é tratado como Sucesso Bom.',
+    { archetypeId: 'veterano' }),
+  instinto_de_campo: ability('instinto_de_campo', 'Instinto de Campo', 'assinatura', 'Ativo', 'antes de agir num ambiente de combate familiar',
+    { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido em Sobrevivência ou Percepção nesse contexto.',
+    { archetypeId: 'veterano' }),
+
+  // Assassino Silencioso
+  golpe_fatal: ability('golpe_fatal', 'Golpe Fatal', 'assinatura', 'Ativo', 'antes de um ataque furtivo',
+    { weight: 2, form: '2 Vigor' }, ['Multiplicar'], 'Dobra o efeito do dano nesse ataque furtivo.',
+    { archetypeId: 'assassino_silencioso' }),
+  sombra_perfeita: ability('sombra_perfeita', 'Sombra Perfeita', 'assinatura', 'Ativo', 'ao se esconder logo após agir',
+    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'O teste de Furtividade pra sumir de vista não pode cair em Falha Crítica.',
+    { archetypeId: 'assassino_silencioso' }),
+  silencio_mortal: ability('silencio_mortal', 'Silêncio Mortal', 'assinatura', 'Reativo', 'logo após eliminar um alvo furtivamente',
+    { weight: 1, form: '1 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a chance de outros perceberem que o ataque aconteceu.',
+    { archetypeId: 'assassino_silencioso' }),
+
+  // Atirador de Elite
+  disparo_calculado: ability('disparo_calculado', 'Disparo Calculado', 'assinatura', 'Ativo', 'antes de atirar',
+    { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido nesse disparo.',
+    { archetypeId: 'atirador_de_elite' }),
+  tiro_certeiro: ability('tiro_certeiro', 'Tiro Certeiro', 'assinatura', 'Ativo', 'contra um alvo parado ou sem cobertura',
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal nesse disparo é tratado como Sucesso Bom.',
+    { archetypeId: 'atirador_de_elite' }),
+  reflexo_de_combate: ability('reflexo_de_combate', 'Reflexo de Combate', 'assinatura', 'Reativo', 'após ser alvo de um ataque de retorno inimigo',
+    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'O teste de defesa não pode cair em Falha Crítica.',
+    { archetypeId: 'atirador_de_elite' }),
+
+  // Artista Marcial
+  fluidez_marcial: ability('fluidez_marcial', 'Fluidez Marcial', 'assinatura', 'Ativo', 'durante uma sequência de golpes desarmados',
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'O próximo golpe da sequência gasta 1 ação a menos que o padrão.',
+    { archetypeId: 'artista_marcial' }),
+  postura_perfeita: ability('postura_perfeita', 'Postura Perfeita', 'assinatura', 'Reativo', 'ao ser atacado corpo a corpo',
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade de estar cercado ou flanqueado.',
+    { archetypeId: 'artista_marcial' }),
+  golpe_decisivo: ability('golpe_decisivo', 'Golpe Decisivo', 'assinatura', 'Ativo', 'ao acumular vantagem tática sobre o oponente',
+    { weight: 3, form: 'Usar o turno inteiro' }, ['Multiplicar'], 'Dobra o efeito do próximo golpe desarmado bem-sucedido.',
+    { archetypeId: 'artista_marcial' }),
+
+  // Vidente
+  pressagio: ability('pressagio', 'Presságio', 'assinatura', 'Ativo', 'antes de uma ação arriscada',
+    { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido, guiado pelo instinto do personagem.',
+    { archetypeId: 'vidente' }),
+  visao_alem_do_veu: ability('visao_alem_do_veu', 'Visão Além do Véu', 'assinatura', 'Ativo', 'ao investigar algo de natureza sobrenatural',
+    { weight: 2, form: '2 Sanidade' }, ['Amplificar'], 'Um Sucesso normal em Intuição ou Ocultismo relacionado é tratado como Sucesso Bom.',
+    { archetypeId: 'vidente' }),
+  aviso_silencioso: ability('aviso_silencioso', 'Aviso Silencioso', 'assinatura', 'Reativo', 'ao perceber perigo iminente sobre um aliado',
+    { weight: 1, form: '1 Sanidade' }, ['Garantir'], 'O teste de Percepção do aliado avisado não pode cair em Falha Crítica.',
+    { archetypeId: 'vidente' }),
+
+  // Religioso
+  fe_inabalavel: ability('fe_inabalavel', 'Fé Inabalável', 'assinatura', 'Reativo', 'ao sofrer perda de Sanidade por choque ou horror',
+    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada desse choque.',
+    { archetypeId: 'religioso' }),
+  palavra_consagrada: ability('palavra_consagrada', 'Palavra Consagrada', 'assinatura', 'Ativo', 'ao confrontar algo hostil verbalmente, invocando a fé',
+    { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido nesse confronto.',
+    { archetypeId: 'religioso' }),
+  bencao_de_protecao: ability('bencao_de_protecao', 'Bênção de Proteção', 'assinatura', 'Ativo', 'antes de proteger um aliado',
+    { weight: 2, form: '1 Vigor + 1 Sanidade' }, ['Garantir'], 'O teste de defesa do aliado protegido não pode cair em Falha Crítica.',
+    { archetypeId: 'religioso' }),
+
+  // Pactário
+  barganha_sombria: {
+    ...ability('barganha_sombria', 'Barganha Sombria', 'assinatura', 'Ativo', 'ao invocar o poder do contrato',
+      { weight: 2, form: '1 Vigor + 1 Sanidade' }, ['Amplificar'], 'Um Sucesso normal na ação invocada é tratado como Sucesso Bom.',
+      { archetypeId: 'pactario' }),
+    conditional: { description: 'Aceita agir conforme a vontade da entidade nessa cena', costReduction: 1 },
+  },
+  vontade_emprestada: ability('vontade_emprestada', 'Vontade Emprestada', 'assinatura', 'Reativo', 'ao falhar um teste de Ocultismo — a entidade empresta força na hora',
+    { weight: 3, form: 'Debuff/penalidade em si mesmo' }, ['Reverter'], 'A falha nesse teste de Ocultismo é tratada como sucesso normal — a entidade cobra o preço depois.',
+    { archetypeId: 'pactario' }),
+  preco_do_pacto: ability('preco_do_pacto', 'Preço do Pacto', 'assinatura', 'Ativo', 'antes de uma ação crítica',
+    { weight: 3, form: 'Debuff/penalidade em si mesmo' }, ['Multiplicar'], 'Dobra o efeito do próximo sucesso — a entidade escolhe a penalidade específica cobrada em troca.',
+    { archetypeId: 'pactario' }),
+
+  // Ritualista
+  ritual_preparado: {
+    ...ability('ritual_preparado', 'Ritual Preparado', 'assinatura', 'Ativo', 'ao preparar algo ocultista complexo com antecedência',
+      { weight: 2, form: '2 Vigor' }, ['Garantir'], 'Essa preparação não pode cair em Falha Crítica.',
+      { archetypeId: 'ritualista' }),
+    conditional: { description: 'Consome um material ritualístico específico', costReduction: 1 },
+  },
+  circulo_de_precisao: ability('circulo_de_precisao', 'Círculo de Precisão', 'assinatura', 'Ativo', 'ao executar um ritual que exige exatidão',
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal na execução do ritual é tratado como Sucesso Bom.',
+    { archetypeId: 'ritualista' }),
+  formula_perfeita: {
+    ...ability('formula_perfeita', 'Fórmula Perfeita', 'assinatura', 'Ativo', 'ao repetir um ritual já executado antes',
+      { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido nesse ritual já dominado.',
+      { archetypeId: 'ritualista' }),
+    conditional: { description: 'Já executou esse ritual específico antes', costReduction: 'zera' },
+  },
+
+  // Engenheiro
+  reparo_relampago: ability('reparo_relampago', 'Reparo Relâmpago', 'assinatura', 'Ativo', 'ao consertar algo sob pressão',
+    { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'O reparo gasta 1 ação a menos que o padrão.',
+    { archetypeId: 'engenheiro' }),
+  gambiarra_genial: ability('gambiarra_genial', 'Gambiarra Genial', 'assinatura', 'Ativo', 'ao improvisar uma solução técnica',
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal na improvisação técnica é tratado como Sucesso Bom.',
+    { archetypeId: 'engenheiro' }),
+  diagnostico_preciso: ability('diagnostico_preciso', 'Diagnóstico Preciso', 'assinatura', 'Ativo', 'ao identificar uma falha técnica',
+    { weight: 1, form: '1 Sanidade' }, ['Garantir'], 'Esse diagnóstico não pode cair em Falha Crítica.',
+    { archetypeId: 'engenheiro' }),
+
+  // Investigador
+  faro_investigativo: ability('faro_investigativo', 'Faro Investigativo', 'assinatura', 'Ativo', 'ao investigar uma cena',
+    { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Investigação não pode cair em Falha Crítica.',
+    { archetypeId: 'investigador' }),
+  conexao_de_pistas: ability('conexao_de_pistas', 'Conexão de Pistas', 'assinatura', 'Ativo', 'ao analisar pistas já coletadas',
+    { weight: 2, form: '2 Sanidade' }, ['Compensar'], 'Uma falha ao conectar as pistas ainda revela uma conexão parcial relacionada.',
+    { archetypeId: 'investigador' }),
+  memoria_fotografica: ability('memoria_fotografica', 'Memória Fotográfica', 'assinatura', 'Ativo', 'ao tentar lembrar um detalhe visto antes',
+    { weight: 1, form: '1 Sanidade' }, ['Amplificar'], 'Um Sucesso normal em Memória é tratado como Sucesso Bom.',
+    { archetypeId: 'investigador' }),
+
+  // Médico de Campo
+  maos_firmes: ability('maos_firmes', 'Mãos Firmes', 'assinatura', 'Ativo', 'ao tratar um aliado',
+    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal no tratamento é tratado como Sucesso Bom.',
+    { archetypeId: 'medico_de_campo' }),
+  estabilizacao_de_emergencia: ability('estabilizacao_de_emergencia', 'Estabilização de Emergência', 'assinatura', 'Reativo', 'ao ver um aliado entrar em colapso',
+    { weight: 2, form: '2 Vigor' }, ['Agilizar', 'Garantir'], 'Estabilizar o aliado gasta 1 ação a menos e não pode cair em Falha Crítica.',
+    { archetypeId: 'medico_de_campo' }),
+  triagem_rapida: ability('triagem_rapida', 'Triagem Rápida', 'assinatura', 'Ativo', 'ao avaliar múltiplos feridos ao mesmo tempo',
+    { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido pra identificar quem tratar primeiro.',
+    { archetypeId: 'medico_de_campo' }),
+
+  // Negociador
+  advocacia: ability('advocacia', 'Advocacia', 'assinatura', 'Ativo', 'ao negociar ou defender socialmente em nome de um aliado',
+    { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido nessa negociação.',
+    { archetypeId: 'negociador' }),
+  leitura_de_intencoes: ability('leitura_de_intencoes', 'Leitura de Intenções', 'assinatura', 'Ativo', 'ao negociar com alguém hostil',
+    { weight: 1, form: '1 Sanidade' }, ['Garantir'], 'Esse teste social não pode cair em Falha Crítica.',
+    { archetypeId: 'negociador' }),
+  acordo_vantajoso: ability('acordo_vantajoso', 'Acordo Vantajoso', 'assinatura', 'Ativo', 'ao fechar uma negociação',
+    { weight: 2, form: '2 Sanidade' }, ['Amplificar'], 'Um Sucesso normal em Lábia pra fechar o acordo é tratado como Sucesso Bom.',
+    { archetypeId: 'negociador' }),
 };
 
 export const ABILITY_CATEGORY_LABELS = {
@@ -194,7 +348,13 @@ export const ABILITY_CATEGORY_LABELS = {
   mental: 'Mental e Sanidade',
   utilidade: 'Utilidade e Suporte',
   modelo: 'Modelos (preencha o contexto)',
+  assinatura: 'Habilidades de Assinatura (por Arquétipo)',
 };
+
+// Retorna só as 3 Habilidades de Assinatura de um Arquétipo específico.
+export function getSignatureAbilitiesForArchetype(archetypeId) {
+  return Object.values(ABILITIES).filter((a) => a.category === 'assinatura' && a.archetypeId === archetypeId);
+}
 
 export function groupAbilitiesByCategory() {
   const groups = {};

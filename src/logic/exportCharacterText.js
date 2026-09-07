@@ -215,6 +215,10 @@ lines.push('');
     lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);
     lines.push('');
   }
+  if (isAgent && character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId]) {
+  const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+  lines.push(`Bônus do Arquétipo (${bonus.name}): ${bonus.description}`);
+}
 if (character.weightKg) {
   const massInfo = getEffectiveMassCategory(character.weightKg, {
     forcaLevel: finalSkillTotals.forca || 0,

@@ -22,8 +22,8 @@ import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
 import AbilityCatalogModal from '../components/modals/AbilityCatalogModal';
 import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINITIONS, getEffectWeight } from '../data/abilities';
-
-import { ABILITIES, groupAbilitiesByCategory } from '../data/abilities';
+import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
+import { getSignatureAbilitiesForArchetype } from '../data/abilities';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
@@ -297,14 +297,21 @@ export default function CharacterCreate({ userId }) {
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
   }, [finalSkillTotals]);
-  const massInfo = useMemo(() => {
-    if (!character.weightKg) return null;
-    return getEffectiveMassCategory(character.weightKg, {
-      forcaLevel: finalSkillTotals.forca || 0,
-      constituicaoLevel: finalSkillTotals.constituicao || 0,
-      resistenciaLevel: finalSkillTotals.resistencia || 0,
-    });
-  }, [character.weightKg, finalSkillTotals]);
+const archetypeShifts = useMemo(() => {
+  const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+  if (!bonus?.massShift) return {};
+  return { [bonus.massShift.axis]: bonus.massShift.amount };
+}, [character.classPath.archetypeId]);
+
+const massInfo = useMemo(() => {
+  if (!character.weightKg) return null;
+  return getEffectiveMassCategory(character.weightKg, {
+    forcaLevel: finalSkillTotals.forca || 0,
+    constituicaoLevel: finalSkillTotals.constituicao || 0,
+    resistenciaLevel: finalSkillTotals.resistencia || 0,
+    archetypeShifts,
+  });
+}, [character.weightKg, finalSkillTotals, archetypeShifts]);
   const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
 
   const massAdjustedVigor = useMemo(() => {
@@ -1477,6 +1484,43 @@ export default function CharacterCreate({ userId }) {
                 </div>
               </>
             )}
+            {character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId] && (
+  <div className="border rounded p-3 mb-4 bg-gray-50">
+    <div className="font-medium text-sm mb-1">
+      Bônus Fixo: {ARCHETYPE_BONUSES[character.classPath.archetypeId].name}
+    </div>
+    <p className="text-xs text-gray-600">{ARCHETYPE_BONUSES[character.classPath.archetypeId].description}</p>
+  </div>
+)}
+
+{character.classPath.archetypeId && (
+  <div className="mb-4">
+    <label className="block text-sm mb-2">Habilidade de Assinatura (escolha 1 das 3)</label>
+    <div className="space-y-2">
+      {getSignatureAbilitiesForArchetype(character.classPath.archetypeId).map((ability) => {
+        const alreadyAdded = character.selectedAbilities.some((a) => a.abilityId === ability.id);
+        return (
+          <div key={ability.id} className="border rounded p-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm">{ability.name}</span>
+              {alreadyAdded ? (
+                <span className="text-xs text-green-600">✓ Adicionada</span>
+              ) : (
+                <button
+                  onClick={() => handleSelectAbilityFromCatalog(ability)}
+                  className="text-xs px-2 py-1 rounded border"
+                >
+                  Escolher
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{ability.effect.description}</p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
             {/* Caminho */}
             <label className="block text-sm mb-1">Caminho</label>
@@ -1670,6 +1714,12 @@ export default function CharacterCreate({ userId }) {
                       {note}
                     </div>
                   ))}
+                  {character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId] && (
+  <div className="text-xs text-gray-500 mt-1">
+    <strong>Bônus do Arquétipo ({ARCHETYPE_BONUSES[character.classPath.archetypeId].name}):</strong>{' '}
+    {ARCHETYPE_BONUSES[character.classPath.archetypeId].description}
+  </div>
+)}
                 </div>
               )}
             </div>
