@@ -29,8 +29,8 @@ import {
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
   applyMassDamageModifier, applyMassVigorModifier,
 } from '../logic/characterCalculations';
-import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';function buildSteps(isAgent) {
-  
+import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal'; function buildSteps(isAgent) {
+
 
 
   const steps = [
@@ -62,8 +62,8 @@ export default function CharacterCreate({ userId }) {
   const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-// Remove: const [distributeQueue, setDistributeQueue] = useState([]);
-const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false);  const [character, setCharacter] = useState(() => normalizeCharacter());
+  // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
+  const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false); const [character, setCharacter] = useState(() => normalizeCharacter());
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
@@ -204,25 +204,25 @@ const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false);  const [cha
     return bonuses;
   }, [occupationBonuses, classBonuses]);
 
-const finalAttributeTotals = useMemo(() => {
-  const totals = { ...attributeTotalsFromBackgrounds };
-  Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
-    totals[attrId] = (totals[attrId] || 0) + bonus;
-  });
-  Object.entries(classBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
-    totals[attrId] = (totals[attrId] || 0) + bonus;
-  });
-  (character.agingPenalty?.halvedAttributeIds || []).forEach((attrId) => {
-    totals[attrId] = Math.floor((totals[attrId] || 0) / 2);
-  });
-  return totals;
-}, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses, character.agingPenalty]);
+  const finalAttributeTotals = useMemo(() => {
+    const totals = { ...attributeTotalsFromBackgrounds };
+    Object.entries(occupationBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+      totals[attrId] = (totals[attrId] || 0) + bonus;
+    });
+    Object.entries(classBonuses.attributeBonuses).forEach(([attrId, bonus]) => {
+      totals[attrId] = (totals[attrId] || 0) + bonus;
+    });
+    (character.agingPenalty?.halvedAttributeIds || []).forEach((attrId) => {
+      totals[attrId] = Math.floor((totals[attrId] || 0) / 2);
+    });
+    return totals;
+  }, [attributeTotalsFromBackgrounds, occupationBonuses, classBonuses, character.agingPenalty]);
   const isBroken = checkBrokenSanityState(purchasedCount);
 
   const [modelModalOpen, setModelModalOpen] = useState(false);
-const [abilityModalOpen, setAbilityModalOpen] = useState(false);
-  
-const pendingConsequences = useMemo(() => {
+  const [abilityModalOpen, setAbilityModalOpen] = useState(false);
+
+  const pendingConsequences = useMemo(() => {
     if (!character.lifeStageId) return [];
     return calculatePendingConsequences(character.lifeStageId, purchasedCount);
   }, [character.lifeStageId, purchasedCount]);
@@ -297,123 +297,123 @@ const pendingConsequences = useMemo(() => {
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
   }, [finalSkillTotals]);
-const massInfo = useMemo(() => {
-  if (!character.weightKg) return null;
-  return getEffectiveMassCategory(character.weightKg, {
-    forcaLevel: finalSkillTotals.forca || 0,
-    constituicaoLevel: finalSkillTotals.constituicao || 0,
-    resistenciaLevel: finalSkillTotals.resistencia || 0,
-  });
-}, [character.weightKg, finalSkillTotals]);
-const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
-
-const massAdjustedVigor = useMemo(() => {
-  if (!massInfo) return { value: vigor, note: null };
-  return applyMassVigorModifier(vigor, massInfo.vigor.category.id, finalSkillTotals.constituicao || 0);
-}, [massInfo, vigor, finalSkillTotals]);
-
-const physicalDamage = useMemo(() => {
-  if (!massInfo) return null;
-  const baseDamage = calculatePhysicalDamageBase(
-    finalAttributeTotals.existencia || 0,
-    finalSkillTotals.forca || 0,
-    finalSkillTotals.combate || 0,
-    isLutador
-  );
-  return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
-}, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
-
-const maxSanity = useMemo(
-  () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
-  [character.purchasedBackgrounds, freePackages]
-);
-
-function handleSelectLifeStage(id) {
-  const stage = LIFE_STAGES[id];
-  const halvedAttributeIds = stage.agingPenalty
-    ? rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount)
-    : [];
-
-  setCharacter((c) => ({
-    ...c,
-    lifeStageId: id,
-    purchasedBackgrounds: [],
-    aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
-    traumaIds: [],
-    agingPenalty: { halvedAttributeIds },
-  }));
-  setSanityWarning(null);
-}
-function handleSwapAgingAttribute(index, newId) {
-  setCharacter((c) => {
-    const ids = [...c.agingPenalty.halvedAttributeIds];
-    ids[index] = newId;
-    return { ...c, agingPenalty: { halvedAttributeIds: ids } };
-  });
-}
-function handleRerollAgingPenalty() {
-  const stage = LIFE_STAGES.maduro;
-  const halvedAttributeIds = rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount);
-  setCharacter((c) => ({ ...c, agingPenalty: { halvedAttributeIds } }));
-}
-function handlePurchaseBackground(packageId) {
-  setCharacter((c) => {
-    const isExtra = c.purchasedBackgrounds.length >= freePackages;
-    const sanityCost = isExtra ? rollExtraPackageSanityCost() : 0;
-    setSanityWarning(isExtra ? `Pacote extra adicionado: -${sanityCost} de Sanidade Máxima.` : null);
-    return {
-      ...c,
-      purchasedBackgrounds: [
-        ...c.purchasedBackgrounds,
-        { packageId, allocations: {}, attributeId: null, sanityCost },
-      ],
-    };
-  });
-}
-
-function handleRemoveBackground(index) {
-  setCharacter((c) => {
-    const updated = [...c.purchasedBackgrounds];
-    updated.splice(index, 1);
-    return { ...c, purchasedBackgrounds: updated };
-  });
-  setSanityWarning(null);
-}
-
-function openDistributionModal(instanceIndex) {
-  const entry = character.purchasedBackgrounds[instanceIndex];
-  setActiveModalPackage({ packageId: entry.packageId, instanceIndex });
-}
-
-function handleDistributeAllPending() {
-  setBulkDistributeOpen(true);
-}
-function handleConfirmBulkDistribution(results) {
-  setCharacter((c) => {
-    const updated = [...c.purchasedBackgrounds];
-    Object.entries(results).forEach(([instanceIndex, { allocations, attributeId }]) => {
-      updated[instanceIndex] = { ...updated[instanceIndex], allocations, attributeId };
+  const massInfo = useMemo(() => {
+    if (!character.weightKg) return null;
+    return getEffectiveMassCategory(character.weightKg, {
+      forcaLevel: finalSkillTotals.forca || 0,
+      constituicaoLevel: finalSkillTotals.constituicao || 0,
+      resistenciaLevel: finalSkillTotals.resistencia || 0,
     });
-    return { ...c, purchasedBackgrounds: updated };
-  });
-  setBulkDistributeOpen(false);
-}
-function handleConfirmBackground({ allocations, attributeId }) {
-  setCharacter((c) => {
-    const updated = [...c.purchasedBackgrounds];
-    updated[activeModalPackage.instanceIndex] = {
-      ...updated[activeModalPackage.instanceIndex],
-      allocations,
-      attributeId,
-    };
-    return { ...c, purchasedBackgrounds: updated };
-  });
-  setActiveModalPackage(null);
-}
+  }, [character.weightKg, finalSkillTotals]);
+  const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
 
-function handleCloseModal() {
-  setActiveModalPackage(null);
-}
+  const massAdjustedVigor = useMemo(() => {
+    if (!massInfo) return { value: vigor, note: null };
+    return applyMassVigorModifier(vigor, massInfo.vigor.category.id, finalSkillTotals.constituicao || 0);
+  }, [massInfo, vigor, finalSkillTotals]);
+
+  const physicalDamage = useMemo(() => {
+    if (!massInfo) return null;
+    const baseDamage = calculatePhysicalDamageBase(
+      finalAttributeTotals.existencia || 0,
+      finalSkillTotals.forca || 0,
+      finalSkillTotals.combate || 0,
+      isLutador
+    );
+    return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
+  }, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
+
+  const maxSanity = useMemo(
+    () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
+    [character.purchasedBackgrounds, freePackages]
+  );
+
+  function handleSelectLifeStage(id) {
+    const stage = LIFE_STAGES[id];
+    const halvedAttributeIds = stage.agingPenalty
+      ? rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount)
+      : [];
+
+    setCharacter((c) => ({
+      ...c,
+      lifeStageId: id,
+      purchasedBackgrounds: [],
+      aspects: { mandatoryIds: [], chosenPositiveIds: [], chosenNegativeIds: [], excessNegativeIds: [] },
+      traumaIds: [],
+      agingPenalty: { halvedAttributeIds },
+    }));
+    setSanityWarning(null);
+  }
+  function handleSwapAgingAttribute(index, newId) {
+    setCharacter((c) => {
+      const ids = [...c.agingPenalty.halvedAttributeIds];
+      ids[index] = newId;
+      return { ...c, agingPenalty: { halvedAttributeIds: ids } };
+    });
+  }
+  function handleRerollAgingPenalty() {
+    const stage = LIFE_STAGES.maduro;
+    const halvedAttributeIds = rollAgingPenaltyAttributes(stage.agingPenalty.eligibleAttributes, stage.agingPenalty.minCount);
+    setCharacter((c) => ({ ...c, agingPenalty: { halvedAttributeIds } }));
+  }
+  function handlePurchaseBackground(packageId) {
+    setCharacter((c) => {
+      const isExtra = c.purchasedBackgrounds.length >= freePackages;
+      const sanityCost = isExtra ? rollExtraPackageSanityCost() : 0;
+      setSanityWarning(isExtra ? `Pacote extra adicionado: -${sanityCost} de Sanidade Máxima.` : null);
+      return {
+        ...c,
+        purchasedBackgrounds: [
+          ...c.purchasedBackgrounds,
+          { packageId, allocations: {}, attributeId: null, sanityCost },
+        ],
+      };
+    });
+  }
+
+  function handleRemoveBackground(index) {
+    setCharacter((c) => {
+      const updated = [...c.purchasedBackgrounds];
+      updated.splice(index, 1);
+      return { ...c, purchasedBackgrounds: updated };
+    });
+    setSanityWarning(null);
+  }
+
+  function openDistributionModal(instanceIndex) {
+    const entry = character.purchasedBackgrounds[instanceIndex];
+    setActiveModalPackage({ packageId: entry.packageId, instanceIndex });
+  }
+
+  function handleDistributeAllPending() {
+    setBulkDistributeOpen(true);
+  }
+  function handleConfirmBulkDistribution(results) {
+    setCharacter((c) => {
+      const updated = [...c.purchasedBackgrounds];
+      Object.entries(results).forEach(([instanceIndex, { allocations, attributeId }]) => {
+        updated[instanceIndex] = { ...updated[instanceIndex], allocations, attributeId };
+      });
+      return { ...c, purchasedBackgrounds: updated };
+    });
+    setBulkDistributeOpen(false);
+  }
+  function handleConfirmBackground({ allocations, attributeId }) {
+    setCharacter((c) => {
+      const updated = [...c.purchasedBackgrounds];
+      updated[activeModalPackage.instanceIndex] = {
+        ...updated[activeModalPackage.instanceIndex],
+        allocations,
+        attributeId,
+      };
+      return { ...c, purchasedBackgrounds: updated };
+    });
+    setActiveModalPackage(null);
+  }
+
+  function handleCloseModal() {
+    setActiveModalPackage(null);
+  }
 
   function handleAddCustomSkill() {
     setCharacter((c) => ({
@@ -425,87 +425,87 @@ function handleCloseModal() {
     }));
   }
   function handleToggleAbility(abilityId) {
-  setCharacter((c) => {
-    const exists = c.selectedAbilities.some((a) => a.abilityId === abilityId);
-    if (exists) {
-      return { ...c, selectedAbilities: c.selectedAbilities.filter((a) => a.abilityId !== abilityId) };
-    }
-    return { ...c, selectedAbilities: [...c.selectedAbilities, { abilityId, contextText: '' }] };
-  });
-}
-function handleCreateBlankAbility() {
-  setCharacter((c) => ({
-    ...c,
-    selectedAbilities: [
-      ...c.selectedAbilities,
-      {
-        instanceId: `${Date.now()}-${Math.random()}`,
-        abilityId: null,
-        name: 'Nova Habilidade',
-        trigger: { type: 'Ativo', detail: '' },
-        contextText: '',
-        conditional: null,
-        cost: { weight: 1, form: COST_FORMS_BY_WEIGHT[1][0] },
-        effect: { weight: 1, names: [], description: '' },
-      },
-    ],
-  }));
-}
-function handleSelectAbilityFromCatalog(ability) {
-  setCharacter((c) => ({
-    ...c,
-    selectedAbilities: [
-      ...c.selectedAbilities,
-      {
-        instanceId: `${Date.now()}-${Math.random()}`,
-        abilityId: ability.id,
-        name: ability.name,
-        trigger: { ...ability.trigger },
-        contextText: '',
-        conditional: ability.conditional ? { ...ability.conditional } : null,
-        cost: { ...ability.cost },
-effect: { weight: ability.effect.weight, names: [...ability.effect.names], description: ability.effect.description },
-      },
-    ],
-  }));
-  setAbilityModalOpen(false);
-  setModelModalOpen(false);
-}
-function handleToggleEffectName(instanceId, effectName) {
-  handleUpdateAbility(instanceId, (a) => {
-    const names = a.effect.names.includes(effectName)
-      ? a.effect.names.filter((n) => n !== effectName)
-      : [...a.effect.names, effectName];
-    return { ...a, effect: { ...a.effect, weight: names.length ? getEffectWeight(names) : 1, names } };
-  });
-}
-function handleRemoveAbility(instanceId) {
-  setCharacter((c) => ({
-    ...c,
-    selectedAbilities: c.selectedAbilities.filter((a) => a.instanceId !== instanceId),
-  }));
-}
+    setCharacter((c) => {
+      const exists = c.selectedAbilities.some((a) => a.abilityId === abilityId);
+      if (exists) {
+        return { ...c, selectedAbilities: c.selectedAbilities.filter((a) => a.abilityId !== abilityId) };
+      }
+      return { ...c, selectedAbilities: [...c.selectedAbilities, { abilityId, contextText: '' }] };
+    });
+  }
+  function handleCreateBlankAbility() {
+    setCharacter((c) => ({
+      ...c,
+      selectedAbilities: [
+        ...c.selectedAbilities,
+        {
+          instanceId: `${Date.now()}-${Math.random()}`,
+          abilityId: null,
+          name: 'Nova Habilidade',
+          trigger: { type: 'Ativo', detail: '' },
+          contextText: '',
+          conditional: null,
+          cost: { weight: 1, form: COST_FORMS_BY_WEIGHT[1][0] },
+          effect: { weight: 1, names: [], description: '' },
+        },
+      ],
+    }));
+  }
+  function handleSelectAbilityFromCatalog(ability) {
+    setCharacter((c) => ({
+      ...c,
+      selectedAbilities: [
+        ...c.selectedAbilities,
+        {
+          instanceId: `${Date.now()}-${Math.random()}`,
+          abilityId: ability.id,
+          name: ability.name,
+          trigger: { ...ability.trigger },
+          contextText: '',
+          conditional: ability.conditional ? { ...ability.conditional } : null,
+          cost: { ...ability.cost },
+          effect: { weight: ability.effect.weight, names: [...ability.effect.names], description: ability.effect.description },
+        },
+      ],
+    }));
+    setAbilityModalOpen(false);
+    setModelModalOpen(false);
+  }
+  function handleToggleEffectName(instanceId, effectName) {
+    handleUpdateAbility(instanceId, (a) => {
+      const names = a.effect.names.includes(effectName)
+        ? a.effect.names.filter((n) => n !== effectName)
+        : [...a.effect.names, effectName];
+      return { ...a, effect: { ...a.effect, weight: names.length ? getEffectWeight(names) : 1, names } };
+    });
+  }
+  function handleRemoveAbility(instanceId) {
+    setCharacter((c) => ({
+      ...c,
+      selectedAbilities: c.selectedAbilities.filter((a) => a.instanceId !== instanceId),
+    }));
+  }
 
-function handleUpdateAbility(instanceId, updater) {
-  setCharacter((c) => ({
-    ...c,
-    selectedAbilities: c.selectedAbilities.map((a) => (a.instanceId === instanceId ? updater(a) : a)),
-  }));
-}
+  function handleUpdateAbility(instanceId, updater) {
+    setCharacter((c) => ({
+      ...c,
+      selectedAbilities: c.selectedAbilities.map((a) => (a.instanceId === instanceId ? updater(a) : a)),
+    }));
+  }
 
-function handleToGgleAbilityConditional(instanceId) {
-  handleUpdateAbility(instanceId, (a) => ({
-    ...a,
-    conditional: a.conditional ? null : { description: '', costReduction: 1 },
-  }));
-}
+  function handleToggleAbilityConditional(instanceId) {
+    handleUpdateAbility(instanceId, (a) => ({
+      ...a,
+      conditional: a.conditional ? null : { description: '', costReduction: 1 },
+    }));
+  }
 
-function handleSetAbilityContext(abilityId, text) {
-  setCharacter((c) => ({
-    ...c,
-    selectedAbilities: c.selectedAbilities.map((a) => (a.abilityId === abilityId ? { ...a, contextText: text } : a)),
-  }));
-}
+  function handleSetAbilityContext(abilityId, text) {
+    setCharacter((c) => ({
+      ...c,
+      selectedAbilities: c.selectedAbilities.map((a) => (a.abilityId === abilityId ? { ...a, contextText: text } : a)),
+    }));
+  }
 
   function handleExportPdf() {
     // UC-04: a "burocracia" roda antes da geração real do PDF.
@@ -526,10 +526,10 @@ function handleSetAbilityContext(abilityId, text) {
     const action = pendingAction;
     setPendingAction(null);
 
-const exportParams = {
-  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
-  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
-};
+    const exportParams = {
+      character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+      vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
+    };
 
     if (action === 'pdf') {
       // Básico e sem estilização por enquanto — mesma estrutura da ficha,
@@ -581,7 +581,7 @@ const exportParams = {
     );
   }
 
-return (
+  return (
     <div className="flex flex-col md:flex-row h-full">
       {/* Navegação lateral no Desktop / Barra deslizável no Mobile */}
       <aside className="w-full md:w-60 border-b md:border-b-0 md:border-r bg-white p-3 md:p-4 shrink-0">
@@ -589,20 +589,19 @@ return (
           ← Voltar ao Dashboard
         </button>
         <h1 className="text-sm font-semibold text-gray-400 uppercase mb-2 hidden md:block">Ficha ACE</h1>
-        
+
         {/* Contêiner de passos: scroll horizontal no mobile, vertical no desktop */}
         <div className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0 no-scrollbar">
           {STEPS.map((step, i) => (
             <button
               key={step.id}
               onClick={() => setCurrentStep(step.id)}
-              className={`whitespace-nowrap md:whitespace-normal text-left px-3 py-1.5 md:py-2 rounded text-xs md:text-sm shrink-0 md:w-full ${
-                step.id === currentStep
+              className={`whitespace-nowrap md:whitespace-normal text-left px-3 py-1.5 md:py-2 rounded text-xs md:text-sm shrink-0 md:w-full ${step.id === currentStep
                   ? 'bg-gray-900 text-white'
                   : i < stepIndex
-                  ? 'text-gray-700 hover:bg-gray-100'
-                  : 'text-gray-400 hover:bg-gray-100'
-              }`}
+                    ? 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-400 hover:bg-gray-100'
+                }`}
             >
               {step.label}
             </button>
@@ -636,24 +635,23 @@ return (
                 <button
                   key={role}
                   onClick={() => setCharacter((c) => ({ ...c, role }))}
-                  className={`px-4 py-2 rounded border text-sm capitalize ${
-                    character.role === role ? 'bg-gray-900 text-white' : ''
-                  }`}
+                  className={`px-4 py-2 rounded border text-sm capitalize ${character.role === role ? 'bg-gray-900 text-white' : ''
+                    }`}
                 >
                   {role}
                 </button>
               ))}
             </div>
             <label className="block text-sm mb-1 mt-4">Peso (kg)</label>
-<input
-  type="number"
-  className="w-full border rounded px-3 py-2"
-  value={character.weightKg ?? ''}
-  onChange={(e) =>
-    setCharacter((c) => ({ ...c, weightKg: e.target.value ? Number(e.target.value) : null }))
-  }
-  placeholder="Ex: 78"
-/>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={character.weightKg ?? ''}
+              onChange={(e) =>
+                setCharacter((c) => ({ ...c, weightKg: e.target.value ? Number(e.target.value) : null }))
+              }
+              placeholder="Ex: 78"
+            />
           </section>
         )}
 
@@ -685,35 +683,35 @@ return (
                 );
               })}
             </div>
-{character.lifeStageId === 'maduro' && (
-  <div className="border rounded p-3 mt-3">
-    <div className="font-medium text-sm mb-1">Penalidade de Idade</div>
-    <p className="text-xs text-gray-500 mb-2">
-      Atributos cortados pela metade (mínimo 2, sorteado — pode trocar manualmente):
-    </p>
-    <div className="space-y-1">
-      {character.agingPenalty.halvedAttributeIds.map((attrId, i) => (
-        <div key={i} className="flex items-center justify-between text-xs">
-          <span>{ATTRIBUTES[attrId]?.label ?? attrId}</span>
-          <select
-            className="border rounded px-2 py-1"
-            value={attrId}
-            onChange={(e) => handleSwapAgingAttribute(i, e.target.value)}
-          >
-            {LIFE_STAGES.maduro.agingPenalty.eligibleAttributes.map((id) => (
-              <option key={id} value={id}>
-                {ATTRIBUTES[id].label}
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
-    </div>
-    <button onClick={handleRerollAgingPenalty} className="mt-2 text-xs px-2 py-1 rounded border">
-      Sortear novamente todos
-    </button>
-  </div>
-)}
+            {character.lifeStageId === 'maduro' && (
+              <div className="border rounded p-3 mt-3">
+                <div className="font-medium text-sm mb-1">Penalidade de Idade</div>
+                <p className="text-xs text-gray-500 mb-2">
+                  Atributos cortados pela metade (mínimo 2, sorteado — pode trocar manualmente):
+                </p>
+                <div className="space-y-1">
+                  {character.agingPenalty.halvedAttributeIds.map((attrId, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span>{ATTRIBUTES[attrId]?.label ?? attrId}</span>
+                      <select
+                        className="border rounded px-2 py-1"
+                        value={attrId}
+                        onChange={(e) => handleSwapAgingAttribute(i, e.target.value)}
+                      >
+                        {LIFE_STAGES.maduro.agingPenalty.eligibleAttributes.map((id) => (
+                          <option key={id} value={id}>
+                            {ATTRIBUTES[id].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={handleRerollAgingPenalty} className="mt-2 text-xs px-2 py-1 rounded border">
+                  Sortear novamente todos
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -753,59 +751,59 @@ return (
                   </div>
                 )}
 
-<div className="grid grid-cols-1 gap-2 mb-4">
-  {Object.values(BACKGROUND_PACKAGES).map((pkg) => (
-    <button
-      key={pkg.id}
-      onClick={() => handlePurchaseBackground(pkg.id)}
-      className="text-left border rounded p-3 hover:bg-gray-50"
-    >
-      <div className="font-medium">{pkg.label}</div>
-      <div className="text-sm text-gray-500">{pkg.pointsPerPurchase} aumentos por compra — clique para comprar</div>
-    </button>
-  ))}
-</div>
+                <div className="grid grid-cols-1 gap-2 mb-4">
+                  {Object.values(BACKGROUND_PACKAGES).map((pkg) => (
+                    <button
+                      key={pkg.id}
+                      onClick={() => handlePurchaseBackground(pkg.id)}
+                      className="text-left border rounded p-3 hover:bg-gray-50"
+                    >
+                      <div className="font-medium">{pkg.label}</div>
+                      <div className="text-sm text-gray-500">{pkg.pointsPerPurchase} aumentos por compra — clique para comprar</div>
+                    </button>
+                  ))}
+                </div>
 
-{character.purchasedBackgrounds.length > 0 && (
-  <div className="mb-4">
-    <div className="flex items-center justify-between mb-2">
-      <h3 className="font-medium">Pacotes Comprados</h3>
-      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0) && (
-        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-          Distribuir tudo pendente
-        </button>
-      )}
-    </div>
-    <div className="space-y-2">
-      {character.purchasedBackgrounds.map((entry, index) => {
-        const pkg = BACKGROUND_PACKAGES[entry.packageId];
-        const isDistributed = Object.keys(entry.allocations).length > 0;
-        return (
-          <div key={index} className="border rounded p-3 flex items-center justify-between">
-            <div>
-              <div className="font-medium text-sm">{pkg.label} #{index + 1}</div>
-              <div className="text-xs text-gray-400">
-                {isDistributed ? '✓ Distribuído' : 'Pendente de distribuição'}
-                {index >= freePackages && ` · Extra (-${entry.sanityCost} Sanidade)`}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => openDistributionModal(index)} className="text-xs px-2 py-1 rounded border">
-                {isDistributed ? 'Editar' : 'Distribuir'}
-              </button>
-              <button onClick={() => handleRemoveBackground(index)} className="text-xs px-2 py-1 rounded border text-red-500">
-                Remover
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
+                {character.purchasedBackgrounds.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium">Pacotes Comprados</h3>
+                      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0) && (
+                        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                          Distribuir tudo pendente
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {character.purchasedBackgrounds.map((entry, index) => {
+                        const pkg = BACKGROUND_PACKAGES[entry.packageId];
+                        const isDistributed = Object.keys(entry.allocations).length > 0;
+                        return (
+                          <div key={index} className="border rounded p-3 flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-sm">{pkg.label} #{index + 1}</div>
+                              <div className="text-xs text-gray-400">
+                                {isDistributed ? '✓ Distribuído' : 'Pendente de distribuição'}
+                                {index >= freePackages && ` · Extra (-${entry.sanityCost} Sanidade)`}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => openDistributionModal(index)} className="text-xs px-2 py-1 rounded border">
+                                {isDistributed ? 'Editar' : 'Distribuir'}
+                              </button>
+                              <button onClick={() => handleRemoveBackground(index)} className="text-xs px-2 py-1 rounded border text-red-500">
+                                Remover
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="text-sm border-t pt-3">
-Sanidade Máxima Atual: <strong>{maxSanity}</strong>
+                  Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                   {isBroken && (
                     <div className="text-red-600 mt-1 font-medium">
                       A Beira da Loucura — Sanidade travada em 1 permanente.
@@ -939,79 +937,79 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                       </div>
                     )}
 
-{pendingConsequences.filter(
-  (s) =>
-    s.type !== 'aspecto_negativo_grave' &&
-    s.type !== 'trauma' &&
-    s.type !== 'aspecto_negativo_idade' &&
-    s.type !== 'aspecto_positivo_experiencia' &&
-    s.type !== 'atributo_penalidade'
-).length > 0 && (
-                      <>
-                        <p className="text-xs text-gray-400 mb-2">
-                          Catálogo ainda não implementado pra esse tipo — só o placeholder por enquanto.
-                        </p>
-                        <div className="space-y-2">
-                          {pendingConsequences
-.filter(
-  (slot) =>
-    slot.type !== 'aspecto_negativo_grave' &&
-    slot.type !== 'trauma' &&
-    slot.type !== 'aspecto_negativo_idade' &&
-    slot.type !== 'aspecto_positivo_experiencia' &&
-    slot.type !== 'atributo_penalidade'
-)                            .map((slot, i) => (
-                              <div key={i} className="border rounded p-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium">
-                                    {CONSEQUENCE_TYPE_LABELS[slot.type] ?? slot.type}
-                                  </span>
-                                  <span className="text-xs text-gray-400">×{slot.count}</span>
+                    {pendingConsequences.filter(
+                      (s) =>
+                        s.type !== 'aspecto_negativo_grave' &&
+                        s.type !== 'trauma' &&
+                        s.type !== 'aspecto_negativo_idade' &&
+                        s.type !== 'aspecto_positivo_experiencia' &&
+                        s.type !== 'atributo_penalidade'
+                    ).length > 0 && (
+                        <>
+                          <p className="text-xs text-gray-400 mb-2">
+                            Catálogo ainda não implementado pra esse tipo — só o placeholder por enquanto.
+                          </p>
+                          <div className="space-y-2">
+                            {pendingConsequences
+                              .filter(
+                                (slot) =>
+                                  slot.type !== 'aspecto_negativo_grave' &&
+                                  slot.type !== 'trauma' &&
+                                  slot.type !== 'aspecto_negativo_idade' &&
+                                  slot.type !== 'aspecto_positivo_experiencia' &&
+                                  slot.type !== 'atributo_penalidade'
+                              ).map((slot, i) => (
+                                <div key={i} className="border rounded p-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">
+                                      {CONSEQUENCE_TYPE_LABELS[slot.type] ?? slot.type}
+                                    </span>
+                                    <span className="text-xs text-gray-400">×{slot.count}</span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">{slot.description}</p>
+                                  <button
+                                    disabled
+                                    className="mt-2 text-xs px-2 py-1 rounded border opacity-40 cursor-not-allowed"
+                                  >
+                                    Selecionar (catálogo em breve)
+                                  </button>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">{slot.description}</p>
-                                <button
-                                  disabled
-                                  className="mt-2 text-xs px-2 py-1 rounded border opacity-40 cursor-not-allowed"
-                                >
-                                  Selecionar (catálogo em breve)
-                                </button>
-                              </div>
-                            ))}
-                        </div>
-                      </>
-                    )}
+                              ))}
+                          </div>
+                        </>
+                      )}
                   </div>
                 )}
               </>
             )}
 
- 
+
           </section>
         )}
-{activeModalPackage && (
-  <BackgroundModal
-    packageId={activeModalPackage.packageId}
-    purchaseNumber={
-      character.purchasedBackgrounds
-        .slice(0, activeModalPackage.instanceIndex + 1)
-        .filter((p) => p.packageId === activeModalPackage.packageId).length
-    }
-    initialAllocations={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.allocations}
-    initialAttributeId={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.attributeId}
-    onConfirm={handleConfirmBackground}
-    onClose={handleCloseModal}
-  />
-)}
-{bulkDistributeOpen && (
-  <UnifiedDistributionModal
-    pendingEntries={character.purchasedBackgrounds
-      .map((entry, instanceIndex) => ({ entry, instanceIndex }))
-      .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
-      .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
-    onConfirmAll={handleConfirmBulkDistribution}
-    onClose={() => setBulkDistributeOpen(false)}
-  />
-)}
+        {activeModalPackage && (
+          <BackgroundModal
+            packageId={activeModalPackage.packageId}
+            purchaseNumber={
+              character.purchasedBackgrounds
+                .slice(0, activeModalPackage.instanceIndex + 1)
+                .filter((p) => p.packageId === activeModalPackage.packageId).length
+            }
+            initialAllocations={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.allocations}
+            initialAttributeId={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.attributeId}
+            onConfirm={handleConfirmBackground}
+            onClose={handleCloseModal}
+          />
+        )}
+        {bulkDistributeOpen && (
+          <UnifiedDistributionModal
+            pendingEntries={character.purchasedBackgrounds
+              .map((entry, instanceIndex) => ({ entry, instanceIndex }))
+              .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
+              .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
+            onConfirmAll={handleConfirmBulkDistribution}
+            onClose={() => setBulkDistributeOpen(false)}
+          />
+        )}
         {/* Step 4: Aspectos (catálogo real + Sorte) */}
         {currentStep === 'aspects' && (
           <AspectsStep
@@ -1022,309 +1020,308 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
           />
         )}
 
-{/* Step 5: Habilidades */}
-{currentStep === 'customSkills' && (
-  <section>
-    <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
-    <p className="text-sm text-gray-500 mb-4">
-      Manobras e especializações técnicas ativas baseadas em Perícias.
-    </p>
+        {/* Step 5: Habilidades */}
+        {currentStep === 'customSkills' && (
+          <section>
+            <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Manobras e especializações técnicas ativas baseadas em Perícias.
+            </p>
 
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h3 className="font-medium">Habilidades</h3>
-        <div className="flex gap-2">
-          <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-            + Do Catálogo
-          </button>
-          <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-            + A partir de Modelo
-          </button>
-          <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-            + Criar do Zero
-          </button>
-        </div>
-      </div>
-
-      {character.selectedAbilities.length === 0 ? (
-        <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
-      ) : (
-        <div className="space-y-3">
-          {character.selectedAbilities.map((a) => (
-            <div key={a.instanceId} className="border rounded p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <input
-                  className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
-                  value={a.name}
-                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
-                />
-                <button onClick={() => handleRemoveAbility(a.instanceId)} className="text-xs text-red-500 underline ml-2">
-                  Remover
-                </button>
-              </div>
-
-              {/* Gatilho */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
-                  <select
-                    className="w-full border rounded px-2 py-1 text-xs"
-                    value={a.trigger.type}
-                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
-                  >
-                    {TRIGGER_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
-                  <input
-                    className="w-full border rounded px-2 py-1 text-xs"
-                    placeholder="ex: antes de sacar a arma"
-                    value={a.trigger.detail}
-                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
-                  />
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <h3 className="font-medium">Habilidades</h3>
+                <div className="flex gap-2">
+                  <button onClick={() => setAbilityModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                    + Do Catálogo
+                  </button>
+                  <button onClick={() => setModelModalOpen(true)} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                    + A partir de Modelo
+                  </button>
+                  <button onClick={handleCreateBlankAbility} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                    + Criar do Zero
+                  </button>
                 </div>
               </div>
 
-              {/* Custo */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
-                  <select
-                    className="w-full border rounded px-2 py-1 text-xs"
-                    value={a.cost.weight}
-                    onChange={(e) => {
-                      const weight = Number(e.target.value);
-                      handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
-                    }}
-                  >
-                    {[1, 2, 3].map((w) => (
-                      <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
-                  <select
-                    className="w-full border rounded px-2 py-1 text-xs"
-                    value={a.cost.form}
-                    onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
-                  >
-                    {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
-                      <option key={form} value={form}>{form}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              {character.selectedAbilities.length === 0 ? (
+                <p className="text-sm text-gray-400">Nenhuma habilidade adicionada.</p>
+              ) : (
+                <div className="space-y-3">
+                  {character.selectedAbilities.map((a) => (
+                    <div key={a.instanceId} className="border rounded p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <input
+                          className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
+                          value={a.name}
+                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
+                        />
+                        <button onClick={() => handleRemoveAbility(a.instanceId)} className="text-xs text-red-500 underline ml-2">
+                          Remover
+                        </button>
+                      </div>
 
-              {/* Legenda dos Efeitos escolhidos — só explica, NÃO editável */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
-                </label>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => handleToggleEffectName(a.instanceId, name)}
-                      className={`px-2 py-1 rounded border text-xs ${
-                        a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      {name} ({def.weight})
-                    </button>
+                      {/* Gatilho */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
+                          <select
+                            className="w-full border rounded px-2 py-1 text-xs"
+                            value={a.trigger.type}
+                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
+                          >
+                            {TRIGGER_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
+                          <input
+                            className="w-full border rounded px-2 py-1 text-xs"
+                            placeholder="ex: antes de sacar a arma"
+                            value={a.trigger.detail}
+                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Custo */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
+                          <select
+                            className="w-full border rounded px-2 py-1 text-xs"
+                            value={a.cost.weight}
+                            onChange={(e) => {
+                              const weight = Number(e.target.value);
+                              handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
+                            }}
+                          >
+                            {[1, 2, 3].map((w) => (
+                              <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
+                          <select
+                            className="w-full border rounded px-2 py-1 text-xs"
+                            value={a.cost.form}
+                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
+                          >
+                            {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
+                              <option key={form} value={form}>{form}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Legenda dos Efeitos escolhidos — só explica, NÃO editável */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
+                        </label>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => handleToggleEffectName(a.instanceId, name)}
+                              className={`px-2 py-1 rounded border text-xs ${a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+                                }`}
+                            >
+                              {name} ({def.weight})
+                            </button>
+                          ))}
+                        </div>
+
+                        {a.effect.names.length > 0 && (
+                          <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1">
+                            {a.effect.names.map((n) => (
+                              <div key={n}>
+                                <strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Descrição específica da habilidade — editável, pré-preenchida ao escolher do catálogo */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Descrição</label>
+                        <textarea
+                          className="w-full border rounded px-2 py-1 text-xs"
+                          rows={2}
+                          placeholder="Descreva o que essa habilidade faz na prática"
+                          value={a.effect.description}
+                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))}
+                        />
+                      </div>
+
+                      {a.cost.weight !== a.effect.weight && (
+                        <p className="text-xs text-amber-600">
+                          ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
+                          {a.cost.weight < a.effect.weight
+                            ? ' pagar menos gera um excedente dobrado como consequência extra.'
+                            : ' pagar mais é só desperdício de recurso (roleplay).'}
+                        </p>
+                      )}
+
+                      <div>
+                        <label className="flex items-center gap-2 text-xs text-gray-500">
+                          <input
+                            type="checkbox"
+                            checked={!!a.conditional}
+                            onChange={() => handleToggleAbilityConditional(a.instanceId)}
+                          />
+                          Condicional (reduz o Custo em troca de uma restrição)
+                        </label>
+                        {a.conditional && (
+                          <div className="mt-2 space-y-2 pl-5">
+                            <input
+                              className="w-full border rounded px-2 py-1 text-xs"
+                              placeholder="Descreva a condição (ex: sob forte estresse)"
+                              value={a.conditional.description}
+                              onChange={(e) =>
+                                handleUpdateAbility(a.instanceId, (ab) => ({
+                                  ...ab,
+                                  conditional: { ...ab.conditional, description: e.target.value },
+                                }))
+                              }
+                            />
+                            <select
+                              className="w-full border rounded px-2 py-1 text-xs"
+                              value={a.conditional.costReduction}
+                              onChange={(e) =>
+                                handleUpdateAbility(a.instanceId, (ab) => ({
+                                  ...ab,
+                                  conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
+                                }))
+                              }
+                            >
+                              <option value={1}>Reduz -1 no peso do Custo</option>
+                              <option value="zera">Zera o Custo</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
+                        <input
+                          className="w-full border rounded px-2 py-1 text-xs"
+                          placeholder="ex: usar um machado em combate"
+                          value={a.contextText}
+                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
+              )}
+            </div>
 
-                {a.effect.names.length > 0 && (
-                  <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1">
-                    {a.effect.names.map((n) => (
-                      <div key={n}>
-                        <strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            {abilityModalOpen && (
+              <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
+            )}
+            {modelModalOpen && (
+              <AbilityCatalogModal
+                onSelect={handleSelectAbilityFromCatalog}
+                onClose={() => setModelModalOpen(false)}
+                filterCategory="modelo"
+                title="Criar a partir de um Modelo"
+              />
+            )}
 
-              {/* Descrição específica da habilidade — editável, pré-preenchida ao escolher do catálogo */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Descrição</label>
+            {character.customSkills.map((sk, index) => (
+              <div key={index} className="border rounded p-3 mb-3 bg-white space-y-2 text-sm">
+                <input
+                  placeholder="Nome da Habilidade (ex: Corte de Machado)"
+                  className="w-full border rounded px-2 py-1 font-medium"
+                  value={sk.name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCharacter((c) => {
+                      const updated = [...c.customSkills];
+                      updated[index].name = val;
+                      return { ...c, customSkills: updated };
+                    });
+                  }}
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  <select
+                    className="border rounded px-2 py-1"
+                    value={sk.cost}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCharacter((c) => {
+                        const updated = [...c.customSkills];
+                        updated[index].cost = val;
+                        return { ...c, customSkills: updated };
+                      });
+                    }}
+                  >
+                    <option value="1_vigor">1 de Vigor</option>
+                    <option value="2_vigor">2 de Vigor</option>
+                    <option value="1_sanidade">1 de Sanidade</option>
+                    <option value="reacao">Reação</option>
+                  </select>
+
+                  <select
+                    className="border rounded px-2 py-1"
+                    value={sk.effectType}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCharacter((c) => {
+                        const updated = [...c.customSkills];
+                        updated[index].effectType = val;
+                        return { ...c, customSkills: updated };
+                      });
+                    }}
+                  >
+                    <option value="facilitar">Facilitar Cenário</option>
+                    <option value="tempo">Fazer Mais Rápido</option>
+                    <option value="rendimento">Aumentar Resultado</option>
+                    <option value="falha">Salvar em Falha</option>
+                  </select>
+
+                  <input
+                    placeholder="Perícia (ex: Armas Brancas)"
+                    className="border rounded px-2 py-1"
+                    value={sk.skillId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCharacter((c) => {
+                        const updated = [...c.customSkills];
+                        updated[index].skillId = val;
+                        return { ...c, customSkills: updated };
+                      });
+                    }}
+                  />
+                </div>
                 <textarea
+                  placeholder="Descrição da interpretação / motivo da habilidade..."
                   className="w-full border rounded px-2 py-1 text-xs"
                   rows={2}
-                  placeholder="Descreva o que essa habilidade faz na prática"
-                  value={a.effect.description}
-                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))}
+                  value={sk.narrative}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCharacter((c) => {
+                      const updated = [...c.customSkills];
+                      updated[index].narrative = val;
+                      return { ...c, customSkills: updated };
+                    });
+                  }}
                 />
               </div>
+            ))}
 
-              {a.cost.weight !== a.effect.weight && (
-                <p className="text-xs text-amber-600">
-                  ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
-                  {a.cost.weight < a.effect.weight
-                    ? ' pagar menos gera um excedente dobrado como consequência extra.'
-                    : ' pagar mais é só desperdício de recurso (roleplay).'}
-                </p>
-              )}
-
-              <div>
-                <label className="flex items-center gap-2 text-xs text-gray-500">
-                  <input
-                    type="checkbox"
-                    checked={!!a.conditional}
-                    onChange={() => handleToggleAbilityConditional(a.instanceId)}
-                  />
-                  Condicional (reduz o Custo em troca de uma restrição)
-                </label>
-                {a.conditional && (
-                  <div className="mt-2 space-y-2 pl-5">
-                    <input
-                      className="w-full border rounded px-2 py-1 text-xs"
-                      placeholder="Descreva a condição (ex: sob forte estresse)"
-                      value={a.conditional.description}
-                      onChange={(e) =>
-                        handleUpdateAbility(a.instanceId, (ab) => ({
-                          ...ab,
-                          conditional: { ...ab.conditional, description: e.target.value },
-                        }))
-                      }
-                    />
-                    <select
-                      className="w-full border rounded px-2 py-1 text-xs"
-                      value={a.conditional.costReduction}
-                      onChange={(e) =>
-                        handleUpdateAbility(a.instanceId, (ab) => ({
-                          ...ab,
-                          conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
-                        }))
-                      }
-                    >
-                      <option value={1}>Reduz -1 no peso do Custo</option>
-                      <option value="zera">Zera o Custo</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
-                <input
-                  className="w-full border rounded px-2 py-1 text-xs"
-                  placeholder="ex: usar um machado em combate"
-                  value={a.contextText}
-                  onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {abilityModalOpen && (
-      <AbilityCatalogModal onSelect={handleSelectAbilityFromCatalog} onClose={() => setAbilityModalOpen(false)} />
-    )}
-    {modelModalOpen && (
-      <AbilityCatalogModal
-        onSelect={handleSelectAbilityFromCatalog}
-        onClose={() => setModelModalOpen(false)}
-        filterCategory="modelo"
-        title="Criar a partir de um Modelo"
-      />
-    )}
-
-    {character.customSkills.map((sk, index) => (
-      <div key={index} className="border rounded p-3 mb-3 bg-white space-y-2 text-sm">
-        <input
-          placeholder="Nome da Habilidade (ex: Corte de Machado)"
-          className="w-full border rounded px-2 py-1 font-medium"
-          value={sk.name}
-          onChange={(e) => {
-            const val = e.target.value;
-            setCharacter((c) => {
-              const updated = [...c.customSkills];
-              updated[index].name = val;
-              return { ...c, customSkills: updated };
-            });
-          }}
-        />
-        <div className="grid grid-cols-3 gap-2">
-          <select
-            className="border rounded px-2 py-1"
-            value={sk.cost}
-            onChange={(e) => {
-              const val = e.target.value;
-              setCharacter((c) => {
-                const updated = [...c.customSkills];
-                updated[index].cost = val;
-                return { ...c, customSkills: updated };
-              });
-            }}
-          >
-            <option value="1_vigor">1 de Vigor</option>
-            <option value="2_vigor">2 de Vigor</option>
-            <option value="1_sanidade">1 de Sanidade</option>
-            <option value="reacao">Reação</option>
-          </select>
-
-          <select
-            className="border rounded px-2 py-1"
-            value={sk.effectType}
-            onChange={(e) => {
-              const val = e.target.value;
-              setCharacter((c) => {
-                const updated = [...c.customSkills];
-                updated[index].effectType = val;
-                return { ...c, customSkills: updated };
-              });
-            }}
-          >
-            <option value="facilitar">Facilitar Cenário</option>
-            <option value="tempo">Fazer Mais Rápido</option>
-            <option value="rendimento">Aumentar Resultado</option>
-            <option value="falha">Salvar em Falha</option>
-          </select>
-
-          <input
-            placeholder="Perícia (ex: Armas Brancas)"
-            className="border rounded px-2 py-1"
-            value={sk.skillId}
-            onChange={(e) => {
-              const val = e.target.value;
-              setCharacter((c) => {
-                const updated = [...c.customSkills];
-                updated[index].skillId = val;
-                return { ...c, customSkills: updated };
-              });
-            }}
-          />
-        </div>
-        <textarea
-          placeholder="Descrição da interpretação / motivo da habilidade..."
-          className="w-full border rounded px-2 py-1 text-xs"
-          rows={2}
-          value={sk.narrative}
-          onChange={(e) => {
-            const val = e.target.value;
-            setCharacter((c) => {
-              const updated = [...c.customSkills];
-              updated[index].narrative = val;
-              return { ...c, customSkills: updated };
-            });
-          }}
-        />
-      </div>
-    ))}
-
-    <button onClick={handleAddCustomSkill} className="px-3 py-2 rounded bg-gray-200 text-sm hover:bg-gray-300">
-      + Adicionar Habilidade
-    </button>
-  </section>
-)}
+            <button onClick={handleAddCustomSkill} className="px-3 py-2 rounded bg-gray-200 text-sm hover:bg-gray-300">
+              + Adicionar Habilidade
+            </button>
+          </section>
+        )}
 
         {/* Step 6: Ocupação */}
         {currentStep === 'occupation' && (
@@ -1412,9 +1409,8 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                       },
                     }))
                   }
-                  className={`text-left border rounded p-3 ${
-                    character.classPath.classId === cls.id ? 'border-gray-900 bg-gray-50' : 'hover:bg-gray-50'
-                  }`}
+                  className={`text-left border rounded p-3 ${character.classPath.classId === cls.id ? 'border-gray-900 bg-gray-50' : 'hover:bg-gray-50'
+                    }`}
                 >
                   <div className="font-medium">{cls.label}</div>
                   <div className="text-xs text-gray-400 italic">
@@ -1467,11 +1463,10 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                           classPath: { ...c.classPath, archetypeId: arch.id },
                         }))
                       }
-                      className={`text-left border rounded p-3 ${
-                        character.classPath.archetypeId === arch.id
+                      className={`text-left border rounded p-3 ${character.classPath.archetypeId === arch.id
                           ? 'border-gray-900 bg-gray-50'
                           : 'hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <div className="font-medium">{arch.label}</div>
                       <div className="text-xs text-gray-400 italic">
@@ -1495,11 +1490,10 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                       classPath: { ...c.classPath, caminhoId: caminho.id },
                     }))
                   }
-                  className={`text-left border rounded p-3 ${
-                    character.classPath.caminhoId === caminho.id
+                  className={`text-left border rounded p-3 ${character.classPath.caminhoId === caminho.id
                       ? 'border-gray-900 bg-gray-50'
                       : 'hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <div className="font-medium">{caminho.label}</div>
                   <div className="text-xs text-gray-400 italic mb-1">
@@ -1522,20 +1516,20 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                 <span className="text-gray-400 capitalize">({character.role})</span>
                 <p className="text-gray-500">{character.concept}</p>
               </div>
-<div>
-  Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{massAdjustedVigor.value}</strong>
-  {massAdjustedVigor.note && <span className="text-amber-600 text-xs"> ({massAdjustedVigor.note})</span>}
-{' · '}Dano Físico: <strong>
-  {physicalDamage
-    ? physicalDamage.diceCount > 0
-      ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
-      : 'Trauma Direto automático'
-    : '—'}
-</strong>
-{physicalDamage?.note && <span className="text-amber-600 text-xs"> ({physicalDamage.note})</span>}
-  {' · '}Sorte Restante: <strong>{remainingLuck}</strong>
-</div>
-              
+              <div>
+                Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{massAdjustedVigor.value}</strong>
+                {massAdjustedVigor.note && <span className="text-amber-600 text-xs"> ({massAdjustedVigor.note})</span>}
+                {' · '}Dano Físico: <strong>
+                  {physicalDamage
+                    ? physicalDamage.diceCount > 0
+                      ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
+                      : 'Trauma Direto automático'
+                    : '—'}
+                </strong>
+                {physicalDamage?.note && <span className="text-amber-600 text-xs"> ({physicalDamage.note})</span>}
+                {' · '}Sorte Restante: <strong>{remainingLuck}</strong>
+              </div>
+
               <div>
                 <div className="font-medium mb-1">Atributos</div>
                 {Object.entries(finalAttributeTotals).map(([id, value]) => (
@@ -1629,18 +1623,18 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
                     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
                   </div>
                 )}
-<div>
-  <div className="font-medium mb-1">Habilidades</div>
-  {character.selectedAbilities.length === 0 ? (
-    <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
-  ) : (
-    character.selectedAbilities.map((a) => (
-      <div key={a.instanceId} className="text-xs border-b py-1">
-<strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.description}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
-      </div>
-    ))
-  )}
-</div>
+                <div>
+                  <div className="font-medium mb-1">Habilidades</div>
+                  {character.selectedAbilities.length === 0 ? (
+                    <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
+                  ) : (
+                    character.selectedAbilities.map((a) => (
+                      <div key={a.instanceId} className="text-xs border-b py-1">
+                        <strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.description}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
+                      </div>
+                    ))
+                  )}
+                </div>
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
                 {character.customSkills.length === 0 ? (
                   <p className="text-gray-400">Nenhuma habilidade adicionada.</p>
@@ -1703,9 +1697,9 @@ Sanidade Máxima Atual: <strong>{maxSanity}</strong>
         )}
 
         {/* Botões de Navegação */}
-<div className="flex justify-between items-center mt-8 pt-4 border-t max-w-2xl gap-3 pb-6 md:pb-0">          <button onClick={goBack} disabled={stepIndex === 0} className="text-sm px-4 py-2 rounded border disabled:opacity-30">
-            Voltar
-          </button>
+        <div className="flex justify-between items-center mt-8 pt-4 border-t max-w-2xl gap-3 pb-6 md:pb-0">          <button onClick={goBack} disabled={stepIndex === 0} className="text-sm px-4 py-2 rounded border disabled:opacity-30">
+          Voltar
+        </button>
           <button
             onClick={goNext}
             disabled={stepIndex === STEPS.length - 1}
