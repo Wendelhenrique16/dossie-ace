@@ -192,15 +192,31 @@ export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituica
   const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
   const clamp = (i) => Math.max(0, Math.min(MASS_CATEGORIES.length - 1, i));
 
-  const damageIndex = clamp(shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down') + (archetypeShifts.damage || 0));
-  const vigorIndex = clamp(shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down') + (archetypeShifts.vigor || 0));
-  const staminaIndex = clamp(shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up') + (archetypeShifts.stamina || 0));
+  const damagePreArch = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(forcaLevel), 'down');
+  const vigorPreArch = shiftCategoryIndex(baseIndex, degradeStepsFromLevel(constituicaoLevel), 'down');
+  const staminaPreArch = shiftCategoryIndex(baseIndex, elevateStepsFromLevel(resistenciaLevel), 'up');
+
+  const damageIndex = clamp(damagePreArch + (archetypeShifts.damage || 0));
+  const vigorIndex = clamp(vigorPreArch + (archetypeShifts.vigor || 0));
+  const staminaIndex = clamp(staminaPreArch + (archetypeShifts.stamina || 0));
 
   return {
     real: realCategory,
-    damage: { category: MASS_CATEGORIES[damageIndex], wasChanged: damageIndex !== baseIndex },
-    vigor: { category: MASS_CATEGORIES[vigorIndex], wasChanged: vigorIndex !== baseIndex },
-    stamina: { category: MASS_CATEGORIES[staminaIndex], wasChanged: staminaIndex !== baseIndex },
+    damage: {
+      category: MASS_CATEGORIES[damageIndex],
+      wasDegraded: damagePreArch < baseIndex,
+      wasBoostedByArchetype: damageIndex > damagePreArch,
+    },
+    vigor: {
+      category: MASS_CATEGORIES[vigorIndex],
+      wasDegraded: vigorPreArch < baseIndex,
+      wasBoostedByArchetype: vigorIndex > vigorPreArch,
+    },
+    stamina: {
+      category: MASS_CATEGORIES[staminaIndex],
+      wasElevatedByWeakness: staminaPreArch > baseIndex,
+      wasReducedByArchetype: staminaIndex < staminaPreArch,
+    },
   };
 }
 
