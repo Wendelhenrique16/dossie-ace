@@ -8,7 +8,7 @@ import { OCCUPATION_CATEGORIES } from '../data/occupations';
 import { TRAUMAS } from '../data/traumas';
 import { getEffectiveMassCategory } from './characterCalculations';
 import { ABILITIES } from '../data/abilities';
-
+import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
@@ -31,7 +31,9 @@ export function buildCharacterSheetLines({
   finalSkillTotals,
   skillResultBonuses,
   vigor,
-  maxSanity, // novo
+  massAdjustedVigor, // ADICIONAR
+  physicalDamage,    // ADICIONAR
+  maxSanity,
   remainingLuck,
   classBonuses,
   isAgent,
@@ -220,10 +222,16 @@ lines.push('');
   lines.push(`Bônus do Arquétipo (${bonus.name}): ${bonus.description}`);
 }
 if (character.weightKg) {
+  const archetypeBonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+  const archetypeShifts = archetypeBonus?.massShift
+    ? { [archetypeBonus.massShift.axis]: archetypeBonus.massShift.amount }
+    : {};
+
   const massInfo = getEffectiveMassCategory(character.weightKg, {
     forcaLevel: finalSkillTotals.forca || 0,
     constituicaoLevel: finalSkillTotals.constituicao || 0,
     resistenciaLevel: finalSkillTotals.resistencia || 0,
+    archetypeShifts,
   });
   lines.push('Categoria de Massa:');
   lines.push(`> Peso real: ${massInfo.real.label}`);

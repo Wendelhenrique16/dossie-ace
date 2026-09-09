@@ -1651,18 +1651,21 @@ const massInfo = useMemo(() => {
                   <div>
                     <div className="font-medium mb-1">Categoria de Massa</div>
                     <div>Peso real: <strong>{massInfo.real.label}</strong></div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
-                      {massInfo.damage.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.damage.category.label} por Força baixa)</span>}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
-                      {massInfo.vigor.wasChanged && <span className="text-amber-600"> (rebaixado para {massInfo.vigor.category.label} por Constituição baixa)</span>}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
-                      {massInfo.stamina.wasChanged && <span className="text-amber-600"> (elevado para {massInfo.stamina.category.label} por Resistência baixa)</span>}
-                    </div>
+<div className="text-xs text-gray-500 mt-1">
+  <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
+  {massInfo.damage.wasDegraded && <span className="text-amber-600"> (rebaixado por Força baixa)</span>}
+  {massInfo.damage.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
+</div>
+<div className="text-xs text-gray-500">
+  <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
+  {massInfo.vigor.wasDegraded && <span className="text-amber-600"> (rebaixado por Constituição baixa)</span>}
+  {massInfo.vigor.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
+</div>
+<div className="text-xs text-gray-500">
+  <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
+  {massInfo.stamina.wasElevatedByWeakness && <span className="text-amber-600"> (elevado por Resistência baixa)</span>}
+  {massInfo.stamina.wasReducedByArchetype && <span className="text-green-600"> (reduzido por bônus de Arquétipo)</span>}
+</div>
                     <div className="text-xs text-gray-500 mt-1"><strong>Vantagem:</strong> {massInfo.real.advantage}</div>
                     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
                   </div>
