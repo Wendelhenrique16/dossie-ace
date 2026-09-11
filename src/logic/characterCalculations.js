@@ -326,3 +326,62 @@ export function applyMassVigorModifier(baseVigor, massCategoryId, constituicaoLe
       return { value: baseVigor, note: null };
   }
 }
+import {CARGA_TABLE, CARGA_BY_MASS, MOVEMENT_MASS_MODIFIER } from '../data/massCategories';
+// (junta com o import de MASS_CATEGORIES que já existe — só adicionar os 3 novos nomes)
+
+/**
+ * Força desloca a LEITURA da tabela de Carga em degraus (não muda a Categoria
+ * de Massa em si, só qual linha da tabela Confortável/Pesada/Extrema é lida).
+ */
+function forcaCargaShiftSteps(forcaLevel) {
+  if (forcaLevel === 0) return -1;
+  if (forcaLevel <= 5) return 0;
+  if (forcaLevel <= 10) return 1;
+  if (forcaLevel <= 15) return 2;
+  if (forcaLevel <= 20) return 3;
+  return 4; // 20+ / 3d8+d4
+}
+
+function getCargaLevelInfo(level) {
+  const entry = CARGA_TABLE.find((c) => c.level === level);
+  return entry ? { level, minKg: entry.minKg, maxKg: entry.maxKg } : null;
+}
+
+/**
+ * Limites de Carga (Confortável/Pesada/Extrema) pro peso e Força do personagem.
+ * Usa a Categoria de Massa REAL (peso puro) como linha-base, deslocada pelo
+ * degrau de Força — igual ao exemplo do livro (Médio + Força 12 = lê como Colosso).
+ */
+export function calculateCargaLimits(weightKg, forcaLevel) {
+  const realCategory = getMassCategory(weightKg);
+  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
+  const shift = forcaCargaShiftSteps(forcaLevel);
+  const shiftedIndex = Math.max(0, Math.min(MASS_CATEGORIES.length - 1, baseIndex + shift));
+  const effectiveCategory = MASS_CATEGORIES[shiftedIndex];
+  const row = CARGA_BY_MASS[effectiveCategory.id];
+
+  return {
+    realCategory,
+    effectiveCategory,
+    wasShifted: shiftedIndex !== baseIndex,
+    shiftDirection: shiftedIndex > baseIndex ? 'up' : shiftedIndex < baseIndex ? 'down' : null,
+    comfortable: { cargaLevel: row.comfortable, ...getCargaLevelInfo(row.comfortable) },
+    heavy: { cargaLevel: row.heavy, ...getCargaLevelInfo(row.heavy) },
+    extreme: { cargaLevel: row.extreme, ...getCargaLevelInfo(row.extreme) },
+  };
+}
+
+/**
+ * Movimento = Atletismo + Modificador de Massa (peso REAL, sem multiplicador
+ * — o "1 ponto = 1,5m" é só nota de referência de Mestre, nunca aparece na ficha).
+ * Atletismo 0 = incapaz (Movimento 0).
+ */
+export function calculateMovement(atletismoLevel, weightKg) {
+  if (!atletismoLevel || atletismoLevel <= 0) {
+    return { value: 0, modifier: null, massCategoryLabel: null, note: 'Atletismo 0: incapaz de se mover com eficiência.' };
+  }
+  const massCategory = getMassCategory(weightKg);
+  const modifier = MOVEMENT_MASS_MODIFIER[massCategory.id] ?? 0;
+  const value = Math.max(0, atletismoLevel + modifier);
+  return { value, modifier, massCategoryLabel: massCategory.label, note: null };
+}

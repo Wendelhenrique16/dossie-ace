@@ -25,18 +25,9 @@ function aspectLabel(id, catalog) {
  * lógica de montagem em dois lugares.
  */
 export function buildCharacterSheetLines({
-  character,
-  lifeStage,
-  finalAttributeTotals,
-  finalSkillTotals,
-  skillResultBonuses,
-  vigor,
-  massAdjustedVigor, // ADICIONAR
-  physicalDamage,    // ADICIONAR
-  maxSanity,
-  remainingLuck,
-  classBonuses,
-  isAgent,
+  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
+  cargaInfo, movementInfo, // NOVO
 }) {
   const lines = [];
 
@@ -240,6 +231,17 @@ if (character.weightKg) {
   lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
   lines.push(`> Vantagem: ${massInfo.real.advantage}`);
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
+    if (cargaInfo) {
+    lines.push('Carga:');
+    lines.push(`> Confortável: até ${cargaInfo.comfortable.maxKg}kg (Carga ${cargaInfo.comfortable.cargaLevel})`);
+    lines.push(`> Pesada: até ${cargaInfo.heavy.maxKg}kg (Carga ${cargaInfo.heavy.cargaLevel})`);
+    lines.push(`> Extrema: até ${cargaInfo.extreme.maxKg}kg (Carga ${cargaInfo.extreme.cargaLevel})`);
+    lines.push('');
+  }
+  if (movementInfo) {
+    lines.push(`Movimento: ${movementInfo.value} pontos${movementInfo.note ? ` (${movementInfo.note})` : ''}`);
+    lines.push('');
+  }
   lines.push('');
 }
 character.selectedAbilities.forEach((a) => {

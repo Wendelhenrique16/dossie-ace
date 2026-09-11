@@ -28,9 +28,9 @@ import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
   applyMassDamageModifier, applyMassVigorModifier,
+  calculateCargaLimits, calculateMovement, // NOVO
 } from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal'; function buildSteps(isAgent) {
-
 
 
   const steps = [
@@ -64,6 +64,7 @@ export default function CharacterCreate({ userId }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
   const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false); const [character, setCharacter] = useState(() => normalizeCharacter());
+const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
@@ -329,7 +330,15 @@ const massInfo = useMemo(() => {
     );
     return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
   }, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
+const cargaInfo = useMemo(() => {
+  if (!character.weightKg) return null;
+  return calculateCargaLimits(character.weightKg, finalSkillTotals.forca || 0);
+}, [character.weightKg, finalSkillTotals]);
 
+const movementInfo = useMemo(() => {
+  if (!character.weightKg) return null;
+  return calculateMovement(finalSkillTotals[ATLETISMO_SKILL_ID] || 0, character.weightKg);
+}, [character.weightKg, finalSkillTotals]);
   const maxSanity = useMemo(
     () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
     [character.purchasedBackgrounds, freePackages]
@@ -533,10 +542,11 @@ const massInfo = useMemo(() => {
     const action = pendingAction;
     setPendingAction(null);
 
-    const exportParams = {
-      character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
-      vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
-    };
+const exportParams = {
+  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
+  cargaInfo, movementInfo, // NOVO
+};
 
     if (action === 'pdf') {
       // Básico e sem estilização por enquanto — mesma estrutura da ficha,
@@ -1670,6 +1680,32 @@ const massInfo = useMemo(() => {
                     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
                   </div>
                 )}
+                {cargaInfo && (
+  <div className="mt-2">
+    <div className="font-medium mb-1">Carga (Força)</div>
+    <div className="text-xs text-gray-500">
+      Confortável: até {cargaInfo.comfortable.maxKg}kg (Carga {cargaInfo.comfortable.cargaLevel}) ·{' '}
+      Pesada: até {cargaInfo.heavy.maxKg}kg (Carga {cargaInfo.heavy.cargaLevel}) ·{' '}
+      Extrema: até {cargaInfo.extreme.maxKg}kg (Carga {cargaInfo.extreme.cargaLevel})
+      {cargaInfo.wasShifted && (
+        <span className="text-green-600">
+          {' '}(deslocado {cargaInfo.shiftDirection === 'up' ? 'pra cima' : 'pra baixo'} pela Força — lê como {cargaInfo.effectiveCategory.label})
+        </span>
+      )}
+    </div>
+  </div>
+)}
+
+{movementInfo && (
+  <div className="mt-2">
+    <div className="font-medium mb-1">Movimento</div>
+    <div className="text-xs text-gray-500">
+      {movementInfo.value} pontos
+      {movementInfo.massCategoryLabel && ` (Atletismo + Mod. de Massa: ${movementInfo.massCategoryLabel})`}
+      {movementInfo.note && <span className="text-amber-600"> — {movementInfo.note}</span>}
+    </div>
+  </div>
+)}
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>
                   {character.selectedAbilities.length === 0 ? (
