@@ -25,30 +25,25 @@ import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINIT
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { getSignatureAbilitiesForArchetype } from '../data/abilities';
 import {
+  FIGHTING_STYLE_AXES, POSTURE_BONUSES, PASSIVE_POINTS_PER_UNLOCK, MAX_SINGLE_PASSIVE_WEIGHT,
+  EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
+} from '../data/fightingStyles';
+import {
+  getReadyMadeStyles, getStyleModels, instantiateStyleFromCatalog, createBlankStyle,
+} from '../data/fightingStylesCatalog';
+import {
+  calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
+  calculatePassiveWeightBudget, validateStylePassives,
+} from '../logic/characterCalculations'; // (junta com o import que já existe de characterCalculations)
+
+import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
   applyMassDamageModifier, applyMassVigorModifier,
   calculateCargaLimits, calculateMovement, // NOVO
 } from '../logic/characterCalculations';
-import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal'; function buildSteps(isAgent) {
+import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';
 
-
-  const steps = [
-    { id: 'identity', label: '1. Detalhes do Personagem' },
-    { id: 'lifeStage', label: '2. Fase da Vida' },
-    { id: 'backgrounds', label: '3. Antecedentes' },
-    { id: 'aspects', label: '4. Aspectos' },
-    { id: 'customSkills', label: '5. Habilidades' },
-    { id: 'occupation', label: '6. Ocupação' },
-  ];
-  if (isAgent) {
-    steps.push({ id: 'classPath', label: '7. Classe & Caminho' });
-    steps.push({ id: 'review', label: '8. Validar & Exportar' });
-  } else {
-    steps.push({ id: 'review', label: '7. Validar & Exportar' });
-  }
-  return steps;
-}
 
 export default function CharacterCreate({ userId }) {
   const navigate = useNavigate();
@@ -64,7 +59,7 @@ export default function CharacterCreate({ userId }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
   const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false); const [character, setCharacter] = useState(() => normalizeCharacter());
-const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
+  const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
@@ -121,10 +116,6 @@ const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
   }, [draftKey]);
 
   const isAgent = character.role === 'agente';
-  const STEPS = useMemo(() => buildSteps(isAgent), [isAgent]);
-  const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
-  const goNext = () => setCurrentStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id);
-  const goBack = () => setCurrentStep(STEPS[Math.max(stepIndex - 1, 0)].id);
 
   const lifeStage = character.lifeStageId ? LIFE_STAGES[character.lifeStageId] : null;
   const freePackages = lifeStage?.freePackages ?? 0;
@@ -258,7 +249,21 @@ const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
       },
     }));
   }
-
+  function buildSteps(isAgent, hasFightingStylePoints) {
+    const steps = [
+      { id: 'identity', label: '1. Detalhes do Personagem' },
+      { id: 'lifeStage', label: '2. Fase da Vida' },
+      { id: 'backgrounds', label: '3. Antecedentes' },
+      { id: 'aspects', label: '4. Aspectos' },
+      { id: 'customSkills', label: '5. Habilidades' },
+      { id: 'occupation', label: '6. Ocupação' },
+    ];
+    let n = 7;
+    if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
+    if (hasFightingStylePoints) steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
+    steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
+    return steps;
+  }
   function handleSwapGraveAspect(index, newId) {
     setCharacter((c) => {
       const ids = [...c.aspects.excessNegativeIds];
@@ -298,21 +303,21 @@ const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
   const vigor = useMemo(() => {
     return calculateVigor(finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0);
   }, [finalSkillTotals]);
-const archetypeShifts = useMemo(() => {
-  const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
-  if (!bonus?.massShift) return {};
-  return { [bonus.massShift.axis]: bonus.massShift.amount };
-}, [character.classPath.archetypeId]);
+  const archetypeShifts = useMemo(() => {
+    const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+    if (!bonus?.massShift) return {};
+    return { [bonus.massShift.axis]: bonus.massShift.amount };
+  }, [character.classPath.archetypeId]);
 
-const massInfo = useMemo(() => {
-  if (!character.weightKg) return null;
-  return getEffectiveMassCategory(character.weightKg, {
-    forcaLevel: finalSkillTotals.forca || 0,
-    constituicaoLevel: finalSkillTotals.constituicao || 0,
-    resistenciaLevel: finalSkillTotals.resistencia || 0,
-    archetypeShifts,
-  });
-}, [character.weightKg, finalSkillTotals, archetypeShifts]);
+  const massInfo = useMemo(() => {
+    if (!character.weightKg) return null;
+    return getEffectiveMassCategory(character.weightKg, {
+      forcaLevel: finalSkillTotals.forca || 0,
+      constituicaoLevel: finalSkillTotals.constituicao || 0,
+      resistenciaLevel: finalSkillTotals.resistencia || 0,
+      archetypeShifts,
+    });
+  }, [character.weightKg, finalSkillTotals, archetypeShifts]);
   const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
 
   const massAdjustedVigor = useMemo(() => {
@@ -330,20 +335,74 @@ const massInfo = useMemo(() => {
     );
     return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
   }, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
-const cargaInfo = useMemo(() => {
-  if (!character.weightKg) return null;
-  return calculateCargaLimits(character.weightKg, finalSkillTotals.forca || 0);
-}, [character.weightKg, finalSkillTotals]);
+  const cargaInfo = useMemo(() => {
+    if (!character.weightKg) return null;
+    return calculateCargaLimits(character.weightKg, finalSkillTotals.forca || 0);
+  }, [character.weightKg, finalSkillTotals]);
 
-const movementInfo = useMemo(() => {
-  if (!character.weightKg) return null;
-  return calculateMovement(finalSkillTotals[ATLETISMO_SKILL_ID] || 0, character.weightKg);
-}, [character.weightKg, finalSkillTotals]);
+  const movementInfo = useMemo(() => {
+    if (!character.weightKg) return null;
+    return calculateMovement(finalSkillTotals[ATLETISMO_SKILL_ID] || 0, character.weightKg);
+  }, [character.weightKg, finalSkillTotals]);
   const maxSanity = useMemo(
     () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
     [character.purchasedBackgrounds, freePackages]
   );
+  const totalFightingStylePoints = useMemo(
+    () => calculateFightingStylePoints(finalSkillTotals.combate || 0, character.classPath.archetypeId),
+    [finalSkillTotals, character.classPath.archetypeId]
+  );
+  const hasFightingStylePoints = totalFightingStylePoints > 0;
+  const STEPS = useMemo(() => buildSteps(isAgent, hasFightingStylePoints), [isAgent, hasFightingStylePoints]);
+  const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
+  const goNext = () => setCurrentStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id);
+  const goBack = () => setCurrentStep(STEPS[Math.max(stepIndex - 1, 0)].id);
+  const totalInvestedStylePoints = useMemo(
+    () => calculateTotalInvestedPoints(character.fightingStyles),
+    [character.fightingStyles]
+  );
+  const remainingStylePoints = totalFightingStylePoints - totalInvestedStylePoints;
 
+  function handleAddStyleFromCatalog(catalogEntry) {
+    setCharacter((c) => ({
+      ...c,
+      fightingStyles: [...c.fightingStyles, instantiateStyleFromCatalog(catalogEntry)],
+    }));
+  }
+  function handleAddBlankStyle() {
+    setCharacter((c) => ({ ...c, fightingStyles: [...c.fightingStyles, createBlankStyle()] }));
+  }
+  function handleRemoveStyle(styleId) {
+    setCharacter((c) => ({
+      ...c,
+      fightingStyles: c.fightingStyles.filter((s) => s.id !== styleId),
+      activeFightingStyleId: c.activeFightingStyleId === styleId ? null : c.activeFightingStyleId,
+    }));
+  }
+  function handleUpdateStyle(styleId, updater) {
+    setCharacter((c) => ({
+      ...c,
+      fightingStyles: c.fightingStyles.map((s) => (s.id === styleId ? updater(s) : s)),
+    }));
+  }
+  function handleSetStyleName(styleId, name) {
+    handleUpdateStyle(styleId, (s) => ({ ...s, name }));
+  }
+  function handleSetAxisPoints(styleId, axisId, value) {
+    handleUpdateStyle(styleId, (s) => ({ ...s, eixos: { ...s.eixos, [axisId]: Math.max(0, value) } }));
+  }
+  function handleSetPosturePoints(styleId, postureId, value) {
+    handleUpdateStyle(styleId, (s) => ({ ...s, postura: { ...s.postura, [postureId]: Math.max(0, value) } }));
+  }
+  function handleTogglePassive(styleId, effectName, weight) {
+    handleUpdateStyle(styleId, (s) => {
+      const exists = s.passives.some((p) => p.effectName === effectName);
+      const passives = exists
+        ? s.passives.filter((p) => p.effectName !== effectName)
+        : [...s.passives, { effectName, weight }];
+      return { ...s, passives };
+    });
+  }
   function handleSelectLifeStage(id) {
     const stage = LIFE_STAGES[id];
     const halvedAttributeIds = stage.agingPenalty
@@ -542,11 +601,11 @@ const movementInfo = useMemo(() => {
     const action = pendingAction;
     setPendingAction(null);
 
-const exportParams = {
-  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
-  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
-  cargaInfo, movementInfo, // NOVO
-};
+    const exportParams = {
+      character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+      vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
+      cargaInfo, movementInfo, // NOVO
+    };
 
     if (action === 'pdf') {
       // Básico e sem estilização por enquanto — mesma estrutura da ficha,
@@ -614,10 +673,10 @@ const exportParams = {
               key={step.id}
               onClick={() => setCurrentStep(step.id)}
               className={`whitespace-nowrap md:whitespace-normal text-left px-3 py-1.5 md:py-2 rounded text-xs md:text-sm shrink-0 md:w-full ${step.id === currentStep
-                  ? 'bg-gray-900 text-white'
-                  : i < stepIndex
-                    ? 'text-gray-700 hover:bg-gray-100'
-                    : 'text-gray-400 hover:bg-gray-100'
+                ? 'bg-gray-900 text-white'
+                : i < stepIndex
+                  ? 'text-gray-700 hover:bg-gray-100'
+                  : 'text-gray-400 hover:bg-gray-100'
                 }`}
             >
               {step.label}
@@ -1481,8 +1540,8 @@ const exportParams = {
                         }))
                       }
                       className={`text-left border rounded p-3 ${character.classPath.archetypeId === arch.id
-                          ? 'border-gray-900 bg-gray-50'
-                          : 'hover:bg-gray-50'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'hover:bg-gray-50'
                         }`}
                     >
                       <div className="font-medium">{arch.label}</div>
@@ -1495,42 +1554,42 @@ const exportParams = {
               </>
             )}
             {character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId] && (
-  <div className="border rounded p-3 mb-4 bg-gray-50">
-    <div className="font-medium text-sm mb-1">
-      Bônus Fixo: {ARCHETYPE_BONUSES[character.classPath.archetypeId].name}
-    </div>
-    <p className="text-xs text-gray-600">{ARCHETYPE_BONUSES[character.classPath.archetypeId].description}</p>
-  </div>
-)}
+              <div className="border rounded p-3 mb-4 bg-gray-50">
+                <div className="font-medium text-sm mb-1">
+                  Bônus Fixo: {ARCHETYPE_BONUSES[character.classPath.archetypeId].name}
+                </div>
+                <p className="text-xs text-gray-600">{ARCHETYPE_BONUSES[character.classPath.archetypeId].description}</p>
+              </div>
+            )}
 
-{character.classPath.archetypeId && (
-  <div className="mb-4">
-    <label className="block text-sm mb-2">Habilidade de Assinatura (escolha 1 das 3)</label>
-    <div className="space-y-2">
-      {getSignatureAbilitiesForArchetype(character.classPath.archetypeId).map((ability) => {
-        const alreadyAdded = character.selectedAbilities.some((a) => a.abilityId === ability.id);
-        return (
-          <div key={ability.id} className="border rounded p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">{ability.name}</span>
-              {alreadyAdded ? (
-                <span className="text-xs text-green-600">✓ Adicionada</span>
-              ) : (
-                <button
-                  onClick={() => handleSelectAbilityFromCatalog(ability)}
-                  className="text-xs px-2 py-1 rounded border"
-                >
-                  Escolher
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">{ability.effect.description}</p>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
+            {character.classPath.archetypeId && (
+              <div className="mb-4">
+                <label className="block text-sm mb-2">Habilidade de Assinatura (escolha 1 das 3)</label>
+                <div className="space-y-2">
+                  {getSignatureAbilitiesForArchetype(character.classPath.archetypeId).map((ability) => {
+                    const alreadyAdded = character.selectedAbilities.some((a) => a.abilityId === ability.id);
+                    return (
+                      <div key={ability.id} className="border rounded p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{ability.name}</span>
+                          {alreadyAdded ? (
+                            <span className="text-xs text-green-600">✓ Adicionada</span>
+                          ) : (
+                            <button
+                              onClick={() => handleSelectAbilityFromCatalog(ability)}
+                              className="text-xs px-2 py-1 rounded border"
+                            >
+                              Escolher
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{ability.effect.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Caminho */}
             <label className="block text-sm mb-1">Caminho</label>
@@ -1545,8 +1604,8 @@ const exportParams = {
                     }))
                   }
                   className={`text-left border rounded p-3 ${character.classPath.caminhoId === caminho.id
-                      ? 'border-gray-900 bg-gray-50'
-                      : 'hover:bg-gray-50'
+                    ? 'border-gray-900 bg-gray-50'
+                    : 'hover:bg-gray-50'
                     }`}
                 >
                   <div className="font-medium">{caminho.label}</div>
@@ -1559,7 +1618,170 @@ const exportParams = {
             </div>
           </section>
         )}
+        {/* Step: Estilo de Luta (só aparece se tiver pontos de Combate) */}
+        {currentStep === 'fightingStyle' && (
+          <section>
+            <h2 className="text-xl font-semibold mb-2">Estilo de Luta</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Todo personagem tem um Estilo — a forma como reage ao combate corpo a corpo, desarmado
+              ou com armas brancas. Distribua os pontos entre um ou mais Estilos.
+            </p>
 
+            <div className="mb-4 text-sm border rounded p-3 bg-gray-50">
+              Pontos totais: <strong>{totalFightingStylePoints}</strong> (nível {finalSkillTotals.combate || 0} em Combate
+              {character.classPath.archetypeId === ARTISTA_MARCIAL_ARCHETYPE_ID && ', dobrado por Artista Marcial'})
+              {' · '}Investidos: <strong>{totalInvestedStylePoints}</strong>
+              {' · '}Restantes:{' '}
+              <strong className={remainingStylePoints < 0 ? 'text-red-600' : ''}>{remainingStylePoints}</strong>
+              {remainingStylePoints < 0 && (
+                <span className="text-red-600"> — reduza os pontos investidos, passou do limite.</span>
+              )}
+            </div>
+
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {getReadyMadeStyles().map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => handleAddStyleFromCatalog(style)}
+                  className="text-xs px-3 py-1.5 rounded border bg-gray-50"
+                  title={style.description}
+                >
+                  + {style.name} ({style.pointsRequired} pts)
+                </button>
+              ))}
+              <button onClick={handleAddBlankStyle} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                + Criar do Zero
+              </button>
+            </div>
+
+            {character.fightingStyles.length === 0 ? (
+              <p className="text-sm text-gray-400">Nenhum Estilo adicionado ainda.</p>
+            ) : (
+              <div className="space-y-4">
+                {character.fightingStyles.map((style) => {
+                  const invested = calculateStyleInvestedPoints(style);
+                  const passiveBudget = calculatePassiveWeightBudget(style);
+                  const passiveValidation = validateStylePassives(style, style.passives);
+                  const isActive = character.activeFightingStyleId === style.id;
+
+                  return (
+                    <div key={style.id} className="border rounded p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <input
+                          className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
+                          placeholder="Nome do Estilo (ex: Boxe)"
+                          value={style.name}
+                          onChange={(e) => handleSetStyleName(style.id, e.target.value)}
+                        />
+                        <button
+                          onClick={() => setCharacter((c) => ({ ...c, activeFightingStyleId: isActive ? null : style.id }))}
+                          className={`text-xs px-2 py-1 rounded border ${isActive ? 'bg-gray-900 text-white' : ''}`}
+                        >
+                          {isActive ? '✓ Ativo' : 'Ativar'}
+                        </button>
+                        <button onClick={() => handleRemoveStyle(style.id)} className="text-xs text-red-500 underline">
+                          Remover
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-gray-400">
+                        Investido neste Estilo: <strong>{invested}</strong> pontos
+                      </div>
+
+                      {/* Eixos */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 mb-1">Eixos</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(FIGHTING_STYLE_AXES).map(([axisId, axis]) => (
+                            <div key={axisId} className="flex items-center justify-between text-xs">
+                              <span title={axis.description}>{axis.label}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-16 border rounded px-2 py-1"
+                                value={style.eixos[axisId]}
+                                onChange={(e) => handleSetAxisPoints(style.id, axisId, Number(e.target.value) || 0)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Postura */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 mb-1">Postura</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span title="Facilitar (1pt) / Amplificar (2pts) nos próprios ataques">Ofensiva</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              className="w-16 border rounded px-2 py-1"
+                              value={style.postura.ofensiva}
+                              onChange={(e) => handleSetPosturePoints(style.id, 'ofensiva', Number(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span title="Garantir (1pt) / Blindar (2pts) nas próprias defesas">Defensiva</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              className="w-16 border rounded px-2 py-1"
+                              value={style.postura.defensiva}
+                              onChange={(e) => handleSetPosturePoints(style.id, 'defensiva', Number(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+                        {style.postura.ofensiva > 0 && POSTURE_BONUSES.ofensiva[style.postura.ofensiva] && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Ofensiva: {POSTURE_BONUSES.ofensiva[style.postura.ofensiva].description}
+                          </p>
+                        )}
+                        {style.postura.defensiva > 0 && POSTURE_BONUSES.defensiva[style.postura.defensiva] && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Defensiva: {POSTURE_BONUSES.defensiva[style.postura.defensiva].description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Passivas */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 mb-1">
+                          Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
+                        </div>
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {Object.entries(EFFECT_DEFINITIONS)
+                            .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
+                            .map(([name, def]) => {
+                              const selected = style.passives.some((p) => p.effectName === name);
+                              return (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  onClick={() => handleTogglePassive(style.id, name, def.weight)}
+                                  className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+                                >
+                                  {name} ({def.weight})
+                                </button>
+                              );
+                            })}
+                        </div>
+                        {!passiveValidation.valid && (
+                          <p className="text-xs text-red-600">
+                            ⚠ Peso total ({passiveValidation.totalWeight}) passou do orçamento ({passiveValidation.budget})
+                            {passiveValidation.anyOverweight && ' ou alguma Passiva individual passou do teto de peso 2'}.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
         {/* Step Final: Validar */}
         {currentStep === 'review' && (
           <section>
@@ -1661,51 +1883,77 @@ const exportParams = {
                   <div>
                     <div className="font-medium mb-1">Categoria de Massa</div>
                     <div>Peso real: <strong>{massInfo.real.label}</strong></div>
-<div className="text-xs text-gray-500 mt-1">
-  <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
-  {massInfo.damage.wasDegraded && <span className="text-amber-600"> (rebaixado por Força baixa)</span>}
-  {massInfo.damage.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
-</div>
-<div className="text-xs text-gray-500">
-  <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
-  {massInfo.vigor.wasDegraded && <span className="text-amber-600"> (rebaixado por Constituição baixa)</span>}
-  {massInfo.vigor.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
-</div>
-<div className="text-xs text-gray-500">
-  <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
-  {massInfo.stamina.wasElevatedByWeakness && <span className="text-amber-600"> (elevado por Resistência baixa)</span>}
-  {massInfo.stamina.wasReducedByArchetype && <span className="text-green-600"> (reduzido por bônus de Arquétipo)</span>}
-</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      <strong>Dano:</strong> {massInfo.damage.category.damageEffect}
+                      {massInfo.damage.wasDegraded && <span className="text-amber-600"> (rebaixado por Força baixa)</span>}
+                      {massInfo.damage.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      <strong>Vigor:</strong> {massInfo.vigor.category.vigorEffect}
+                      {massInfo.vigor.wasDegraded && <span className="text-amber-600"> (rebaixado por Constituição baixa)</span>}
+                      {massInfo.vigor.wasBoostedByArchetype && <span className="text-green-600"> (elevado por bônus de Arquétipo)</span>}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      <strong>Stamina:</strong> {massInfo.stamina.category.staminaEffect}
+                      {massInfo.stamina.wasElevatedByWeakness && <span className="text-amber-600"> (elevado por Resistência baixa)</span>}
+                      {massInfo.stamina.wasReducedByArchetype && <span className="text-green-600"> (reduzido por bônus de Arquétipo)</span>}
+                    </div>
                     <div className="text-xs text-gray-500 mt-1"><strong>Vantagem:</strong> {massInfo.real.advantage}</div>
                     <div className="text-xs text-gray-500"><strong>Desvantagem:</strong> {massInfo.real.disadvantage}</div>
                   </div>
                 )}
                 {cargaInfo && (
-  <div className="mt-2">
-    <div className="font-medium mb-1">Carga (Força)</div>
-    <div className="text-xs text-gray-500">
-      Confortável: até {cargaInfo.comfortable.maxKg}kg (Carga {cargaInfo.comfortable.cargaLevel}) ·{' '}
-      Pesada: até {cargaInfo.heavy.maxKg}kg (Carga {cargaInfo.heavy.cargaLevel}) ·{' '}
-      Extrema: até {cargaInfo.extreme.maxKg}kg (Carga {cargaInfo.extreme.cargaLevel})
-      {cargaInfo.wasShifted && (
-        <span className="text-green-600">
-          {' '}(deslocado {cargaInfo.shiftDirection === 'up' ? 'pra cima' : 'pra baixo'} pela Força — lê como {cargaInfo.effectiveCategory.label})
-        </span>
-      )}
-    </div>
-  </div>
-)}
+                  <div className="mt-2">
+                    <div className="font-medium mb-1">Carga (Força)</div>
+                    <div className="text-xs text-gray-500">
+                      Confortável: até {cargaInfo.comfortable.maxKg}kg (Carga {cargaInfo.comfortable.cargaLevel}) ·{' '}
+                      Pesada: até {cargaInfo.heavy.maxKg}kg (Carga {cargaInfo.heavy.cargaLevel}) ·{' '}
+                      Extrema: até {cargaInfo.extreme.maxKg}kg (Carga {cargaInfo.extreme.cargaLevel})
+                      {cargaInfo.wasShifted && (
+                        <span className="text-green-600">
+                          {' '}(deslocado {cargaInfo.shiftDirection === 'up' ? 'pra cima' : 'pra baixo'} pela Força — lê como {cargaInfo.effectiveCategory.label})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-{movementInfo && (
-  <div className="mt-2">
-    <div className="font-medium mb-1">Movimento</div>
-    <div className="text-xs text-gray-500">
-      {movementInfo.value} pontos
-      {movementInfo.massCategoryLabel && ` (Atletismo + Mod. de Massa: ${movementInfo.massCategoryLabel})`}
-      {movementInfo.note && <span className="text-amber-600"> — {movementInfo.note}</span>}
-    </div>
-  </div>
-)}
+                {movementInfo && (
+                  <div className="mt-2">
+                    <div className="font-medium mb-1">Movimento</div>
+                    <div className="text-xs text-gray-500">
+                      {movementInfo.value} pontos
+                      {movementInfo.massCategoryLabel && ` (Atletismo + Mod. de Massa: ${movementInfo.massCategoryLabel})`}
+                      {movementInfo.normal && (
+                        <>
+                          {' '}· {movementInfo.normal.metersPerTurn}m/turno ({movementInfo.normal.kmh} km/h)
+                          {' '}· Esforço Intenso (correr): {movementInfo.intenso.metersPerTurn}m/turno ({movementInfo.intenso.kmh} km/h)
+                        </>
+                      )}
+                      {movementInfo.note && <span className="text-amber-600"> — {movementInfo.note}</span>}
+                    </div>
+                  </div>
+                )}
+                {character.fightingStyles.length > 0 && (
+                  <div>
+                    <div className="font-medium mb-1">Estilo de Luta</div>
+                    <div className="text-xs text-gray-400 mb-1">
+                      Ativo: <strong>{character.fightingStyles.find((s) => s.id === character.activeFightingStyleId)?.name || 'Nenhum'}</strong>
+                    </div>
+                    {character.fightingStyles.map((style) => (
+                      <div key={style.id} className="text-xs border-b py-1">
+                        <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos ·{' '}
+                        {Object.entries(FIGHTING_STYLE_AXES)
+                          .filter(([axisId]) => style.eixos[axisId] > 0)
+                          .map(([axisId, axis]) => `${axis.label} ${style.eixos[axisId]}`)
+                          .join(', ')}
+                        {style.postura.ofensiva > 0 && `, Postura Ofensiva ${style.postura.ofensiva}`}
+                        {style.postura.defensiva > 0 && `, Postura Defensiva ${style.postura.defensiva}`}
+                        {style.passives.length > 0 && ` — Passiva: ${style.passives.map((p) => p.effectName).join(', ')}`}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>
                   {character.selectedAbilities.length === 0 ? (
@@ -1754,11 +2002,11 @@ const exportParams = {
                     </div>
                   ))}
                   {character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId] && (
-  <div className="text-xs text-gray-500 mt-1">
-    <strong>Bônus do Arquétipo ({ARCHETYPE_BONUSES[character.classPath.archetypeId].name}):</strong>{' '}
-    {ARCHETYPE_BONUSES[character.classPath.archetypeId].description}
-  </div>
-)}
+                    <div className="text-xs text-gray-500 mt-1">
+                      <strong>Bônus do Arquétipo ({ARCHETYPE_BONUSES[character.classPath.archetypeId].name}):</strong>{' '}
+                      {ARCHETYPE_BONUSES[character.classPath.archetypeId].description}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -333,14 +333,7 @@ import {CARGA_TABLE, CARGA_BY_MASS, MOVEMENT_MASS_MODIFIER } from '../data/massC
  * Força desloca a LEITURA da tabela de Carga em degraus (não muda a Categoria
  * de Massa em si, só qual linha da tabela Confortável/Pesada/Extrema é lida).
  */
-function forcaCargaShiftSteps(forcaLevel) {
-  if (forcaLevel === 0) return -1;
-  if (forcaLevel <= 5) return 0;
-  if (forcaLevel <= 10) return 1;
-  if (forcaLevel <= 15) return 2;
-  if (forcaLevel <= 20) return 3;
-  return 4; // 20+ / 3d8+d4
-}
+
 
 function getCargaLevelInfo(level) {
   const entry = CARGA_TABLE.find((c) => c.level === level);
@@ -351,11 +344,24 @@ function getCargaLevelInfo(level) {
  * Limites de Carga (Confortável/Pesada/Extrema) pro peso e Força do personagem.
  * Usa a Categoria de Massa REAL (peso puro) como linha-base, deslocada pelo
  * degrau de Força — igual ao exemplo do livro (Médio + Força 12 = lê como Colosso).
+ *//**
+ * Recebe o NÚMERO de Força (não o nível bruto) — as faixas 0/1-5/6-10/...
+ * do livro são sobre essa escala.
  */
+function forcaCargaShiftSteps(forcaValue) {
+  if (forcaValue === 0) return -1;
+  if (forcaValue <= 5) return 0;
+  if (forcaValue <= 10) return 1;
+  if (forcaValue <= 15) return 2;
+  if (forcaValue <= 20) return 3;
+  return 4;
+}
+
 export function calculateCargaLimits(weightKg, forcaLevel) {
+  const forcaValue = getSkillDieMaxValue(forcaLevel); // conversão que faltava
   const realCategory = getMassCategory(weightKg);
   const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
-  const shift = forcaCargaShiftSteps(forcaLevel);
+  const shift = forcaCargaShiftSteps(forcaValue);
   const shiftedIndex = Math.max(0, Math.min(MASS_CATEGORIES.length - 1, baseIndex + shift));
   const effectiveCategory = MASS_CATEGORIES[shiftedIndex];
   const row = CARGA_BY_MASS[effectiveCategory.id];
@@ -376,12 +382,110 @@ export function calculateCargaLimits(weightKg, forcaLevel) {
  * — o "1 ponto = 1,5m" é só nota de referência de Mestre, nunca aparece na ficha).
  * Atletismo 0 = incapaz (Movimento 0).
  */
+const METERS_PER_MOVEMENT_POINT = 1.5;
+const TURN_DURATION_SECONDS = 6;
+
+function metersPerTurnToKmH(metersPerTurn) {
+  return Number(((metersPerTurn / TURN_DURATION_SECONDS) * 3.6).toFixed(1));
+}
+
+/**
+ * Movimento = Atletismo + Modificador de Massa (peso REAL). Atletismo 0 =
+ * incapaz. Também traduz pontos em metros/turno e km/h — 1 ponto = 1,5m
+ * a cada turno de 6s (fórmula de referência, não afeta o valor em pontos).
+ * Esforço Extremo ainda não tem multiplicador definido no livro — fica de
+ * fora até isso ser fechado.
+ */
+/**
+ * Movimento = Atletismo + Modificador de Massa. "Atletismo" aqui é o NÚMERO
+ * da perícia (valor de face do dado, 0-28 — a mesma escala do livro em
+ * "O que os números querem dizer"), não o nível bruto 0-9.
+ */
 export function calculateMovement(atletismoLevel, weightKg) {
-  if (!atletismoLevel || atletismoLevel <= 0) {
-    return { value: 0, modifier: null, massCategoryLabel: null, note: 'Atletismo 0: incapaz de se mover com eficiência.' };
+  const atletismoValue = getSkillDieMaxValue(atletismoLevel);
+
+  if (!atletismoValue || atletismoValue <= 0) {
+    return {
+      value: 0, modifier: null, massCategoryLabel: null,
+      normal: null, intenso: null,
+      note: 'Atletismo 0: incapaz de se mover com eficiência.',
+    };
   }
   const massCategory = getMassCategory(weightKg);
   const modifier = MOVEMENT_MASS_MODIFIER[massCategory.id] ?? 0;
-  const value = Math.max(0, atletismoLevel + modifier);
-  return { value, modifier, massCategoryLabel: massCategory.label, note: null };
+  const value = Math.max(0, atletismoValue + modifier);
+
+  const metersPerTurnNormal = value * METERS_PER_MOVEMENT_POINT;
+  const metersPerTurnIntenso = metersPerTurnNormal * 2;
+
+  return {
+    value,
+    modifier,
+    massCategoryLabel: massCategory.label,
+    normal: { metersPerTurn: metersPerTurnNormal, kmh: metersPerTurnToKmH(metersPerTurnNormal) },
+    intenso: { metersPerTurn: metersPerTurnIntenso, kmh: metersPerTurnToKmH(metersPerTurnIntenso) },
+    note: null,
+  };
+}
+
+import {
+  FIGHTING_STYLE_AXES, PASSIVE_POINTS_PER_UNLOCK, MAX_SINGLE_PASSIVE_WEIGHT,
+  ARTISTA_MARCIAL_ARCHETYPE_ID,
+} from '../data/fightingStyles';
+
+/**
+ * Pontos totais de Estilo de Luta = NÍVEL bruto (0-9) da perícia Combate,
+ * dobrado se o Arquétipo for Artista Marcial. É moeda de investimento,
+ * não um efeito mecânico direto — por isso usa o nível, não o valor do dado.
+ */
+export function calculateFightingStylePoints(combateSkillLevel, archetypeId) {
+  const base = Math.max(0, combateSkillLevel || 0);
+  return archetypeId === ARTISTA_MARCIAL_ARCHETYPE_ID ? base * 2 : base;
+}
+
+/**
+ * Soma os pontos investidos num único Estilo (Eixos + Postura Ofensiva + Postura Defensiva).
+ */
+export function calculateStyleInvestedPoints(style) {
+  const eixosSum = Object.keys(FIGHTING_STYLE_AXES).reduce(
+    (sum, axisId) => sum + (style.eixos?.[axisId] || 0),
+    0
+  );
+  return eixosSum + (style.postura?.ofensiva || 0) + (style.postura?.defensiva || 0);
+}
+
+/**
+ * Soma investida em TODOS os Estilos do personagem — usado pra validar
+ * contra o total disponível (calculateFightingStylePoints).
+ */
+export function calculateTotalInvestedPoints(fightingStyles) {
+  return (fightingStyles || []).reduce((sum, style) => sum + calculateStyleInvestedPoints(style), 0);
+}
+
+/**
+ * Quantos pontos de peso de Passiva um Estilo desbloqueou (de graça),
+ * baseado nos pontos investidos nele. Não decide COMO gastar esse
+ * orçamento — só o total disponível. A distribuição entre passivas
+ * (respeitando o teto de peso 2 por passiva) é feita na camada de UI/estado,
+ * igual ao editor de Habilidades já existente.
+ */
+export function calculatePassiveWeightBudget(style) {
+  return Math.floor(calculateStyleInvestedPoints(style) / PASSIVE_POINTS_PER_UNLOCK);
+}
+
+/**
+ * Valida se o peso total das Passivas escolhidas pra um Estilo respeita:
+ * (a) não passar do orçamento desbloqueado, (b) nenhuma Passiva individual
+ * passar de peso 2.
+ */
+export function validateStylePassives(style, chosenPassives) {
+  const budget = calculatePassiveWeightBudget(style);
+  const totalWeight = (chosenPassives || []).reduce((sum, p) => sum + p.weight, 0);
+  const anyOverweight = (chosenPassives || []).some((p) => p.weight > MAX_SINGLE_PASSIVE_WEIGHT);
+  return {
+    valid: totalWeight <= budget && !anyOverweight,
+    budget,
+    totalWeight,
+    anyOverweight,
+  };
 }

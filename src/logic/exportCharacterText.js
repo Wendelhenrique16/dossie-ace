@@ -9,7 +9,7 @@ import { TRAUMAS } from '../data/traumas';
 import { getEffectiveMassCategory } from './characterCalculations';
 import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
-
+import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -27,7 +27,7 @@ function aspectLabel(id, catalog) {
 export function buildCharacterSheetLines({
   character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
   vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
-  cargaInfo, movementInfo, // NOVO
+  cargaInfo, movementInfo, fightingStyleInfo, // NOVO
 }) {
   const lines = [];
 
@@ -239,10 +239,34 @@ if (character.weightKg) {
     lines.push('');
   }
   if (movementInfo) {
-    lines.push(`Movimento: ${movementInfo.value} pontos${movementInfo.note ? ` (${movementInfo.note})` : ''}`);
+    if (movementInfo.note) {
+      lines.push(`Movimento: 0 pontos (${movementInfo.note})`);
+    } else {
+      lines.push(
+        `Movimento: ${movementInfo.value} pontos — ${movementInfo.normal.metersPerTurn}m/turno (${movementInfo.normal.kmh} km/h) · ` +
+        `Esforço Intenso: ${movementInfo.intenso.metersPerTurn}m/turno (${movementInfo.intenso.kmh} km/h)`
+      );
+    }
+  lines.push('');
+}
+  if (character.fightingStyles && character.fightingStyles.length > 0) {
+    lines.push('Estilo de Luta:');
+    const active = character.fightingStyles.find((s) => s.id === character.activeFightingStyleId);
+    lines.push(`> Ativo: ${active?.name || 'Nenhum'}`);
+    character.fightingStyles.forEach((style) => {
+      const axesText = Object.entries(FIGHTING_STYLE_AXES)
+        .filter(([axisId]) => style.eixos[axisId] > 0)
+        .map(([axisId, axis]) => `${axis.label} ${style.eixos[axisId]}`)
+        .join(', ');
+      const posturaText = [
+        style.postura.ofensiva > 0 ? `Postura Ofensiva ${style.postura.ofensiva}` : null,
+        style.postura.defensiva > 0 ? `Postura Defensiva ${style.postura.defensiva}` : null,
+      ].filter(Boolean).join(', ');
+      const passivesText = style.passives.length > 0 ? `Passiva: ${style.passives.map((p) => p.effectName).join(', ')}` : '';
+      lines.push(`> ${style.name || '(sem nome)'} — ${[axesText, posturaText, passivesText].filter(Boolean).join(' · ')}`);
+    });
     lines.push('');
   }
-  lines.push('');
 }
 character.selectedAbilities.forEach((a) => {
   const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;

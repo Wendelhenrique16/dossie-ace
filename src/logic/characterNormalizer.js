@@ -61,6 +61,22 @@ export function normalizeCharacter(data = {}) {
       weaponChoiceSkillId: safeData.classPath?.weaponChoiceSkillId ?? null,
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
-
+        fightingStyles: (safeData.fightingStyles ?? []).map((style) => ({
+      id: style.id,
+      name: style.name ?? '',
+      eixos: {
+        potencia: style.eixos?.potencia ?? 0,
+        robustez: style.eixos?.robustez ?? 0,
+        agilidade: style.eixos?.agilidade ?? 0,
+        distancia: style.eixos?.distancia ?? 0,
+      },
+      postura: {
+        ofensiva: style.postura?.ofensiva ?? 0,
+        defensiva: style.postura?.defensiva ?? 0,
+      },
+      passives: (style.passives ?? []).map((p) => ({ effectName: p.effectName, weight: p.weight })),
+    })),
+    activeFightingStyleId: safeData.activeFightingStyleId ?? null,
+    currentPosture: safeData.currentPosture ?? 'neutra', // 'neutra' | 'ofensiva' | 'defensiva'
   };
 }
