@@ -10,6 +10,8 @@ import { getEffectiveMassCategory } from './characterCalculations';
 import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
+import { calculateStyleEffects } from './characterCalculations';
+
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -254,16 +256,17 @@ if (character.weightKg) {
     const active = character.fightingStyles.find((s) => s.id === character.activeFightingStyleId);
     lines.push(`> Ativo: ${active?.name || 'Nenhum'}`);
     character.fightingStyles.forEach((style) => {
-      const axesText = Object.entries(FIGHTING_STYLE_AXES)
-        .filter(([axisId]) => style.eixos[axisId] > 0)
-        .map(([axisId, axis]) => `${axis.label} ${style.eixos[axisId]}`)
-        .join(', ');
-      const posturaText = [
-        style.postura.ofensiva > 0 ? `Postura Ofensiva ${style.postura.ofensiva}` : null,
-        style.postura.defensiva > 0 ? `Postura Defensiva ${style.postura.defensiva}` : null,
-      ].filter(Boolean).join(', ');
-      const passivesText = style.passives.length > 0 ? `Passiva: ${style.passives.map((p) => p.effectName).join(', ')}` : '';
-      lines.push(`> ${style.name || '(sem nome)'} — ${[axesText, posturaText, passivesText].filter(Boolean).join(' · ')}`);
+      const effects = calculateStyleEffects(style, { physicalDamage, constituicaoLevel: finalSkillTotals.constituicao || 0 });
+      lines.push(`> ${style.name || '(sem nome)'}`);
+      lines.push(`  - Potência ${effects.potencia.points}: Dano Físico ${effects.potencia.baseDie} → ${effects.potencia.resultingDie ?? effects.potencia.baseDie}`);
+      lines.push(`  - Robustez ${effects.robustez.points}: DT contra Atordoamento = ${effects.robustez.dtContraAtordoamento}`);
+      lines.push(`  - Agilidade ${effects.agilidade.points}: ${effects.agilidade.staminaPerTurn} Stamina por turno`);
+      lines.push(`  - Distância ${effects.distancia.points}: ${effects.distancia.usosPerScene} uso(s) por cena`);
+      if (style.postura.ofensiva > 0) lines.push(`  - Postura Ofensiva ${style.postura.ofensiva}`);
+      if (style.postura.defensiva > 0) lines.push(`  - Postura Defensiva ${style.postura.defensiva}`);
+      style.passives.forEach((p) => {
+        lines.push(`  - Passiva (${p.effectName}, peso ${p.weight}): ${p.description || '(sem descrição)'}`);
+      });
     });
     lines.push('');
   }

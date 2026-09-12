@@ -489,3 +489,53 @@ export function validateStylePassives(style, chosenPassives) {
     anyOverweight,
   };
 }
+
+export const BASE_STAMINA_PER_TURN = 3; // livro, seção 6.1
+
+/**
+ * Sobe N degraus na escada de dados padrão (2,4,6,8,10,12,20,24,28).
+ * Nunca passa do d28 (teto do sistema).
+ */
+export function stepUpDiceFace(currentFace, steps) {
+  if (!currentFace || currentFace <= 0 || !steps) return currentFace;
+  let idx = STANDARD_DICE_FACES.indexOf(currentFace);
+  if (idx === -1) idx = STANDARD_DICE_FACES.indexOf(roundToNearestDie(currentFace));
+  const newIdx = Math.min(STANDARD_DICE_FACES.length - 1, idx + steps);
+  return STANDARD_DICE_FACES[newIdx];
+}
+
+/**
+ * Traduz os pontos investidos em CADA Eixo pro efeito mecânico concreto,
+ * do jeito que o livro descreve (Potência sobe DEGRAU do dado, não soma
+ * número fixo; os outros 3 são bônus numéricos diretos).
+ */
+export function calculateStyleEffects(style, { physicalDamage, constituicaoLevel }) {
+  const potenciaPoints = style.eixos.potencia || 0;
+  const robustezPoints = style.eixos.robustez || 0;
+  const agilidadePoints = style.eixos.agilidade || 0;
+  const distanciaPoints = style.eixos.distancia || 0;
+
+  const baseDieFace = physicalDamage?.dieFace ?? null;
+  const resultingDieFace = baseDieFace ? stepUpDiceFace(baseDieFace, potenciaPoints) : null;
+  const constituicaoValue = getSkillDieMaxValue(constituicaoLevel || 0);
+
+  return {
+    potencia: {
+      points: potenciaPoints,
+      baseDie: baseDieFace ? `d${baseDieFace}` : (physicalDamage?.note ? 'Trauma Direto automático (não se aplica)' : '—'),
+      resultingDie: resultingDieFace ? `d${resultingDieFace}` : null,
+    },
+    robustez: {
+      points: robustezPoints,
+      dtContraAtordoamento: 10 + constituicaoValue + robustezPoints,
+    },
+    agilidade: {
+      points: agilidadePoints,
+      staminaPerTurn: BASE_STAMINA_PER_TURN + agilidadePoints,
+    },
+    distancia: {
+      points: distanciaPoints,
+      usosPerScene: distanciaPoints,
+    },
+  };
+}

@@ -27,11 +27,11 @@ export const ARCHETYPE_BONUSES = {
     name: 'Golpe da Sombra',
     description: 'Quando o alvo não viu o ataque chegar, a precisão é cirúrgica: um Sucesso Bom obtido em um ataque furtivo é tratado como Sucesso Extremo.',
   },
-  atirador_de_elite: {
-    archetypeId: 'atirador_de_elite',
-    name: 'Pulso de Aço',
-    description: 'O controle de respiração e postura elimina a instabilidade do movimento: o personagem ignora a Desvantagem normalmente imposta por atirar em movimento.',
-  },
+atirador_de_elite: {
+  archetypeId: 'atirador_de_elite',
+  name: 'Pulso de Aço', 
+  description: 'Ignora penalidades de alcance ao realizar disparos a até 20 metros. Acima dessa distância, qualquer penalidade por alcance é reduzida pela metade.',
+},
   artista_marcial: {
     archetypeId: 'artista_marcial',
     name: 'Economia de Movimento',

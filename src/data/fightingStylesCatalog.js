@@ -83,3 +83,22 @@ export function instantiateStyleFromCatalog(catalogEntry) {
 export function createBlankStyle() {
   return instantiateStyleFromCatalog(null);
 }
+
+/**
+ * Aplica um template do catálogo SOBRE um Estilo já existente (sobrescreve
+ * eixos/postura/passivas). Preserva o id do Estilo e o nome, SE o jogador já
+ * tiver digitado um nome — senão usa o nome do catálogo.
+ */
+export function applyCatalogToStyle(existingStyle, catalogEntry) {
+  return {
+    ...existingStyle,
+    name: existingStyle.name?.trim() ? existingStyle.name : catalogEntry.name,
+    eixos: { ...catalogEntry.eixos },
+    postura: { ...catalogEntry.postura },
+    passives: catalogEntry.passives.map((p) => ({
+      effectName: p.effectName,
+      weight: p.weight,
+      description: p.description ?? '',
+    })),
+  };
+}

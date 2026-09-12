@@ -29,13 +29,12 @@ import {
   EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
 } from '../data/fightingStyles';
 import {
-  getReadyMadeStyles, getStyleModels, instantiateStyleFromCatalog, createBlankStyle,
+  getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
-  calculatePassiveWeightBudget, validateStylePassives,
-} from '../logic/characterCalculations'; // (junta com o import que já existe de characterCalculations)
-
+  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, BASE_STAMINA_PER_TURN,
+} from '../logic/characterCalculations';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
@@ -363,12 +362,9 @@ export default function CharacterCreate({ userId }) {
   );
   const remainingStylePoints = totalFightingStylePoints - totalInvestedStylePoints;
 
-  function handleAddStyleFromCatalog(catalogEntry) {
-    setCharacter((c) => ({
-      ...c,
-      fightingStyles: [...c.fightingStyles, instantiateStyleFromCatalog(catalogEntry)],
-    }));
-  }
+function handleApplyCatalogToStyle(styleId, catalogEntry) {
+  handleUpdateStyle(styleId, (s) => applyCatalogToStyle(s, catalogEntry));
+}
   function handleAddBlankStyle() {
     setCharacter((c) => ({ ...c, fightingStyles: [...c.fightingStyles, createBlankStyle()] }));
   }
@@ -394,15 +390,21 @@ export default function CharacterCreate({ userId }) {
   function handleSetPosturePoints(styleId, postureId, value) {
     handleUpdateStyle(styleId, (s) => ({ ...s, postura: { ...s.postura, [postureId]: Math.max(0, value) } }));
   }
-  function handleTogglePassive(styleId, effectName, weight) {
-    handleUpdateStyle(styleId, (s) => {
-      const exists = s.passives.some((p) => p.effectName === effectName);
-      const passives = exists
-        ? s.passives.filter((p) => p.effectName !== effectName)
-        : [...s.passives, { effectName, weight }];
-      return { ...s, passives };
-    });
-  }
+function handleTogglePassive(styleId, effectName, weight) {
+  handleUpdateStyle(styleId, (s) => {
+    const exists = s.passives.some((p) => p.effectName === effectName);
+    const passives = exists
+      ? s.passives.filter((p) => p.effectName !== effectName)
+      : [...s.passives, { effectName, weight, description: '' }];
+    return { ...s, passives };
+  });
+}
+function handleSetPassiveDescription(styleId, effectName, description) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, description } : p)),
+  }));
+}
   function handleSelectLifeStage(id) {
     const stage = LIFE_STAGES[id];
     const halvedAttributeIds = stage.agingPenalty
@@ -1618,170 +1620,193 @@ export default function CharacterCreate({ userId }) {
             </div>
           </section>
         )}
-        {/* Step: Estilo de Luta (só aparece se tiver pontos de Combate) */}
-        {currentStep === 'fightingStyle' && (
-          <section>
-            <h2 className="text-xl font-semibold mb-2">Estilo de Luta</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Todo personagem tem um Estilo — a forma como reage ao combate corpo a corpo, desarmado
-              ou com armas brancas. Distribua os pontos entre um ou mais Estilos.
-            </p>
 
-            <div className="mb-4 text-sm border rounded p-3 bg-gray-50">
-              Pontos totais: <strong>{totalFightingStylePoints}</strong> (nível {finalSkillTotals.combate || 0} em Combate
-              {character.classPath.archetypeId === ARTISTA_MARCIAL_ARCHETYPE_ID && ', dobrado por Artista Marcial'})
-              {' · '}Investidos: <strong>{totalInvestedStylePoints}</strong>
-              {' · '}Restantes:{' '}
-              <strong className={remainingStylePoints < 0 ? 'text-red-600' : ''}>{remainingStylePoints}</strong>
-              {remainingStylePoints < 0 && (
-                <span className="text-red-600"> — reduza os pontos investidos, passou do limite.</span>
+        {/* Step: Estilo de Luta (só aparece se tiver pontos de Combate) */}
+{currentStep === 'fightingStyle' && (
+  <section>
+    <h2 className="text-xl font-semibold mb-2">Estilo de Luta</h2>
+    <p className="text-sm text-gray-500 mb-4">
+      Todo personagem tem um Estilo — mesmo zerado. Use um modelo pronto pra preencher rápido,
+      ou distribua manualmente.
+    </p>
+
+    <div className="mb-4 text-sm border rounded p-3 bg-gray-50">
+      Pontos totais: <strong>{totalFightingStylePoints}</strong> (nível {finalSkillTotals.combate || 0} em Combate
+      {character.classPath.archetypeId === ARTISTA_MARCIAL_ARCHETYPE_ID && ', dobrado por Artista Marcial'})
+      {' · '}Investidos: <strong>{totalInvestedStylePoints}</strong>
+      {' · '}Restantes:{' '}
+      <strong className={remainingStylePoints < 0 ? 'text-red-600' : ''}>{remainingStylePoints}</strong>
+      {remainingStylePoints < 0 && (
+        <span className="text-red-600"> — reduza os pontos investidos, passou do limite.</span>
+      )}
+    </div>
+
+    {totalFightingStylePoints === 0 && (
+      <p className="text-xs text-gray-400 mb-4">
+        Sem pontos de Combate, o Estilo existe como estrutura (pode nomear e criar), mas não há pontos
+        pra investir em Eixos, Postura ou Passivas ainda — cresce se a perícia Combate for treinada depois.
+      </p>
+    )}
+
+    <button onClick={handleAddBlankStyle} className="text-xs px-3 py-1.5 rounded border bg-gray-50 mb-4">
+      + Adicionar Estilo em Branco
+    </button>
+
+    <div className="space-y-4">
+      {character.fightingStyles.map((style) => {
+        const invested = calculateStyleInvestedPoints(style);
+        const passiveBudget = calculatePassiveWeightBudget(style);
+        const passiveValidation = validateStylePassives(style, style.passives);
+        const isActive = character.activeFightingStyleId === style.id;
+        const effects = calculateStyleEffects(style, {
+          physicalDamage,
+          constituicaoLevel: finalSkillTotals.constituicao || 0,
+        });
+
+        return (
+          <div key={style.id} className="border rounded p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <input
+                className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
+                placeholder="Nome do Estilo (ex: Boxe)"
+                value={style.name}
+                onChange={(e) => handleSetStyleName(style.id, e.target.value)}
+              />
+              <select
+                className="text-xs border rounded px-2 py-1"
+                value=""
+                onChange={(e) => {
+                  const entry = getReadyMadeStyles().find((s) => s.id === e.target.value);
+                  if (entry) handleApplyCatalogToStyle(style.id, entry);
+                  e.target.value = '';
+                }}
+              >
+                <option value="">Aplicar modelo do catálogo...</option>
+                {getReadyMadeStyles().map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.pointsRequired} pts)</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setCharacter((c) => ({ ...c, activeFightingStyleId: isActive ? null : style.id }))}
+                className={`text-xs px-2 py-1 rounded border ${isActive ? 'bg-gray-900 text-white' : ''}`}
+              >
+                {isActive ? '✓ Ativo' : 'Ativar'}
+              </button>
+              {character.fightingStyles.length > 1 && (
+                <button onClick={() => handleRemoveStyle(style.id)} className="text-xs text-red-500 underline">
+                  Remover
+                </button>
               )}
             </div>
 
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {getReadyMadeStyles().map((style) => (
-                <button
-                  key={style.id}
-                  onClick={() => handleAddStyleFromCatalog(style)}
-                  className="text-xs px-3 py-1.5 rounded border bg-gray-50"
-                  title={style.description}
-                >
-                  + {style.name} ({style.pointsRequired} pts)
-                </button>
-              ))}
-              <button onClick={handleAddBlankStyle} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-                + Criar do Zero
-              </button>
+            <div className="text-xs text-gray-400">Investido neste Estilo: <strong>{invested}</strong> pontos</div>
+
+            {/* Eixos */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Eixos</div>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(FIGHTING_STYLE_AXES).map(([axisId, axis]) => (
+                  <div key={axisId} className="flex items-center justify-between text-xs">
+                    <span title={axis.description}>{axis.label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-16 border rounded px-2 py-1"
+                      value={style.eixos[axisId]}
+                      onChange={(e) => handleSetAxisPoints(style.id, axisId, Number(e.target.value) || 0)}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {character.fightingStyles.length === 0 ? (
-              <p className="text-sm text-gray-400">Nenhum Estilo adicionado ainda.</p>
-            ) : (
-              <div className="space-y-4">
-                {character.fightingStyles.map((style) => {
-                  const invested = calculateStyleInvestedPoints(style);
-                  const passiveBudget = calculatePassiveWeightBudget(style);
-                  const passiveValidation = validateStylePassives(style, style.passives);
-                  const isActive = character.activeFightingStyleId === style.id;
+            {/* Painel de Efeitos concretos */}
+            <div className="bg-gray-50 border rounded p-2 text-xs text-gray-600 space-y-1">
+              <div><strong>Potência ({effects.potencia.points}):</strong> Dano Físico {effects.potencia.baseDie} → {effects.potencia.resultingDie ?? effects.potencia.baseDie}</div>
+              <div><strong>Robustez ({effects.robustez.points}):</strong> DT contra Atordoamento = {effects.robustez.dtContraAtordoamento}</div>
+              <div><strong>Agilidade ({effects.agilidade.points}):</strong> {effects.agilidade.staminaPerTurn} Stamina por turno (base {BASE_STAMINA_PER_TURN} + {effects.agilidade.points})</div>
+              <div><strong>Distância ({effects.distancia.points}):</strong> {effects.distancia.usosPerScene} uso(s) de reposicionamento por cena</div>
+            </div>
 
-                  return (
-                    <div key={style.id} className="border rounded p-3 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <input
-                          className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
-                          placeholder="Nome do Estilo (ex: Boxe)"
-                          value={style.name}
-                          onChange={(e) => handleSetStyleName(style.id, e.target.value)}
-                        />
-                        <button
-                          onClick={() => setCharacter((c) => ({ ...c, activeFightingStyleId: isActive ? null : style.id }))}
-                          className={`text-xs px-2 py-1 rounded border ${isActive ? 'bg-gray-900 text-white' : ''}`}
-                        >
-                          {isActive ? '✓ Ativo' : 'Ativar'}
-                        </button>
-                        <button onClick={() => handleRemoveStyle(style.id)} className="text-xs text-red-500 underline">
-                          Remover
-                        </button>
-                      </div>
-
-                      <div className="text-xs text-gray-400">
-                        Investido neste Estilo: <strong>{invested}</strong> pontos
-                      </div>
-
-                      {/* Eixos */}
-                      <div>
-                        <div className="text-xs font-medium text-gray-500 mb-1">Eixos</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {Object.entries(FIGHTING_STYLE_AXES).map(([axisId, axis]) => (
-                            <div key={axisId} className="flex items-center justify-between text-xs">
-                              <span title={axis.description}>{axis.label}</span>
-                              <input
-                                type="number"
-                                min={0}
-                                className="w-16 border rounded px-2 py-1"
-                                value={style.eixos[axisId]}
-                                onChange={(e) => handleSetAxisPoints(style.id, axisId, Number(e.target.value) || 0)}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Postura */}
-                      <div>
-                        <div className="text-xs font-medium text-gray-500 mb-1">Postura</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span title="Facilitar (1pt) / Amplificar (2pts) nos próprios ataques">Ofensiva</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={2}
-                              className="w-16 border rounded px-2 py-1"
-                              value={style.postura.ofensiva}
-                              onChange={(e) => handleSetPosturePoints(style.id, 'ofensiva', Number(e.target.value) || 0)}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span title="Garantir (1pt) / Blindar (2pts) nas próprias defesas">Defensiva</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={2}
-                              className="w-16 border rounded px-2 py-1"
-                              value={style.postura.defensiva}
-                              onChange={(e) => handleSetPosturePoints(style.id, 'defensiva', Number(e.target.value) || 0)}
-                            />
-                          </div>
-                        </div>
-                        {style.postura.ofensiva > 0 && POSTURE_BONUSES.ofensiva[style.postura.ofensiva] && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Ofensiva: {POSTURE_BONUSES.ofensiva[style.postura.ofensiva].description}
-                          </p>
-                        )}
-                        {style.postura.defensiva > 0 && POSTURE_BONUSES.defensiva[style.postura.defensiva] && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Defensiva: {POSTURE_BONUSES.defensiva[style.postura.defensiva].description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Passivas */}
-                      <div>
-                        <div className="text-xs font-medium text-gray-500 mb-1">
-                          Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
-                        </div>
-                        <div className="flex flex-wrap gap-1 mb-1">
-                          {Object.entries(EFFECT_DEFINITIONS)
-                            .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
-                            .map(([name, def]) => {
-                              const selected = style.passives.some((p) => p.effectName === name);
-                              return (
-                                <button
-                                  key={name}
-                                  type="button"
-                                  onClick={() => handleTogglePassive(style.id, name, def.weight)}
-                                  className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
-                                >
-                                  {name} ({def.weight})
-                                </button>
-                              );
-                            })}
-                        </div>
-                        {!passiveValidation.valid && (
-                          <p className="text-xs text-red-600">
-                            ⚠ Peso total ({passiveValidation.totalWeight}) passou do orçamento ({passiveValidation.budget})
-                            {passiveValidation.anyOverweight && ' ou alguma Passiva individual passou do teto de peso 2'}.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Postura */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Postura</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span title="Facilitar (1pt) / Amplificar (2pts) nos próprios ataques">Ofensiva</span>
+                  <input
+                    type="number" min={0} max={2}
+                    className="w-16 border rounded px-2 py-1"
+                    value={style.postura.ofensiva}
+                    onChange={(e) => handleSetPosturePoints(style.id, 'ofensiva', Number(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span title="Garantir (1pt) / Blindar (2pts) nas próprias defesas">Defensiva</span>
+                  <input
+                    type="number" min={0} max={2}
+                    className="w-16 border rounded px-2 py-1"
+                    value={style.postura.defensiva}
+                    onChange={(e) => handleSetPosturePoints(style.id, 'defensiva', Number(e.target.value) || 0)}
+                  />
+                </div>
               </div>
-            )}
-          </section>
-        )}
+              {style.postura.ofensiva > 0 && POSTURE_BONUSES.ofensiva[style.postura.ofensiva] && (
+                <p className="text-xs text-gray-500 mt-1">Ofensiva: {POSTURE_BONUSES.ofensiva[style.postura.ofensiva].description}</p>
+              )}
+              {style.postura.defensiva > 0 && POSTURE_BONUSES.defensiva[style.postura.defensiva] && (
+                <p className="text-xs text-gray-500 mt-1">Defensiva: {POSTURE_BONUSES.defensiva[style.postura.defensiva].description}</p>
+              )}
+            </div>
+
+            {/* Passivas — com campo de descrição livre */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">
+                Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
+              </div>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {Object.entries(EFFECT_DEFINITIONS)
+                  .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
+                  .map(([name, def]) => {
+                    const selected = style.passives.some((p) => p.effectName === name);
+                    return (
+                      <button
+                        key={name} type="button"
+                        onClick={() => handleTogglePassive(style.id, name, def.weight)}
+                        className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        {name} ({def.weight})
+                      </button>
+                    );
+                  })}
+              </div>
+              {style.passives.map((p) => (
+                <div key={p.effectName} className="mb-2">
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Descrição da Passiva "{p.effectName}" (peso {p.weight}) — {EFFECT_DEFINITIONS[p.effectName].description}
+                  </label>
+                  <textarea
+                    className="w-full border rounded px-2 py-1 text-xs"
+                    rows={2}
+                    placeholder='ex: "Facilitar em socos" — descreva na prática o que essa passiva faz'
+                    value={p.description}
+                    onChange={(e) => handleSetPassiveDescription(style.id, p.effectName, e.target.value)}
+                  />
+                </div>
+              ))}
+              {!passiveValidation.valid && (
+                <p className="text-xs text-red-600">
+                  ⚠ Peso total ({passiveValidation.totalWeight}) passou do orçamento ({passiveValidation.budget})
+                  {passiveValidation.anyOverweight && ' ou alguma Passiva individual passou do teto de peso 2'}.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+)}
         {/* Step Final: Validar */}
         {currentStep === 'review' && (
           <section>
@@ -1935,24 +1960,33 @@ export default function CharacterCreate({ userId }) {
                   </div>
                 )}
                 {character.fightingStyles.length > 0 && (
-                  <div>
-                    <div className="font-medium mb-1">Estilo de Luta</div>
-                    <div className="text-xs text-gray-400 mb-1">
-                      Ativo: <strong>{character.fightingStyles.find((s) => s.id === character.activeFightingStyleId)?.name || 'Nenhum'}</strong>
-                    </div>
-                    {character.fightingStyles.map((style) => (
-                      <div key={style.id} className="text-xs border-b py-1">
-                        <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos ·{' '}
-                        {Object.entries(FIGHTING_STYLE_AXES)
-                          .filter(([axisId]) => style.eixos[axisId] > 0)
-                          .map(([axisId, axis]) => `${axis.label} ${style.eixos[axisId]}`)
-                          .join(', ')}
-                        {style.postura.ofensiva > 0 && `, Postura Ofensiva ${style.postura.ofensiva}`}
-                        {style.postura.defensiva > 0 && `, Postura Defensiva ${style.postura.defensiva}`}
-                        {style.passives.length > 0 && ` — Passiva: ${style.passives.map((p) => p.effectName).join(', ')}`}
-                      </div>
-                    ))}
-                  </div>
+<div>
+  <div className="font-medium mb-1">Estilo de Luta</div>
+  <div className="text-xs text-gray-400 mb-2">
+    Ativo: <strong>{character.fightingStyles.find((s) => s.id === character.activeFightingStyleId)?.name || 'Nenhum'}</strong>
+  </div>
+  {character.fightingStyles.map((style) => {
+    const effects = calculateStyleEffects(style, { physicalDamage, constituicaoLevel: finalSkillTotals.constituicao || 0 });
+    return (
+      <div key={style.id} className="text-xs border-b py-2">
+        <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos investidos
+        <div className="text-gray-500 mt-1">
+          Potência: {effects.potencia.baseDie} → {effects.potencia.resultingDie ?? effects.potencia.baseDie} ·{' '}
+          Robustez: DT {effects.robustez.dtContraAtordoamento} contra Atordoamento ·{' '}
+          Agilidade: {effects.agilidade.staminaPerTurn} Stamina/turno ·{' '}
+          Distância: {effects.distancia.usosPerScene} uso(s)/cena
+        </div>
+        {style.postura.ofensiva > 0 && <div className="text-gray-500">Postura Ofensiva {style.postura.ofensiva}</div>}
+        {style.postura.defensiva > 0 && <div className="text-gray-500">Postura Defensiva {style.postura.defensiva}</div>}
+        {style.passives.map((p) => (
+          <div key={p.effectName} className="text-gray-500">
+            Passiva ({p.effectName}): {p.description || '(sem descrição)'}
+          </div>
+        ))}
+      </div>
+    );
+  })}
+</div>
                 )}
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>
