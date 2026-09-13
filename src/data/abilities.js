@@ -229,7 +229,7 @@ export const ABILITIES = {
     { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal nesse disparo é tratado como Sucesso Bom.',
     { archetypeId: 'atirador_de_elite' }),
   reflexo_de_combate: ability('reflexo_de_combate', 'Reflexo de Combate', 'assinatura', 'Reativo', 'após ser alvo de um ataque de retorno inimigo',
-    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'O teste de defesa não pode cair em Falha Crítica.',
+    { weight: 1, form: '1 ação/reação (Stamina)' }, ['Blindar'], 'O controle de respiração e postura elimina a instabilidade do movimento: o personagem ignora a Desvantagem normalmente imposta por atirar em movimento.',
     { archetypeId: 'atirador_de_elite' }),
 
   // Artista Marcial
