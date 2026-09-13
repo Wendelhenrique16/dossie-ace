@@ -12,6 +12,7 @@ export function normalizeCharacter(data = {}) {
         robustez: style.eixos?.robustez ?? 0,
         agilidade: style.eixos?.agilidade ?? 0,
         distancia: style.eixos?.distancia ?? 0,
+        controle: style.eixos?.controle ?? 0,
       },
       postura: {
         ofensiva: style.postura?.ofensiva ?? 0,
@@ -20,6 +21,7 @@ export function normalizeCharacter(data = {}) {
       passives: (style.passives ?? []).map((p) => ({
         effectName: p.effectName,
         weight: p.weight,
+        scope: p.scope ?? '',
         description: p.description ?? '',
       })),
     }));

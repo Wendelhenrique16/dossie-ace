@@ -1,13 +1,7 @@
 // src/data/fightingStylesCatalog.js
 // Catálogo de APOIO pro Estilo de Luta — igual ao de Habilidades: alguns
-// prontos pra usar direto, um "modelo" em branco pra preencher o conceito,
-// e sempre a opção de criar 100% do zero (motor livre já existe em
-// characterCalculations.js, não depende deste catálogo).
-//
-// IMPORTANTE: os valores de eixos/postura aqui são só EXEMPLOS/placeholder —
-// cada entrada assume um total de pontos investidos (ver `pointsRequired`)
-// e a tela de criação deve avisar se o personagem não tem pontos suficientes
-// pra aplicar o estilo como está (aí cabe reduzir manualmente).
+// prontos pra usar direto, um modelo em branco pra preencher o conceito.
+// O motor de criação livre (characterCalculations.js) não depende disto.
 
 export const FIGHTING_STYLE_CATALOG = [
   {
@@ -16,10 +10,9 @@ export const FIGHTING_STYLE_CATALOG = [
     category: 'pronto',
     description: 'Estilo ofensivo baseado em socos, deslocamento de guarda e pressão constante.',
     pointsRequired: 6,
-    eixos: { potencia: 2, robustez: 1, agilidade: 1, distancia: 0 },
-    postura: { ofensiva: 2, defensiva: 0 },
-    // 6 pontos investidos / 3 por passiva = orçamento de 2 de peso.
-    passives: [{ effectName: 'Agilizar', weight: 1 }],
+    eixos: { potencia: 2, robustez: 1, agilidade: 1, distancia: 0, controle: 0 },
+    postura: { ofensiva: 2, defensiva: 0 }, // 3 pontos de Postura (Nível 2) + 3 de Eixos = 6
+    passives: [{ effectName: 'Agilizar', weight: 1, scope: 'Golpes de cruzado e jab', description: '' }],
   },
   {
     id: 'capoeira',
@@ -27,23 +20,19 @@ export const FIGHTING_STYLE_CATALOG = [
     category: 'pronto',
     description: 'Estilo evasivo e imprevisível, prioriza reposicionamento e golpes de oportunidade.',
     pointsRequired: 6,
-    eixos: { potencia: 0, robustez: 0, agilidade: 2, distancia: 2 },
-    postura: { ofensiva: 0, defensiva: 2 },
-    passives: [{ effectName: 'Garantir', weight: 1 }],
+    eixos: { potencia: 0, robustez: 0, agilidade: 2, distancia: 2, controle: 0 },
+    postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
+    passives: [{ effectName: 'Garantir', weight: 1, scope: 'Esquivas com giro ou cambalhota', description: '' }],
   },
   {
-    id: 'krav_maga',
-    name: 'Krav Maga',
+    id: 'jiu_jitsu',
+    name: 'Jiu-Jitsu',
     category: 'pronto',
-    description: 'Foco em neutralização rápida e eficiente, sem floreios — resolver o confronto o quanto antes.',
-    pointsRequired: 9,
-    eixos: { potencia: 1, robustez: 1, agilidade: 1, distancia: 0 },
-    postura: { ofensiva: 3, defensiva: 0 },
-    // 9 pontos / 3 = orçamento de 3 de peso, respeitando teto de 2 por passiva.
-    passives: [
-      { effectName: 'Amplificar', weight: 2 },
-      { effectName: 'Facilitar', weight: 1 },
-    ],
+    description: 'Foco total em levar o combate ao chão e finalizar através de agarrões e imobilizações.',
+    pointsRequired: 6,
+    eixos: { potencia: 0, robustez: 1, agilidade: 0, distancia: 0, controle: 4 },
+    postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
+    passives: [{ effectName: 'Amplificar', weight: 2, scope: 'Manobras de imobilização já em andamento', description: '' }],
   },
   {
     id: 'modelo_generico',
@@ -51,7 +40,7 @@ export const FIGHTING_STYLE_CATALOG = [
     category: 'modelo',
     description: 'Modelo em branco — preencha o nome e distribua os pontos conforme o conceito do personagem.',
     pointsRequired: 0,
-    eixos: { potencia: 0, robustez: 0, agilidade: 0, distancia: 0 },
+    eixos: { potencia: 0, robustez: 0, agilidade: 0, distancia: 0, controle: 0 },
     postura: { ofensiva: 0, defensiva: 0 },
     passives: [],
   },
@@ -63,25 +52,6 @@ export function getReadyMadeStyles() {
 
 export function getStyleModels() {
   return FIGHTING_STYLE_CATALOG.filter((s) => s.category === 'modelo');
-}
-
-/**
- * Cria uma instância de Estilo pro personagem a partir de uma entrada do
- * catálogo (pronto, modelo ou em branco). Sempre gera instanceId novo —
- * o catálogo nunca é mutado, só serve de template.
- */
-export function instantiateStyleFromCatalog(catalogEntry) {
-  return {
-    id: `${Date.now()}-${Math.random()}`,
-    name: catalogEntry?.name === '[Nome do Estilo]' ? '' : catalogEntry?.name ?? '',
-    eixos: { ...(catalogEntry?.eixos ?? { potencia: 0, robustez: 0, agilidade: 0, distancia: 0 }) },
-    postura: { ...(catalogEntry?.postura ?? { ofensiva: 0, defensiva: 0 }) },
-    passives: (catalogEntry?.passives ?? []).map((p) => ({ ...p })),
-  };
-}
-
-export function createBlankStyle() {
-  return instantiateStyleFromCatalog(null);
 }
 
 /**
@@ -98,7 +68,18 @@ export function applyCatalogToStyle(existingStyle, catalogEntry) {
     passives: catalogEntry.passives.map((p) => ({
       effectName: p.effectName,
       weight: p.weight,
+      scope: p.scope ?? '',
       description: p.description ?? '',
     })),
+  };
+}
+
+export function createBlankStyle() {
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    name: '',
+    eixos: { potencia: 0, robustez: 0, agilidade: 0, distancia: 0, controle: 0 },
+    postura: { ofensiva: 0, defensiva: 0 },
+    passives: [],
   };
 }

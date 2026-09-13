@@ -25,15 +25,15 @@ import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINIT
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { getSignatureAbilitiesForArchetype } from '../data/abilities';
 import {
-  FIGHTING_STYLE_AXES, POSTURE_BONUSES, PASSIVE_POINTS_PER_UNLOCK, MAX_SINGLE_PASSIVE_WEIGHT,
-  EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
+  FIGHTING_STYLE_AXES, DICE_BONUS_AXES, POSTURE_EFFECTS, PASSIVE_POINTS_PER_UNLOCK,
+  MAX_SINGLE_PASSIVE_WEIGHT, EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
 } from '../data/fightingStyles';
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
-  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, BASE_STAMINA_PER_TURN,
+  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel,
 } from '../logic/characterCalculations';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
@@ -356,48 +356,60 @@ export default function CharacterCreate({ userId }) {
   const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
   const goNext = () => setCurrentStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id);
   const goBack = () => setCurrentStep(STEPS[Math.max(stepIndex - 1, 0)].id);
-  const totalInvestedStylePoints = useMemo(
-    () => calculateTotalInvestedPoints(character.fightingStyles),
-    [character.fightingStyles]
-  );
-  const remainingStylePoints = totalFightingStylePoints - totalInvestedStylePoints;
+ const totalInvestedStylePoints = useMemo(
+  () => calculateTotalInvestedPoints(character.fightingStyles),
+  [character.fightingStyles]
+);
+const remainingStylePoints = totalFightingStylePoints - totalInvestedStylePoints;
 
+function handleAddBlankStyle() {
+  setCharacter((c) => ({ ...c, fightingStyles: [...c.fightingStyles, createBlankStyle()] }));
+}
+function handleRemoveStyle(styleId) {
+  setCharacter((c) => ({
+    ...c,
+    fightingStyles: c.fightingStyles.filter((s) => s.id !== styleId),
+    activeFightingStyleId: c.activeFightingStyleId === styleId ? null : c.activeFightingStyleId,
+  }));
+}
+function handleUpdateStyle(styleId, updater) {
+  setCharacter((c) => ({
+    ...c,
+    fightingStyles: c.fightingStyles.map((s) => (s.id === styleId ? updater(s) : s)),
+  }));
+}
 function handleApplyCatalogToStyle(styleId, catalogEntry) {
   handleUpdateStyle(styleId, (s) => applyCatalogToStyle(s, catalogEntry));
 }
-  function handleAddBlankStyle() {
-    setCharacter((c) => ({ ...c, fightingStyles: [...c.fightingStyles, createBlankStyle()] }));
-  }
-  function handleRemoveStyle(styleId) {
-    setCharacter((c) => ({
-      ...c,
-      fightingStyles: c.fightingStyles.filter((s) => s.id !== styleId),
-      activeFightingStyleId: c.activeFightingStyleId === styleId ? null : c.activeFightingStyleId,
-    }));
-  }
-  function handleUpdateStyle(styleId, updater) {
-    setCharacter((c) => ({
-      ...c,
-      fightingStyles: c.fightingStyles.map((s) => (s.id === styleId ? updater(s) : s)),
-    }));
-  }
-  function handleSetStyleName(styleId, name) {
-    handleUpdateStyle(styleId, (s) => ({ ...s, name }));
-  }
-  function handleSetAxisPoints(styleId, axisId, value) {
-    handleUpdateStyle(styleId, (s) => ({ ...s, eixos: { ...s.eixos, [axisId]: Math.max(0, value) } }));
-  }
-  function handleSetPosturePoints(styleId, postureId, value) {
-    handleUpdateStyle(styleId, (s) => ({ ...s, postura: { ...s.postura, [postureId]: Math.max(0, value) } }));
-  }
+function handleSetStyleName(styleId, name) {
+  handleUpdateStyle(styleId, (s) => ({ ...s, name }));
+}
+function handleSetAxisPoints(styleId, axisId, value) {
+  handleUpdateStyle(styleId, (s) => ({ ...s, eixos: { ...s.eixos, [axisId]: Math.max(0, value) } }));
+}
+function handleSetPosturePoints(styleId, postureId, value) {
+  handleUpdateStyle(styleId, (s) => ({ ...s, postura: { ...s.postura, [postureId]: Math.max(0, value) } }));
+}
 function handleTogglePassive(styleId, effectName, weight) {
   handleUpdateStyle(styleId, (s) => {
     const exists = s.passives.some((p) => p.effectName === effectName);
     const passives = exists
       ? s.passives.filter((p) => p.effectName !== effectName)
-      : [...s.passives, { effectName, weight, description: '' }];
+      : [...s.passives, { effectName, weight, scope: '', description: '' }];
     return { ...s, passives };
   });
+}
+function handleSetPassiveScope(styleId, effectName, scope) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, scope } : p)),
+  }));
+}
+function handleSetPassiveDescription(styleId, effectName, description) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, description } : p)),
+  }));
 }
 function handleSetPassiveDescription(styleId, effectName, description) {
   handleUpdateStyle(styleId, (s) => ({
@@ -1661,7 +1673,10 @@ function handleSetPassiveDescription(styleId, effectName, description) {
         const effects = calculateStyleEffects(style, {
           physicalDamage,
           constituicaoLevel: finalSkillTotals.constituicao || 0,
+          prontidaoLevel: finalSkillTotals.prontidao || 0,
         });
+        const ofensivaLevel = getPostureLevel(style.postura.ofensiva);
+        const defensivaLevel = getPostureLevel(style.postura.defensiva);
 
         return (
           <div key={style.id} className="border rounded p-3 space-y-3">
@@ -1722,44 +1737,49 @@ function handleSetPassiveDescription(styleId, effectName, description) {
 
             {/* Painel de Efeitos concretos */}
             <div className="bg-gray-50 border rounded p-2 text-xs text-gray-600 space-y-1">
-              <div><strong>Potência ({effects.potencia.points}):</strong> Dano Físico {effects.potencia.baseDie} → {effects.potencia.resultingDie ?? effects.potencia.baseDie}</div>
+              <div><strong>Potência ({effects.potencia.points}):</strong> {effects.potencia.baseDamage}{effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}</div>
               <div><strong>Robustez ({effects.robustez.points}):</strong> DT contra Atordoamento = {effects.robustez.dtContraAtordoamento}</div>
-              <div><strong>Agilidade ({effects.agilidade.points}):</strong> {effects.agilidade.staminaPerTurn} Stamina por turno (base {BASE_STAMINA_PER_TURN} + {effects.agilidade.points})</div>
+              <div><strong>Agilidade ({effects.agilidade.points}):</strong> {effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno</div>
               <div><strong>Distância ({effects.distancia.points}):</strong> {effects.distancia.usosPerScene} uso(s) de reposicionamento por cena</div>
+              <div><strong>Controle ({effects.controle.points}):</strong> {effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra</div>
             </div>
 
             {/* Postura */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Postura</div>
+              <div className="text-xs font-medium text-gray-500 mb-1">
+                Postura (Nível 1 = 1 ponto · Nível 2 = 3 pontos no total)
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span title="Facilitar (1pt) / Amplificar (2pts) nos próprios ataques">Ofensiva</span>
+                  <span>Ofensiva (Nível {ofensivaLevel})</span>
                   <input
-                    type="number" min={0} max={2}
+                    type="number" min={0}
                     className="w-16 border rounded px-2 py-1"
                     value={style.postura.ofensiva}
                     onChange={(e) => handleSetPosturePoints(style.id, 'ofensiva', Number(e.target.value) || 0)}
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span title="Garantir (1pt) / Blindar (2pts) nas próprias defesas">Defensiva</span>
+                  <span>Defensiva (Nível {defensivaLevel})</span>
                   <input
-                    type="number" min={0} max={2}
+                    type="number" min={0}
                     className="w-16 border rounded px-2 py-1"
                     value={style.postura.defensiva}
                     onChange={(e) => handleSetPosturePoints(style.id, 'defensiva', Number(e.target.value) || 0)}
                   />
                 </div>
               </div>
-              {style.postura.ofensiva > 0 && POSTURE_BONUSES.ofensiva[style.postura.ofensiva] && (
-                <p className="text-xs text-gray-500 mt-1">Ofensiva: {POSTURE_BONUSES.ofensiva[style.postura.ofensiva].description}</p>
+              {effects.postura.ofensiva.description && (
+                <p className="text-xs text-gray-500 mt-1">Ofensiva: {effects.postura.ofensiva.description}</p>
               )}
-              {style.postura.defensiva > 0 && POSTURE_BONUSES.defensiva[style.postura.defensiva] && (
-                <p className="text-xs text-gray-500 mt-1">Defensiva: {POSTURE_BONUSES.defensiva[style.postura.defensiva].description}</p>
+              {effects.postura.defensiva.description && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Defensiva: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})
+                </p>
               )}
             </div>
 
-            {/* Passivas — com campo de descrição livre */}
+            {/* Passivas — Escopo obrigatório */}
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">
                 Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
@@ -1781,14 +1801,21 @@ function handleSetPassiveDescription(styleId, effectName, description) {
                   })}
               </div>
               {style.passives.map((p) => (
-                <div key={p.effectName} className="mb-2">
+                <div key={p.effectName} className="mb-2 border-l-2 border-gray-200 pl-2">
                   <label className="block text-xs text-gray-500 mb-1">
-                    Descrição da Passiva "{p.effectName}" (peso {p.weight}) — {EFFECT_DEFINITIONS[p.effectName].description}
+                    Escopo da Passiva "{p.effectName}" (peso {p.weight}) — obrigatório: a que golpes/situação se aplica
                   </label>
+                  <input
+                    className={`w-full border rounded px-2 py-1 text-xs mb-1 ${!p.scope.trim() ? 'border-red-400' : ''}`}
+                    placeholder='ex: "cruzados e ganchos", "manobras de imobilização já em andamento"'
+                    value={p.scope}
+                    onChange={(e) => handleSetPassiveScope(style.id, p.effectName, e.target.value)}
+                  />
+                  <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
                   <textarea
                     className="w-full border rounded px-2 py-1 text-xs"
                     rows={2}
-                    placeholder='ex: "Facilitar em socos" — descreva na prática o que essa passiva faz'
+                    placeholder="Descreva na prática o que essa passiva faz"
                     value={p.description}
                     onChange={(e) => handleSetPassiveDescription(style.id, p.effectName, e.target.value)}
                   />
@@ -1796,8 +1823,9 @@ function handleSetPassiveDescription(styleId, effectName, description) {
               ))}
               {!passiveValidation.valid && (
                 <p className="text-xs text-red-600">
-                  ⚠ Peso total ({passiveValidation.totalWeight}) passou do orçamento ({passiveValidation.budget})
-                  {passiveValidation.anyOverweight && ' ou alguma Passiva individual passou do teto de peso 2'}.
+                  ⚠ {passiveValidation.anyMissingScope && 'Toda Passiva precisa de um Escopo preenchido. '}
+                  {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
+                  {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
                 </p>
               )}
             </div>
@@ -1959,35 +1987,7 @@ function handleSetPassiveDescription(styleId, effectName, description) {
                     </div>
                   </div>
                 )}
-                {character.fightingStyles.length > 0 && (
-<div>
-  <div className="font-medium mb-1">Estilo de Luta</div>
-  <div className="text-xs text-gray-400 mb-2">
-    Ativo: <strong>{character.fightingStyles.find((s) => s.id === character.activeFightingStyleId)?.name || 'Nenhum'}</strong>
-  </div>
-  {character.fightingStyles.map((style) => {
-    const effects = calculateStyleEffects(style, { physicalDamage, constituicaoLevel: finalSkillTotals.constituicao || 0 });
-    return (
-      <div key={style.id} className="text-xs border-b py-2">
-        <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos investidos
-        <div className="text-gray-500 mt-1">
-          Potência: {effects.potencia.baseDie} → {effects.potencia.resultingDie ?? effects.potencia.baseDie} ·{' '}
-          Robustez: DT {effects.robustez.dtContraAtordoamento} contra Atordoamento ·{' '}
-          Agilidade: {effects.agilidade.staminaPerTurn} Stamina/turno ·{' '}
-          Distância: {effects.distancia.usosPerScene} uso(s)/cena
-        </div>
-        {style.postura.ofensiva > 0 && <div className="text-gray-500">Postura Ofensiva {style.postura.ofensiva}</div>}
-        {style.postura.defensiva > 0 && <div className="text-gray-500">Postura Defensiva {style.postura.defensiva}</div>}
-        {style.passives.map((p) => (
-          <div key={p.effectName} className="text-gray-500">
-            Passiva ({p.effectName}): {p.description || '(sem descrição)'}
-          </div>
-        ))}
-      </div>
-    );
-  })}
-</div>
-                )}
+        character.fightingStyles.length
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>
                   {character.selectedAbilities.length === 0 ? (
