@@ -3,7 +3,7 @@
 // de existir qualquer tela. Import de dados vem de ../data/*.
 
 import { SKILL_LEVEL_TO_DICE } from '../data/skills';
-
+import { getEffectWeight } from '../data/abilities';
 /**
  * Rola um dado de N lados.
  */
@@ -487,22 +487,25 @@ export function calculateTotalInvestedPoints(fightingStyles) {
 export function calculatePassiveWeightBudget(style) {
   return Math.floor(calculateStyleInvestedPoints(style) / PASSIVE_POINTS_PER_UNLOCK);
 }
-
 /**
  * Valida se o peso total das Passivas escolhidas pra um Estilo respeita
- * o orçamento e o teto de peso 2 por passiva individual.
+ * o orçamento e o teto de peso 2 por passiva individual. Cada passiva pode
+ * combinar mais de um Efeito nomeado (igual Habilidade) — o peso da passiva
+ * é o maior peso entre os Efeitos escolhidos nela.
  */
 export function validateStylePassives(style, chosenPassives) {
   const budget = calculatePassiveWeightBudget(style);
   const totalWeight = (chosenPassives || []).reduce((sum, p) => sum + p.weight, 0);
   const anyOverweight = (chosenPassives || []).some((p) => p.weight > MAX_SINGLE_PASSIVE_WEIGHT);
   const anyMissingScope = (chosenPassives || []).some((p) => !p.scope || !p.scope.trim());
+  const anyMissingNames = (chosenPassives || []).some((p) => !p.names || p.names.length === 0);
   return {
-    valid: totalWeight <= budget && !anyOverweight && !anyMissingScope,
+    valid: totalWeight <= budget && !anyOverweight && !anyMissingScope && !anyMissingNames,
     budget,
     totalWeight,
     anyOverweight,
     anyMissingScope,
+    anyMissingNames,
   };
 }
 

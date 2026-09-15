@@ -12,8 +12,7 @@ export const FIGHTING_STYLE_CATALOG = [
     pointsRequired: 6,
     eixos: { potencia: 2, robustez: 1, agilidade: 1, distancia: 0, controle: 0 },
     postura: { ofensiva: 2, defensiva: 0 }, // 3 pontos de Postura (Nível 2) + 3 de Eixos = 6
-    passives: [{ effectName: 'Agilizar', weight: 1, scope: 'Golpes de cruzado e jab', description: '' }],
-  },
+    passives: [{ names: ['Agilizar'], weight: 1, scope: 'Golpes de cruzado e jab', description: '' }],  },
   {
     id: 'capoeira',
     name: 'Capoeira',
@@ -22,8 +21,7 @@ export const FIGHTING_STYLE_CATALOG = [
     pointsRequired: 6,
     eixos: { potencia: 0, robustez: 0, agilidade: 2, distancia: 2, controle: 0 },
     postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
-    passives: [{ effectName: 'Garantir', weight: 1, scope: 'Esquivas com giro ou cambalhota', description: '' }],
-  },
+    passives: [{ names: ['Garantir'], weight: 1, scope: 'Esquivas com giro ou cambalhota', description: '' }],  },
   {
     id: 'jiu_jitsu',
     name: 'Jiu-Jitsu',
@@ -32,8 +30,7 @@ export const FIGHTING_STYLE_CATALOG = [
     pointsRequired: 6,
     eixos: { potencia: 0, robustez: 1, agilidade: 0, distancia: 0, controle: 4 },
     postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
-    passives: [{ effectName: 'Amplificar', weight: 2, scope: 'Manobras de imobilização já em andamento', description: '' }],
-  },
+    passives: [{ names: ['Amplificar'], weight: 2, scope: 'Manobras de imobilização já em andamento', description: '' }],  },
   {
     id: 'modelo_generico',
     name: '[Nome do Estilo]',
@@ -66,7 +63,8 @@ export function applyCatalogToStyle(existingStyle, catalogEntry) {
     eixos: { ...catalogEntry.eixos },
     postura: { ...catalogEntry.postura },
     passives: catalogEntry.passives.map((p) => ({
-      effectName: p.effectName,
+      instanceId: `${Date.now()}-${Math.random()}`,
+      names: [...p.names],
       weight: p.weight,
       scope: p.scope ?? '',
       description: p.description ?? '',

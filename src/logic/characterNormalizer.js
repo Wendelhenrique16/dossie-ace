@@ -19,8 +19,9 @@ export function normalizeCharacter(data = {}) {
         defensiva: style.postura?.defensiva ?? 0,
       },
       passives: (style.passives ?? []).map((p) => ({
-        effectName: p.effectName,
-        weight: p.weight,
+        instanceId: p.instanceId ?? `${Date.now()}-${Math.random()}`,
+        names: p.names ?? (p.effectName ? [p.effectName] : []), // migra dados antigos (1 nome solto)
+        weight: p.weight ?? 1,
         scope: p.scope ?? '',
         description: p.description ?? '',
       })),

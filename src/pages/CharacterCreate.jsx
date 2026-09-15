@@ -31,6 +31,7 @@ import {
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
+import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
   calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel,
@@ -248,21 +249,21 @@ export default function CharacterCreate({ userId }) {
       },
     }));
   }
-  function buildSteps(isAgent, hasFightingStylePoints) {
-    const steps = [
-      { id: 'identity', label: '1. Detalhes do Personagem' },
-      { id: 'lifeStage', label: '2. Fase da Vida' },
-      { id: 'backgrounds', label: '3. Antecedentes' },
-      { id: 'aspects', label: '4. Aspectos' },
-      { id: 'customSkills', label: '5. Habilidades' },
-      { id: 'occupation', label: '6. Ocupação' },
-    ];
-    let n = 7;
-    if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
-    if (hasFightingStylePoints) steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
-    steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
-    return steps;
-  }
+function buildSteps(isAgent) {
+  const steps = [
+    { id: 'identity', label: '1. Detalhes do Personagem' },
+    { id: 'lifeStage', label: '2. Fase da Vida' },
+    { id: 'backgrounds', label: '3. Antecedentes' },
+    { id: 'aspects', label: '4. Aspectos' },
+    { id: 'customSkills', label: '5. Habilidades' },
+    { id: 'occupation', label: '6. Ocupação' },
+  ];
+  let n = 7;
+  if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
+  steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
+  steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
+  return steps;
+}
   function handleSwapGraveAspect(index, newId) {
     setCharacter((c) => {
       const ids = [...c.aspects.excessNegativeIds];
@@ -352,11 +353,11 @@ export default function CharacterCreate({ userId }) {
     [finalSkillTotals, character.classPath.archetypeId]
   );
   const hasFightingStylePoints = totalFightingStylePoints > 0;
-  const STEPS = useMemo(() => buildSteps(isAgent, hasFightingStylePoints), [isAgent, hasFightingStylePoints]);
+  const STEPS = useMemo(() => buildSteps(isAgent), [isAgent]);
   const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
   const goNext = () => setCurrentStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id);
   const goBack = () => setCurrentStep(STEPS[Math.max(stepIndex - 1, 0)].id);
- const totalInvestedStylePoints = useMemo(
+  const totalInvestedStylePoints = useMemo(
   () => calculateTotalInvestedPoints(character.fightingStyles),
   [character.fightingStyles]
 );
@@ -390,33 +391,50 @@ function handleSetAxisPoints(styleId, axisId, value) {
 function handleSetPosturePoints(styleId, postureId, value) {
   handleUpdateStyle(styleId, (s) => ({ ...s, postura: { ...s.postura, [postureId]: Math.max(0, value) } }));
 }
-function handleTogglePassive(styleId, effectName, weight) {
-  handleUpdateStyle(styleId, (s) => {
-    const exists = s.passives.some((p) => p.effectName === effectName);
-    const passives = exists
-      ? s.passives.filter((p) => p.effectName !== effectName)
-      : [...s.passives, { effectName, weight, scope: '', description: '' }];
-    return { ...s, passives };
-  });
-}
-function handleSetPassiveScope(styleId, effectName, scope) {
+function handleAddBlankPassive(styleId) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, scope } : p)),
+    passives: [...s.passives, { instanceId: `${Date.now()}-${Math.random()}`, names: [], weight: 1, scope: '', description: '' }],
   }));
 }
-function handleSetPassiveDescription(styleId, effectName, description) {
+function handleAddPassiveFromModel(styleId, model) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, description } : p)),
+    passives: [...s.passives, createPassiveFromModel(model)],
   }));
 }
-function handleSetPassiveDescription(styleId, effectName, description) {
+function handleRemovePassive(styleId, instanceId) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: s.passives.map((p) => (p.effectName === effectName ? { ...p, description } : p)),
+    passives: s.passives.filter((p) => p.instanceId !== instanceId),
   }));
 }
+function handleTogglePassiveEffectName(styleId, instanceId, effectName) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => {
+      if (p.instanceId !== instanceId) return p;
+      const names = p.names.includes(effectName)
+        ? p.names.filter((n) => n !== effectName)
+        : [...p.names, effectName];
+      return { ...p, names, weight: names.length ? getEffectWeight(names) : 1 };
+    }),
+  }));
+}
+function handleSetPassiveScope(styleId, instanceId, scope) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, scope } : p)),
+  }));
+}
+function handleSetPassiveDescription(styleId, instanceId, description) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, description } : p)),
+  }));
+
+}
+
   function handleSelectLifeStage(id) {
     const stage = LIFE_STAGES[id];
     const halvedAttributeIds = stage.agingPenalty
@@ -1778,57 +1796,107 @@ function handleSetPassiveDescription(styleId, effectName, description) {
                 </p>
               )}
             </div>
+{/* Passivas — múltiplos Efeitos por passiva, Escopo obrigatório */}
+<div>
+  <div className="text-xs font-medium text-gray-500 mb-1">
+    Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
+  </div>
 
-            {/* Passivas — Escopo obrigatório */}
-            <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">
-                Passiva (orçamento de peso: {passiveBudget} — 1 a cada {PASSIVE_POINTS_PER_UNLOCK} pontos investidos)
-              </div>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {Object.entries(EFFECT_DEFINITIONS)
-                  .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
-                  .map(([name, def]) => {
-                    const selected = style.passives.some((p) => p.effectName === name);
-                    return (
-                      <button
-                        key={name} type="button"
-                        onClick={() => handleTogglePassive(style.id, name, def.weight)}
-                        className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
-                      >
-                        {name} ({def.weight})
-                      </button>
-                    );
-                  })}
-              </div>
-              {style.passives.map((p) => (
-                <div key={p.effectName} className="mb-2 border-l-2 border-gray-200 pl-2">
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Escopo da Passiva "{p.effectName}" (peso {p.weight}) — obrigatório: a que golpes/situação se aplica
-                  </label>
-                  <input
-                    className={`w-full border rounded px-2 py-1 text-xs mb-1 ${!p.scope.trim() ? 'border-red-400' : ''}`}
-                    placeholder='ex: "cruzados e ganchos", "manobras de imobilização já em andamento"'
-                    value={p.scope}
-                    onChange={(e) => handleSetPassiveScope(style.id, p.effectName, e.target.value)}
-                  />
-                  <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
-                  <textarea
-                    className="w-full border rounded px-2 py-1 text-xs"
-                    rows={2}
-                    placeholder="Descreva na prática o que essa passiva faz"
-                    value={p.description}
-                    onChange={(e) => handleSetPassiveDescription(style.id, p.effectName, e.target.value)}
-                  />
-                </div>
+  <div className="flex flex-wrap gap-1 mb-2">
+    <button
+      onClick={() => handleAddBlankPassive(style.id)}
+      className="text-xs px-2 py-1 rounded border bg-gray-50"
+    >
+      + Passiva do Zero
+    </button>
+    <select
+      className="text-xs border rounded px-2 py-1"
+      value=""
+      onChange={(e) => {
+        const model = FIGHTING_STYLE_PASSIVE_MODELS.find((m) => m.id === e.target.value);
+        if (model) handleAddPassiveFromModel(style.id, model);
+        e.target.value = '';
+      }}
+    >
+      <option value="">+ Passiva de Modelo...</option>
+      {FIGHTING_STYLE_PASSIVE_MODELS.map((m) => (
+        <option key={m.id} value={m.id}>{m.name}</option>
+      ))}
+    </select>
+  </div>
+
+  {style.passives.length === 0 ? (
+    <p className="text-xs text-gray-400">Nenhuma Passiva adicionada.</p>
+  ) : (
+    <div className="space-y-3">
+      {style.passives.map((p) => (
+        <div key={p.instanceId} className="border-l-2 border-gray-200 pl-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500">Peso {p.weight}</span>
+            <button
+              onClick={() => handleRemovePassive(style.id, p.instanceId)}
+              className="text-xs text-red-500 underline"
+            >
+              Remover
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1 mb-2">
+            {Object.entries(EFFECT_DEFINITIONS)
+              .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
+              .map(([name, def]) => {
+                const selected = p.names.includes(name);
+                return (
+                  <button
+                    key={name} type="button"
+                    onClick={() => handleTogglePassiveEffectName(style.id, p.instanceId, name)}
+                    className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+                  >
+                    {name} ({def.weight})
+                  </button>
+                );
+              })}
+          </div>
+
+          {p.names.length > 0 && (
+            <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1 mb-2">
+              {p.names.map((n) => (
+                <div key={n}><strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}</div>
               ))}
-              {!passiveValidation.valid && (
-                <p className="text-xs text-red-600">
-                  ⚠ {passiveValidation.anyMissingScope && 'Toda Passiva precisa de um Escopo preenchido. '}
-                  {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
-                  {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
-                </p>
-              )}
             </div>
+          )}
+
+          <label className="block text-xs text-gray-500 mb-1">
+            Escopo (obrigatório): a que golpes/situação se aplica
+          </label>
+          <input
+            className={`w-full border rounded px-2 py-1 text-xs mb-1 ${!p.scope.trim() ? 'border-red-400' : ''}`}
+            placeholder='ex: "cruzados e ganchos", "manobras de imobilização já em andamento"'
+            value={p.scope}
+            onChange={(e) => handleSetPassiveScope(style.id, p.instanceId, e.target.value)}
+          />
+          <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-xs"
+            rows={2}
+            placeholder="Descreva na prática o que essa passiva faz"
+            value={p.description}
+            onChange={(e) => handleSetPassiveDescription(style.id, p.instanceId, e.target.value)}
+          />
+        </div>
+      ))}
+    </div>
+  )}
+
+  {!passiveValidation.valid && (
+    <p className="text-xs text-red-600 mt-2">
+      ⚠ {passiveValidation.anyMissingNames && 'Toda Passiva precisa de ao menos 1 Efeito selecionado. '}
+      {passiveValidation.anyMissingScope && 'Toda Passiva precisa de um Escopo preenchido. '}
+      {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
+      {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
+    </p>
+  )}
+</div>
           </div>
         );
       })}
@@ -1987,7 +2055,46 @@ function handleSetPassiveDescription(styleId, effectName, description) {
                     </div>
                   </div>
                 )}
-        character.fightingStyles.length
+
+                {character.fightingStyles.length > 0 && (
+                  <div className="mt-2">
+                    <div className="font-medium mb-1">Estilo de Luta</div>
+                    <div className="text-xs text-gray-400 mb-2">
+                      Ativo: <strong>{character.fightingStyles.find((s) => s.id === character.activeFightingStyleId)?.name || 'Nenhum'}</strong>
+                    </div>
+                    {character.fightingStyles.map((style) => {
+                      const effects = calculateStyleEffects(style, {
+                        physicalDamage,
+                        constituicaoLevel: finalSkillTotals.constituicao || 0,
+                        prontidaoLevel: finalSkillTotals.prontidao || 0,
+                      });
+                      return (
+                        <div key={style.id} className="text-xs border-b py-2">
+                          <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos investidos
+                          <div className="text-gray-500 mt-1">
+                            Potência: {effects.potencia.baseDamage}{effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''} ·{' '}
+                            Robustez: DT {effects.robustez.dtContraAtordoamento} ·{' '}
+                            Agilidade: {effects.agilidade.freeReactionsPerTurn} Reação(ões) grátis/turno ·{' '}
+                            Distância: {effects.distancia.usosPerScene} uso(s)/cena ·{' '}
+                            Controle: {effects.controle.bonusDie ?? 'sem bônus'}
+                          </div>
+                          {effects.postura.ofensiva.level > 0 && (
+                            <div className="text-gray-500">Postura Ofensiva Nível {effects.postura.ofensiva.level}: {effects.postura.ofensiva.description}</div>
+                          )}
+                          {effects.postura.defensiva.level > 0 && (
+                            <div className="text-gray-500">Postura Defensiva Nível {effects.postura.defensiva.level}: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})</div>
+                          )}
+                          {style.passives.map((p) => (
+                            <div key={p.instanceId} className="text-gray-500">
+                              Passiva ({p.names.join(' + ')}, escopo: {p.scope || '(sem escopo)'}): {p.description || '(sem descrição)'}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>
                   {character.selectedAbilities.length === 0 ? (

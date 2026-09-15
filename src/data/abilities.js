@@ -14,14 +14,16 @@ export const COST_FORMS_BY_WEIGHT = {
 
 export const COST_WEIGHT_LABELS = { 1: 'Leve', 2: 'Moderado', 3: 'Pesado' };
 
-// As 8 opções de Efeito nomeado — peso fixo, não editável por design.
+// As 10 opções de Efeito nomeado — peso fixo, não editável por design.
 export const EFFECT_DEFINITIONS = {
   Facilitar: { weight: 1, description: 'Rebaixa em 1 o grau de sucesso exigido numa ação específica.' },
   Agilizar: { weight: 1, description: 'A ação específica gasta 1 ação a menos que o padrão.' },
   Garantir: { weight: 1, description: 'Remove a possibilidade de Falha Crítica numa ação específica.' },
+  Potencializar: { weight: 1, description: 'Depois de um sucesso, rola o efeito (dano, cura, etc.) duas vezes e fica com o maior resultado.' },
   Amplificar: { weight: 2, description: 'Um sucesso normal numa ação específica é tratado como Sucesso Bom (falhas não mudam).' },
   Blindar: { weight: 2, description: 'Ignora, por uma cena, uma penalidade/debuff acumulado de um tipo específico.' },
   Compensar: { weight: 2, description: 'Uma falha específica pode ser tratada como sucesso parcial em outra coisa relacionada.' },
+  Vantagem: { weight: 2, description: 'Rola o teste (não o efeito) duas vezes numa ação específica e fica com o maior resultado.' },
   Reverter: { weight: 3, description: 'Uma falha específica é tratada como sucesso normal.' },
   Multiplicar: { weight: 3, description: 'Dobra o efeito de um sucesso já obtido numa ação específica.' },
 };
