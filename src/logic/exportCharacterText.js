@@ -6,10 +6,10 @@ import { CAMINHOS } from '../data/caminhos';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { OCCUPATION_CATEGORIES } from '../data/occupations';
 import { TRAUMAS } from '../data/traumas';
-import { getEffectiveMassCategory } from './characterCalculations';
 import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
-
+import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
+import { getEffectiveMassCategory, calculateStyleEffects } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -25,18 +25,9 @@ function aspectLabel(id, catalog) {
  * lógica de montagem em dois lugares.
  */
 export function buildCharacterSheetLines({
-  character,
-  lifeStage,
-  finalAttributeTotals,
-  finalSkillTotals,
-  skillResultBonuses,
-  vigor,
-  massAdjustedVigor, // ADICIONAR
-  physicalDamage,    // ADICIONAR
-  maxSanity,
-  remainingLuck,
-  classBonuses,
-  isAgent,
+  character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
+  vigor, massAdjustedVigor, physicalDamage, maxSanity, remainingLuck, classBonuses, isAgent,
+  cargaInfo, movementInfo, fightingStyleInfo, // NOVO
 }) {
   const lines = [];
 
@@ -240,7 +231,52 @@ if (character.weightKg) {
   lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
   lines.push(`> Vantagem: ${massInfo.real.advantage}`);
   lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
+    if (cargaInfo) {
+    lines.push('Carga:');
+    lines.push(`> Confortável: até ${cargaInfo.comfortable.maxKg}kg (Carga ${cargaInfo.comfortable.cargaLevel})`);
+    lines.push(`> Pesada: até ${cargaInfo.heavy.maxKg}kg (Carga ${cargaInfo.heavy.cargaLevel})`);
+    lines.push(`> Extrema: até ${cargaInfo.extreme.maxKg}kg (Carga ${cargaInfo.extreme.cargaLevel})`);
+    lines.push('');
+  }
+  if (movementInfo) {
+    if (movementInfo.note) {
+      lines.push(`Movimento: 0 pontos (${movementInfo.note})`);
+    } else {
+      lines.push(
+        `Movimento: ${movementInfo.value} pontos — ${movementInfo.normal.metersPerTurn}m/turno (${movementInfo.normal.kmh} km/h) · ` +
+        `Esforço Intenso: ${movementInfo.intenso.metersPerTurn}m/turno (${movementInfo.intenso.kmh} km/h)`
+      );
+    }
   lines.push('');
+}
+  if (character.fightingStyles && character.fightingStyles.length > 0) {
+    lines.push('Estilo de Luta:');
+    const active = character.fightingStyles.find((s) => s.id === character.activeFightingStyleId);
+    lines.push(`> Ativo: ${active?.name || 'Nenhum'}`);
+    character.fightingStyles.forEach((style) => {
+      const effects = calculateStyleEffects(style, {
+        physicalDamage,
+        constituicaoLevel: finalSkillTotals.constituicao || 0,
+        prontidaoLevel: finalSkillTotals.prontidao || 0,
+      });
+      lines.push(`> ${style.name || '(sem nome)'}`);
+      lines.push(`  - Potência ${effects.potencia.points}: ${effects.potencia.baseDamage}${effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}`);
+      lines.push(`  - Robustez ${effects.robustez.points}: DT contra Atordoamento = ${effects.robustez.dtContraAtordoamento}`);
+      lines.push(`  - Agilidade ${effects.agilidade.points}: ${effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno`);
+      lines.push(`  - Distância ${effects.distancia.points}: ${effects.distancia.usosPerScene} uso(s) por cena`);
+      lines.push(`  - Controle ${effects.controle.points}: ${effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra`);
+      if (effects.postura.ofensiva.level > 0) {
+        lines.push(`  - Postura Ofensiva Nível ${effects.postura.ofensiva.level}: ${effects.postura.ofensiva.description}`);
+      }
+      if (effects.postura.defensiva.level > 0) {
+        lines.push(`  - Postura Defensiva Nível ${effects.postura.defensiva.level}: ${effects.postura.defensiva.description} (dado atual: ${effects.postura.defensiva.prontidaoDie})`);
+      }
+      style.passives.forEach((p) => {
+        lines.push(`  - Passiva (${p.names.join(' + ')}, peso ${p.weight}, escopo: ${p.scope || '(sem escopo)'}): ${p.description || '(sem descrição)'}`);
+      });
+    });
+    lines.push('');
+  }
 }
 character.selectedAbilities.forEach((a) => {
   const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;

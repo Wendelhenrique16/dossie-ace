@@ -1,7 +1,34 @@
 // src/logic/characterNormalizer.js
+import { createBlankStyle } from '../data/fightingStylesCatalog';
 export function normalizeCharacter(data = {}) {
   const safeData = data ?? {};
-
+  const fightingStylesList = (() => {
+    const raw = safeData.fightingStyles ?? [];
+    const mapped = raw.map((style) => ({
+      id: style.id,
+      name: style.name ?? '',
+      eixos: {
+        potencia: style.eixos?.potencia ?? 0,
+        robustez: style.eixos?.robustez ?? 0,
+        agilidade: style.eixos?.agilidade ?? 0,
+        distancia: style.eixos?.distancia ?? 0,
+        controle: style.eixos?.controle ?? 0,
+      },
+      postura: {
+        ofensiva: style.postura?.ofensiva ?? 0,
+        defensiva: style.postura?.defensiva ?? 0,
+      },
+      passives: (style.passives ?? []).map((p) => ({
+        instanceId: p.instanceId ?? `${Date.now()}-${Math.random()}`,
+        names: p.names ?? (p.effectName ? [p.effectName] : []), // migra dados antigos (1 nome solto)
+        weight: p.weight ?? 1,
+        scope: p.scope ?? '',
+        description: p.description ?? '',
+      })),
+    }));
+    // TODO PERSONAGEM SEMPRE TEM PELO MENOS 1 ESTILO — mesmo zerado.
+    return mapped.length > 0 ? mapped : [createBlankStyle()];
+  })();
   return {
     ...safeData,
 
@@ -61,6 +88,8 @@ export function normalizeCharacter(data = {}) {
       weaponChoiceSkillId: safeData.classPath?.weaponChoiceSkillId ?? null,
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
-
+    fightingStyles: fightingStylesList,
+    activeFightingStyleId: safeData.activeFightingStyleId ?? (fightingStylesList.length === 1 ? fightingStylesList[0].id : null),
+    currentPosture: safeData.currentPosture ?? 'neutra', // 'neutra' | 'ofensiva' | 'defensiva'
   };
 }

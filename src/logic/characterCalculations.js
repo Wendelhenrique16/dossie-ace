@@ -3,7 +3,7 @@
 // de existir qualquer tela. Import de dados vem de ../data/*.
 
 import { SKILL_LEVEL_TO_DICE } from '../data/skills';
-
+import { getEffectWeight } from '../data/abilities';
 /**
  * Rola um dado de N lados.
  */
@@ -325,4 +325,246 @@ export function applyMassVigorModifier(baseVigor, massCategoryId, constituicaoLe
     default: // leve, medio
       return { value: baseVigor, note: null };
   }
+}
+import {CARGA_TABLE, CARGA_BY_MASS, MOVEMENT_MASS_MODIFIER } from '../data/massCategories';
+// (junta com o import de MASS_CATEGORIES que já existe — só adicionar os 3 novos nomes)
+
+/**
+ * Força desloca a LEITURA da tabela de Carga em degraus (não muda a Categoria
+ * de Massa em si, só qual linha da tabela Confortável/Pesada/Extrema é lida).
+ */
+
+
+function getCargaLevelInfo(level) {
+  const entry = CARGA_TABLE.find((c) => c.level === level);
+  return entry ? { level, minKg: entry.minKg, maxKg: entry.maxKg } : null;
+}
+
+/**
+ * Limites de Carga (Confortável/Pesada/Extrema) pro peso e Força do personagem.
+ * Usa a Categoria de Massa REAL (peso puro) como linha-base, deslocada pelo
+ * degrau de Força — igual ao exemplo do livro (Médio + Força 12 = lê como Colosso).
+ *//**
+ * Recebe o NÚMERO de Força (não o nível bruto) — as faixas 0/1-5/6-10/...
+ * do livro são sobre essa escala.
+ */
+function forcaCargaShiftSteps(forcaValue) {
+  if (forcaValue === 0) return -1;
+  if (forcaValue <= 5) return 0;
+  if (forcaValue <= 10) return 1;
+  if (forcaValue <= 15) return 2;
+  if (forcaValue <= 20) return 3;
+  return 4;
+}
+
+export function calculateCargaLimits(weightKg, forcaLevel) {
+  const forcaValue = getSkillDieMaxValue(forcaLevel); // conversão que faltava
+  const realCategory = getMassCategory(weightKg);
+  const baseIndex = MASS_CATEGORIES.findIndex((c) => c.id === realCategory.id);
+  const shift = forcaCargaShiftSteps(forcaValue);
+  const shiftedIndex = Math.max(0, Math.min(MASS_CATEGORIES.length - 1, baseIndex + shift));
+  const effectiveCategory = MASS_CATEGORIES[shiftedIndex];
+  const row = CARGA_BY_MASS[effectiveCategory.id];
+
+  return {
+    realCategory,
+    effectiveCategory,
+    wasShifted: shiftedIndex !== baseIndex,
+    shiftDirection: shiftedIndex > baseIndex ? 'up' : shiftedIndex < baseIndex ? 'down' : null,
+    comfortable: { cargaLevel: row.comfortable, ...getCargaLevelInfo(row.comfortable) },
+    heavy: { cargaLevel: row.heavy, ...getCargaLevelInfo(row.heavy) },
+    extreme: { cargaLevel: row.extreme, ...getCargaLevelInfo(row.extreme) },
+  };
+}
+
+/**
+ * Movimento = Atletismo + Modificador de Massa (peso REAL, sem multiplicador
+ * — o "1 ponto = 1,5m" é só nota de referência de Mestre, nunca aparece na ficha).
+ * Atletismo 0 = incapaz (Movimento 0).
+ */
+const METERS_PER_MOVEMENT_POINT = 1.5;
+const TURN_DURATION_SECONDS = 6;
+
+function metersPerTurnToKmH(metersPerTurn) {
+  return Number(((metersPerTurn / TURN_DURATION_SECONDS) * 3.6).toFixed(1));
+}
+
+/**
+ * Movimento = Atletismo + Modificador de Massa (peso REAL). Atletismo 0 =
+ * incapaz. Também traduz pontos em metros/turno e km/h — 1 ponto = 1,5m
+ * a cada turno de 6s (fórmula de referência, não afeta o valor em pontos).
+ * Esforço Extremo ainda não tem multiplicador definido no livro — fica de
+ * fora até isso ser fechado.
+ */
+/**
+ * Movimento = Atletismo + Modificador de Massa. "Atletismo" aqui é o NÚMERO
+ * da perícia (valor de face do dado, 0-28 — a mesma escala do livro em
+ * "O que os números querem dizer"), não o nível bruto 0-9.
+ */
+export function calculateMovement(atletismoLevel, weightKg) {
+  const atletismoValue = getSkillDieMaxValue(atletismoLevel);
+
+  if (!atletismoValue || atletismoValue <= 0) {
+    return {
+      value: 0, modifier: null, massCategoryLabel: null,
+      normal: null, intenso: null,
+      note: 'Atletismo 0: incapaz de se mover com eficiência.',
+    };
+  }
+  const massCategory = getMassCategory(weightKg);
+  const modifier = MOVEMENT_MASS_MODIFIER[massCategory.id] ?? 0;
+  const value = Math.max(0, atletismoValue + modifier);
+
+  const metersPerTurnNormal = value * METERS_PER_MOVEMENT_POINT;
+  const metersPerTurnIntenso = metersPerTurnNormal * 2;
+
+  return {
+    value,
+    modifier,
+    massCategoryLabel: massCategory.label,
+    normal: { metersPerTurn: metersPerTurnNormal, kmh: metersPerTurnToKmH(metersPerTurnNormal) },
+    intenso: { metersPerTurn: metersPerTurnIntenso, kmh: metersPerTurnToKmH(metersPerTurnIntenso) },
+    note: null,
+  };
+}
+
+
+import {
+  BONUS_TABLE_DICE_FACES, BONUS_TABLE_CAP_FACE, DICE_BONUS_AXES,
+  POSTURE_LEVEL_THRESHOLDS, POSTURE_EFFECTS, PASSIVE_POINTS_PER_UNLOCK,
+  MAX_SINGLE_PASSIVE_WEIGHT, ARTISTA_MARCIAL_ARCHETYPE_ID,
+} from '../data/fightingStyles';
+
+/**
+ * Tabela de Bônus universal: pontos investidos → face do dado bônus.
+ * 0 pontos = sem bônus. 6+ pontos trava em d20 (BONUS_TABLE_CAP_FACE).
+ */
+export function getBonusDieFace(points) {
+  if (!points || points <= 0) return null;
+  if (points >= 6) return BONUS_TABLE_CAP_FACE;
+  return BONUS_TABLE_DICE_FACES[points] ?? null;
+}
+
+/**
+ * Pontos totais de Estilo de Luta = NÍVEL bruto (0-9) da perícia Combate,
+ * dobrado se o Arquétipo for Artista Marcial. É moeda de investimento,
+ * não um efeito mecânico direto — por isso usa o nível, não o valor do dado.
+ */
+export function calculateFightingStylePoints(combateSkillLevel, archetypeId) {
+  const base = Math.max(0, combateSkillLevel || 0);
+  return archetypeId === ARTISTA_MARCIAL_ARCHETYPE_ID ? base * 2 : base;
+}
+
+/**
+ * Nível de Postura atingido pelos pontos investidos (0, 1 ou 2), pelo
+ * custo escalonado: Nível 1 = 1 ponto, Nível 2 = 3 pontos total.
+ */
+export function getPostureLevel(points) {
+  if (points >= POSTURE_LEVEL_THRESHOLDS[2]) return 2;
+  if (points >= POSTURE_LEVEL_THRESHOLDS[1]) return 1;
+  return 0;
+}
+
+/**
+ * Soma os pontos investidos num único Estilo (Eixos + Postura Ofensiva + Postura Defensiva).
+ */
+export function calculateStyleInvestedPoints(style) {
+  const eixosSum = Object.values(style.eixos || {}).reduce((sum, v) => sum + (v || 0), 0);
+  return eixosSum + (style.postura?.ofensiva || 0) + (style.postura?.defensiva || 0);
+}
+
+/**
+ * Soma investida em TODOS os Estilos do personagem — usado pra validar
+ * contra o total disponível (calculateFightingStylePoints).
+ */
+export function calculateTotalInvestedPoints(fightingStyles) {
+  return (fightingStyles || []).reduce((sum, style) => sum + calculateStyleInvestedPoints(style), 0);
+}
+
+/**
+ * Quantos pontos de peso de Passiva um Estilo desbloqueou (de graça).
+ */
+export function calculatePassiveWeightBudget(style) {
+  return Math.floor(calculateStyleInvestedPoints(style) / PASSIVE_POINTS_PER_UNLOCK);
+}
+/**
+ * Valida se o peso total das Passivas escolhidas pra um Estilo respeita
+ * o orçamento e o teto de peso 2 por passiva individual. Cada passiva pode
+ * combinar mais de um Efeito nomeado (igual Habilidade) — o peso da passiva
+ * é o maior peso entre os Efeitos escolhidos nela.
+ */
+export function validateStylePassives(style, chosenPassives) {
+  const budget = calculatePassiveWeightBudget(style);
+  const totalWeight = (chosenPassives || []).reduce((sum, p) => sum + p.weight, 0);
+  const anyOverweight = (chosenPassives || []).some((p) => p.weight > MAX_SINGLE_PASSIVE_WEIGHT);
+  const anyMissingScope = (chosenPassives || []).some((p) => !p.scope || !p.scope.trim());
+  const anyMissingNames = (chosenPassives || []).some((p) => !p.names || p.names.length === 0);
+  return {
+    valid: totalWeight <= budget && !anyOverweight && !anyMissingScope && !anyMissingNames,
+    budget,
+    totalWeight,
+    anyOverweight,
+    anyMissingScope,
+    anyMissingNames,
+  };
+}
+
+/**
+ * Traduz os pontos investidos em CADA Eixo pro efeito mecânico concreto.
+ * physicalDamage vem de calculatePhysicalDamageBase + applyMassDamageModifier
+ * (já existentes). constituicaoLevel/prontidaoLevel são NÍVEIS brutos (0-9).
+ */
+export function calculateStyleEffects(style, { physicalDamage, constituicaoLevel, prontidaoLevel }) {
+  const potenciaPoints = style.eixos?.potencia || 0;
+  const robustezPoints = style.eixos?.robustez || 0;
+  const agilidadePoints = style.eixos?.agilidade || 0;
+  const distanciaPoints = style.eixos?.distancia || 0;
+  const controlePoints = style.eixos?.controle || 0;
+
+  const potenciaDieFace = getBonusDieFace(potenciaPoints);
+  const robustezDieFace = getBonusDieFace(robustezPoints);
+  const controleDieFace = getBonusDieFace(controlePoints);
+  const constituicaoValue = getSkillDieMaxValue(constituicaoLevel || 0);
+
+  const ofensivaLevel = getPostureLevel(style.postura?.ofensiva || 0);
+  const defensivaLevel = getPostureLevel(style.postura?.defensiva || 0);
+  const prontidaoDieFace = getSkillDieMaxValue(prontidaoLevel || 0);
+
+  return {
+    potencia: {
+      points: potenciaPoints,
+      bonusDie: potenciaDieFace ? `+d${potenciaDieFace}` : null,
+      baseDamage: physicalDamage?.diceCount > 0 ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}` : (physicalDamage?.note ?? '—'),
+    },
+    robustez: {
+      points: robustezPoints,
+      bonusDie: robustezDieFace ? `+d${robustezDieFace}` : null,
+      dtContraAtordoamento: `10 + d${constituicaoValue}${robustezDieFace ? ` + d${robustezDieFace}` : ''}`,
+    },
+    agilidade: {
+      points: agilidadePoints,
+      freeReactionsPerTurn: agilidadePoints,
+    },
+    distancia: {
+      points: distanciaPoints,
+      usosPerScene: distanciaPoints,
+    },
+    controle: {
+      points: controlePoints,
+      bonusDie: controleDieFace ? `+d${controleDieFace}` : null,
+    },
+    postura: {
+      ofensiva: {
+        level: ofensivaLevel,
+        staminaDiscount: ofensivaLevel > 0 ? POSTURE_EFFECTS.ofensiva[ofensivaLevel].staminaDiscount : 0,
+        description: ofensivaLevel > 0 ? POSTURE_EFFECTS.ofensiva[ofensivaLevel].description : null,
+      },
+      defensiva: {
+        level: defensivaLevel,
+        prontidaoDie: defensivaLevel > 0 ? `d${prontidaoDieFace}` : null,
+        divisor: defensivaLevel > 0 ? POSTURE_EFFECTS.defensiva[defensivaLevel].prontidaoDivisor : null,
+        description: defensivaLevel > 0 ? POSTURE_EFFECTS.defensiva[defensivaLevel].description : null,
+      },
+    },
+  };
 }
