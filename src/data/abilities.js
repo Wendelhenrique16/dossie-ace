@@ -7,9 +7,9 @@
 export const TRIGGER_TYPES = ['Ativo', 'Reativo'];
 
 export const COST_FORMS_BY_WEIGHT = {
-  1: ['1 Vigor', '1 Sanidade', '1 ação/reação (Stamina)'],
-  2: ['2 Vigor', '1 Vigor + 1 Sanidade', '2 Sanidade'],
-  3: ['Usar o turno inteiro', 'Debuff/penalidade em si mesmo', '3+ Vigor ou Sanidade combinados'],
+  1: ['1 Vigor', '1 Sanidade', '1 ação/reação (Stamina)', 'Fadiga Leve (-1 até descansar)'],
+  2: ['2 Vigor', '1 Vigor + 1 Sanidade', '2 Sanidade', 'Fadiga Média (-3 até descansar)'],
+  3: ['Usar o turno inteiro', 'Debuff/penalidade em si mesmo', '3+ Vigor ou Sanidade combinados', 'Fadiga Pesada (-5 até descansar)'],
 };
 
 export const COST_WEIGHT_LABELS = { 1: 'Leve', 2: 'Moderado', 3: 'Pesado' };
@@ -55,7 +55,7 @@ export const ABILITIES = {
 
   chuva_de_golpes: {
     ...ability('chuva_de_golpes', 'Chuva de Golpes', 'combate', 'Ativo', 'ao focar todos os ataques no mesmo alvo',
-      { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora a penalidade acumulada por realizar múltiplos ataques corpo a corpo no mesmo turno.'),
+      { weight: 2, form: 'Fadiga Média (-3 até descansar)' }, ['Blindar'], 'Ignora a penalidade acumulada por realizar múltiplos ataques corpo a corpo no mesmo turno.'),
     conditional: { description: 'O alvo está atordoado, desequilibrado ou flanqueado', costReduction: 1 },
   },
 
@@ -69,14 +69,12 @@ export const ABILITIES = {
   },
 
   recuo_controlado: ability('recuo_controlado', 'Recuo Controlado', 'combate', 'Ativo', 'ao atirar em rajada',
-    { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora a penalidade de recuo ao disparar em modo Automático ou usar Fogo de Supressão.'),
-
-  evasao_perfeita: ability('evasao_perfeita', 'Evasão Perfeita', 'combate', 'Reativo', 'ao rolar defesa contra um ataque físico',
-    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal na Esquiva é tratado como Sucesso Bom.'),
-
+    { weight: 2, form: 'Fadiga Média (-3 até descansar)' }, ['Blindar'], 'Ignora a penalidade de recuo ao disparar em modo Automático ou usar Fogo de Supressão.'),
+    evasao_perfeita: ability('evasao_perfeita', 'Evasão Perfeita', 'combate', 'Reativo', 'ao rolar defesa contra um ataque físico',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem'], 'A Esquiva é rolada duas vezes e fica-se com o melhor resultado.'),
   golpe_certeiro: {
     ...ability('golpe_certeiro', 'Golpe Certeiro', 'combate', 'Ativo', 'antes de um ataque preparado, sem ter se movido no turno',
-      { weight: 2, form: '2 Vigor' }, ['Facilitar', 'Garantir'], 'Rebaixa em 1 o grau de sucesso exigido pra acertar um ponto vital, e essa rolagem não pode cair em Falha Crítica.'),
+      { weight: 2, form: '2 Vigor' }, ['Vantagem', 'Garantir'], 'O ataque a um ponto vital é rolado duas vezes (fica-se com o melhor), e essa rolagem não pode cair em Falha Crítica.'),
     conditional: { description: 'Não se moveu neste turno', costReduction: 1 },
   },
 
@@ -94,7 +92,14 @@ export const ABILITIES = {
 
   reflexo_de_arremesso: ability('reflexo_de_arremesso', 'Reflexo de Arremesso', 'combate', 'Ativo', 'antes de arremessar um objeto que não é arma de arremesso dedicada',
     { weight: 1, form: '1 Vigor' }, ['Garantir'], 'Essa rolagem de ataque não pode cair em Falha Crítica.'),
+  folego_de_ferro: ability('folego_de_ferro', 'Fôlego de Ferro', 'combate', 'Ativo', 'antes de sustentar um confronto prolongado',
+    { weight: 3, form: 'Fadiga Pesada (-5 até descansar)' }, ['Blindar'], 'Ignora, por uma cena, uma penalidade grave acumulada — o corpo aguenta agora e cobra o preço depois.'),
 
+  furia_calculada: ability('furia_calculada', 'Fúria Calculada', 'combate', 'Ativo', 'ao atacar um alvo já ferido',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem', 'Amplificar'], 'O ataque desarmado é rolado duas vezes (fica-se com o melhor), e se o resultado for Sucesso Normal, ainda é tratado como Sucesso Bom.'),
+
+  tiro_de_instinto: ability('tiro_de_instinto', 'Tiro de Instinto', 'combate', 'Reativo', 'ao ser surpreendido e precisar reagir armado',
+    { weight: 2, form: 'Fadiga Média (-3 até descansar)' }, ['Vantagem', 'Agilizar'], 'O disparo é rolado duas vezes (fica-se com o melhor), e a ação de atirar gasta 1 ação a menos.'),
   // ---- MOVIMENTO E FURTIVIDADE ----
   passo_de_sombra: {
     ...ability('passo_de_sombra', 'Passo de Sombra', 'movimento', 'Reativo', 'logo após um ataque furtivo',
@@ -113,7 +118,8 @@ export const ABILITIES = {
 
   queda_controlada: ability('queda_controlada', 'Queda Controlada', 'movimento', 'Reativo', 'ao sofrer uma queda ou ser derrubado',
     { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Acrobacias pra amortecer a queda não pode cair em Falha Crítica.'),
-
+  sombra_em_fuga: ability('sombra_em_fuga', 'Sombra em Fuga', 'movimento', 'Reativo', 'ao ser descoberto e precisar sumir imediatamente',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem', 'Garantir'], 'O teste de Furtividade pra escapar é rolado duas vezes (fica-se com o melhor), e não pode cair em Falha Crítica.'),
   // ---- SOCIAL ----
   leitura_de_sala: ability('leitura_de_sala', 'Leitura de Sala', 'social', 'Ativo', 'ao entrar em um ambiente social novo',
     { weight: 1, form: '1 Sanidade' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido pra identificar a dinâmica social do ambiente.'),
@@ -123,7 +129,8 @@ export const ABILITIES = {
 
   presenca_imponente: ability('presenca_imponente', 'Presença Imponente', 'social', 'Ativo', 'antes de intimidar',
     { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Intimidar não pode cair em Falha Crítica.'),
-
+  leitura_perfeita: ability('leitura_perfeita', 'Leitura Perfeita', 'social', 'Ativo', 'ao tentar ler as intenções reais de alguém',
+    { weight: 2, form: '2 Sanidade' }, ['Vantagem', 'Compensar'], 'O teste social é rolado duas vezes (fica-se com o melhor), e mesmo o pior dos dois resultados ainda revela uma informação parcial.'),
   // ---- MENTAL E SANIDADE ----
   compartimentalizar: ability('compartimentalizar', 'Compartimentalizar', 'mental', 'Reativo', 'ao sofrer uma perda de Sanidade',
     { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada de choque/trauma recente.'),
@@ -133,7 +140,8 @@ export const ABILITIES = {
       { weight: 3, form: '3+ Vigor ou Sanidade combinados' }, ['Reverter'], 'A falha nesse teste de Vontade é tratada como sucesso normal.'),
     conditional: { description: 'O Vigor está abaixo da metade', costReduction: 1 },
   },
-
+  ancora_mental: ability('ancora_mental', 'Âncora Mental', 'mental', 'Reativo', 'ao ser exposto a algo que ameaça a sanidade',
+    { weight: 3, form: 'Fadiga Pesada (-5 até descansar)' }, ['Blindar', 'Potencializar'], 'Ignora, por uma cena, uma penalidade de choque acumulada, e se um teste de Vontade tiver sucesso nesse meio tempo, o efeito de recuperação de Sanidade é rolado duas vezes.'),
   // ---- UTILIDADE E SUPORTE ----
   gambiarra_rapida: ability('gambiarra_rapida', 'Gambiarra Rápida', 'utilidade', 'Ativo', 'ao reparar algo sob pressão',
     { weight: 1, form: '1 Vigor' }, ['Agilizar'], 'O reparo gasta 1 ação a menos.'),
@@ -152,7 +160,11 @@ export const ABILITIES = {
 
   instinto_de_sobrevivencia: ability('instinto_de_sobrevivencia', 'Instinto de Sobrevivência', 'utilidade', 'Reativo', 'ao sofrer dano que engatilhe uma Condição grave',
     { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal no teste de resistência (Constituição/Vontade) é tratado como Sucesso Bom.'),
+  mao_de_veludo: ability('mao_de_veludo', 'Mão de Veludo', 'utilidade', 'Ativo', 'ao tratar um ferimento já estabilizado',
+    { weight: 1, form: '1 Vigor' }, ['Potencializar'], 'O tratamento é rolado normalmente, mas o efeito de cura (quanto se recupera) é rolado duas vezes, ficando-se com o melhor resultado.'),
 
+  segunda_tentativa: ability('segunda_tentativa', 'Segunda Tentativa', 'utilidade', 'Ativo', 'ao reparar algo já mexido antes nessa cena',
+    { weight: 2, form: '2 Vigor' }, ['Facilitar', 'Potencializar'], 'Rebaixa em 1 o grau de sucesso exigido no reparo, e se der certo, o efeito (tempo economizado, qualidade do reparo) é rolado duas vezes.'),
   // ---- MODELOS (o jogador preenche o contexto entre colchetes) ----
   modelo_maestria: ability('modelo_maestria', 'Maestria', 'modelo', 'Ativo', '',
     { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido no contexto escolhido.',
@@ -187,7 +199,17 @@ export const ABILITIES = {
   modelo_mobilidade: ability('modelo_mobilidade', 'Mobilidade em', 'modelo', 'Ativo', '',
     { weight: 1, form: '1 ação/reação (Stamina)' }, ['Garantir'], 'Não pode cair em Falha Crítica na ação de deslocamento escolhida.',
     { hasContext: true, contextLabel: 'ação de deslocamento' }),
+  modelo_dobrar: ability('modelo_dobrar', 'Dobrar em', 'modelo', 'Ativo', '',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem'], 'A ação escolhida é rolada duas vezes, fica-se com o melhor resultado.',
+    { hasContext: true, contextLabel: 'ação específica' }),
 
+  modelo_intensificar: ability('modelo_intensificar', 'Intensificar', 'modelo', 'Ativo', '',
+    { weight: 1, form: '1 Vigor' }, ['Potencializar'], 'O efeito da ação escolhida (dano, cura, ou o que for) é rolado duas vezes, ficando-se com o melhor resultado.',
+    { hasContext: true, contextLabel: 'efeito de uma ação já bem-sucedida' }),
+
+  modelo_resistir_alem: ability('modelo_resistir_alem', 'Resistir além do limite em', 'modelo', 'Ativo', '',
+    { weight: 3, form: 'Fadiga Pesada (-5 até descansar)' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada do esforço escolhido, ao custo de exaustão real depois.',
+    { hasContext: true, contextLabel: 'tipo de esforço físico' }),
   // ---- HABILIDADES DE ASSINATURA (3 por Arquétipo) ----
 
   // Parrudo
@@ -206,7 +228,7 @@ export const ABILITIES = {
     { weight: 1, form: '1 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade de cansaço acumulado.',
     { archetypeId: 'veterano' }),
   cicatrizes_de_guerra: ability('cicatrizes_de_guerra', 'Cicatrizes de Guerra', 'assinatura', 'Reativo', 'ao sofrer um Ferimento',
-    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'O teste de Constituição/Vontade pra resistir ao colapso é tratado como Sucesso Bom.',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem'], 'O teste de Constituição/Vontade pra resistir ao colapso é rolado duas vezes, fica-se com o melhor resultado.',
     { archetypeId: 'veterano' }),
   instinto_de_campo: ability('instinto_de_campo', 'Instinto de Campo', 'assinatura', 'Ativo', 'antes de agir num ambiente de combate familiar',
     { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido em Sobrevivência ou Percepção nesse contexto.',
@@ -228,7 +250,7 @@ export const ABILITIES = {
     { weight: 1, form: '1 Vigor' }, ['Facilitar'], 'Rebaixa em 1 o grau de sucesso exigido nesse disparo.',
     { archetypeId: 'atirador_de_elite' }),
   tiro_certeiro: ability('tiro_certeiro', 'Tiro Certeiro', 'assinatura', 'Ativo', 'contra um alvo parado ou sem cobertura',
-    { weight: 2, form: '2 Vigor' }, ['Amplificar'], 'Um Sucesso normal nesse disparo é tratado como Sucesso Bom.',
+    { weight: 2, form: '2 Vigor' }, ['Vantagem'], 'Esse disparo é rolado duas vezes e fica-se com o melhor resultado.',
     { archetypeId: 'atirador_de_elite' }),
   reflexo_de_combate: ability('reflexo_de_combate', 'Reflexo de Combate', 'assinatura', 'Reativo', 'após ser alvo de um ataque de retorno inimigo',
     { weight: 1, form: '1 ação/reação (Stamina)' }, ['Blindar'], 'O controle de respiração e postura elimina a instabilidade do movimento: o personagem ignora a Desvantagem normalmente imposta por atirar em movimento.',
