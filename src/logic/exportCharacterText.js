@@ -99,11 +99,11 @@ export function buildCharacterSheetLines({
   lines.push('Manias: ');
   lines.push('');
 
-lines.push('"Corpo', '');
-lines.push('Altura: ');
-lines.push(`Peso: ${character.weightKg ?? ''}`);
-lines.push('Aparência: ');
-lines.push('');
+  lines.push('"Corpo', '');
+  lines.push('Altura: ');
+  lines.push(`Peso: ${character.weightKg ?? ''}`);
+  lines.push('Aparência: ');
+  lines.push('');
 
   lines.push('〃Atributos', '');
   lines.push(`Existência: ${finalAttributeTotals.existencia ?? 0}`);
@@ -133,20 +133,19 @@ lines.push('');
   lines.push('DT Social: ');
   lines.push('');
 
-lines.push('"Vigor', '');
-lines.push(`Vigor: ${massAdjustedVigor.value}/${massAdjustedVigor.value}`);
-lines.push(
-  `Dano Físico: ${
-    physicalDamage
+  lines.push('"Vigor', '');
+  lines.push(`Vigor: ${massAdjustedVigor.value}/${massAdjustedVigor.value}`);
+  lines.push(
+    `Dano Físico: ${physicalDamage
       ? physicalDamage.diceCount > 0
         ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
         : 'Trauma Direto automático'
       : ''
-  }`
-);
-lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
-lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);
-lines.push('');
+    }`
+  );
+  lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
+  lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);
+  lines.push('');
   lines.push('"Ferimentos', '');
   lines.push('Local / Penalidade: Nenhum');
   lines.push('');
@@ -209,88 +208,96 @@ lines.push('');
     lines.push('');
   }
   if (isAgent && character.classPath.archetypeId && ARCHETYPE_BONUSES[character.classPath.archetypeId]) {
-  const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
-  lines.push(`Bônus do Arquétipo (${bonus.name}): ${bonus.description}`);
-}
-if (character.weightKg) {
-  const archetypeBonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
-  const archetypeShifts = archetypeBonus?.massShift
-    ? { [archetypeBonus.massShift.axis]: archetypeBonus.massShift.amount }
-    : {};
+    const bonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+    lines.push(`Bônus do Arquétipo (${bonus.name}): ${bonus.description}`);
+  }
+  if (character.weightKg) {
+    const archetypeBonus = ARCHETYPE_BONUSES[character.classPath.archetypeId];
+    const archetypeShifts = archetypeBonus?.massShift
+      ? { [archetypeBonus.massShift.axis]: archetypeBonus.massShift.amount }
+      : {};
 
-  const massInfo = getEffectiveMassCategory(character.weightKg, {
-    forcaLevel: finalSkillTotals.forca || 0,
-    constituicaoLevel: finalSkillTotals.constituicao || 0,
-    resistenciaLevel: finalSkillTotals.resistencia || 0,
-    archetypeShifts,
-  });
-  lines.push('Categoria de Massa:');
-  lines.push(`> Peso real: ${massInfo.real.label}`);
-  lines.push(`> Dano: ${massInfo.damage.category.damageEffect}`);
-  lines.push(`> Vigor: ${massInfo.vigor.category.vigorEffect}`);
-  lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
-  lines.push(`> Vantagem: ${massInfo.real.advantage}`);
-  lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
-    if (cargaInfo) {
-    lines.push('Carga:');
-    lines.push(`> Confortável: até ${cargaInfo.comfortable.maxKg}kg (Carga ${cargaInfo.comfortable.cargaLevel})`);
-    lines.push(`> Pesada: até ${cargaInfo.heavy.maxKg}kg (Carga ${cargaInfo.heavy.cargaLevel})`);
-    lines.push(`> Extrema: até ${cargaInfo.extreme.maxKg}kg (Carga ${cargaInfo.extreme.cargaLevel})`);
-    lines.push('');
-  }
-  if (movementInfo) {
-    if (movementInfo.note) {
-      lines.push(`Movimento: 0 pontos (${movementInfo.note})`);
-    } else {
-      lines.push(
-        `Movimento: ${movementInfo.value} pontos — ${movementInfo.normal.metersPerTurn}m/turno (${movementInfo.normal.kmh} km/h) · ` +
-        `Esforço Intenso: ${movementInfo.intenso.metersPerTurn}m/turno (${movementInfo.intenso.kmh} km/h)`
-      );
-    }
-  lines.push('');
-}
-  if (character.fightingStyles && character.fightingStyles.length > 0) {
-    lines.push('Estilo de Luta:');
-    const active = character.fightingStyles.find((s) => s.id === character.activeFightingStyleId);
-    lines.push(`> Ativo: ${active?.name || 'Nenhum'}`);
-    character.fightingStyles.forEach((style) => {
-      const effects = calculateStyleEffects(style, {
-        physicalDamage,
-        constituicaoLevel: finalSkillTotals.constituicao || 0,
-        prontidaoLevel: finalSkillTotals.prontidao || 0,
-      });
-      lines.push(`> ${style.name || '(sem nome)'}`);
-      lines.push(`  - Potência ${effects.potencia.points}: ${effects.potencia.baseDamage}${effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}`);
-      lines.push(`  - Robustez ${effects.robustez.points}: DT contra Atordoamento = ${effects.robustez.dtContraAtordoamento}`);
-      lines.push(`  - Agilidade ${effects.agilidade.points}: ${effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno`);
-      lines.push(`  - Distância ${effects.distancia.points}: ${effects.distancia.usosPerScene} uso(s) por cena`);
-      lines.push(`  - Controle ${effects.controle.points}: ${effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra`);
-      if (effects.postura.ofensiva.level > 0) {
-        lines.push(`  - Postura Ofensiva Nível ${effects.postura.ofensiva.level}: ${effects.postura.ofensiva.description}`);
-      }
-      if (effects.postura.defensiva.level > 0) {
-        lines.push(`  - Postura Defensiva Nível ${effects.postura.defensiva.level}: ${effects.postura.defensiva.description} (dado atual: ${effects.postura.defensiva.prontidaoDie})`);
-      }
-      style.passives.forEach((p) => {
-        lines.push(`  - Passiva (${p.names.join(' + ')}, peso ${p.weight}, escopo: ${p.scope || '(sem escopo)'}): ${p.description || '(sem descrição)'}`);
-      });
+    const massInfo = getEffectiveMassCategory(character.weightKg, {
+      forcaLevel: finalSkillTotals.forca || 0,
+      constituicaoLevel: finalSkillTotals.constituicao || 0,
+      resistenciaLevel: finalSkillTotals.resistencia || 0,
+      archetypeShifts,
     });
-    lines.push('');
+    lines.push('Categoria de Massa:');
+    lines.push(`> Peso real: ${massInfo.real.label}`);
+    lines.push(`> Dano: ${massInfo.damage.category.damageEffect}`);
+    lines.push(`> Vigor: ${massInfo.vigor.category.vigorEffect}`);
+    lines.push(`> Stamina: ${massInfo.stamina.category.staminaEffect}`);
+    lines.push(`> Vantagem: ${massInfo.real.advantage}`);
+    lines.push(`> Desvantagem: ${massInfo.real.disadvantage}`);
+    if (cargaInfo) {
+      lines.push('Carga:');
+      lines.push(`> Confortável: até ${cargaInfo.comfortable.maxKg}kg (Carga ${cargaInfo.comfortable.cargaLevel})`);
+      lines.push(`> Pesada: até ${cargaInfo.heavy.maxKg}kg (Carga ${cargaInfo.heavy.cargaLevel})`);
+      lines.push(`> Extrema: até ${cargaInfo.extreme.maxKg}kg (Carga ${cargaInfo.extreme.cargaLevel})`);
+      lines.push('');
+    }
+    if (movementInfo) {
+      if (movementInfo.note) {
+        lines.push(`Movimento: 0 pontos (${movementInfo.note})`);
+      } else {
+        lines.push(
+          `Movimento: ${movementInfo.value} pontos — ${movementInfo.normal.metersPerTurn}m/turno (${movementInfo.normal.kmh} km/h) · ` +
+          `Esforço Intenso: ${movementInfo.intenso.metersPerTurn}m/turno (${movementInfo.intenso.kmh} km/h)`
+        );
+      }
+      lines.push('');
+    }
+    if (character.fightingStyles && character.fightingStyles.length > 0) {
+      lines.push('Estilo de Luta:');
+      const active = character.fightingStyles.find((s) => s.id === character.activeFightingStyleId);
+      lines.push(`> Ativo: ${active?.name || 'Nenhum'}`);
+      character.fightingStyles.forEach((style) => {
+        const effects = calculateStyleEffects(style, {
+          physicalDamage,
+          constituicaoLevel: finalSkillTotals.constituicao || 0,
+          prontidaoLevel: finalSkillTotals.prontidao || 0,
+        });
+        lines.push(`> ${style.name || '(sem nome)'}`);
+        lines.push(`  - Potência ${effects.potencia.points}: ${effects.potencia.baseDamage}${effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}`);
+        lines.push(`  - Robustez ${effects.robustez.points}: DT contra Atordoamento = ${effects.robustez.dtContraAtordoamento}`);
+        lines.push(`  - Agilidade ${effects.agilidade.points}: ${effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno`);
+        lines.push(`  - Distância ${effects.distancia.points}: ${effects.distancia.usosPerScene} uso(s) por cena`);
+        lines.push(`  - Controle ${effects.controle.points}: ${effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra`);
+        if (effects.postura.ofensiva.level > 0) {
+          lines.push(`  - Postura Ofensiva Nível ${effects.postura.ofensiva.level}: ${effects.postura.ofensiva.description}`);
+        }
+        if (effects.postura.defensiva.level > 0) {
+          lines.push(`  - Postura Defensiva Nível ${effects.postura.defensiva.level}: ${effects.postura.defensiva.description} (dado atual: ${effects.postura.defensiva.prontidaoDie})`);
+        }
+      style.passives.forEach((p) => {
+        const categoryText = `${p.category ?? '(sem categoria)'}${p.conditional ? ` (${p.conditional.description})` : ''}`;
+        lines.push(`# ${style.name.toUpperCase() || '(SEM NOME)'} — PASSIVA`, '');
+        lines.push(`> ${p.description || ''}`);
+        lines.push(`> **Categoria:** ${categoryText} · **Efeito:** ${p.names.join(' + ')} · **Peso:** ${p.weight}`);
+        lines.push('');
+      });
+      });
+      lines.push('');
+    }
   }
-}
-character.selectedAbilities.forEach((a) => {
-  const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
-  const triggerText = `${a.trigger.type}${a.trigger.detail ? ` (${a.trigger.detail})` : ''}`;
-  const effectText = a.effect.description;
-  const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
-  lines.push(`> ${name} — ${triggerText} · ${a.cost.form} → ${effectText}${conditionalText}`);
-});
+  character.selectedAbilities.forEach((a) => {
+    const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;
+    const triggerText = `${a.trigger.type}${a.trigger.detail ? ` (${a.trigger.detail})` : ''}`;
+    const conditionalText = a.conditional ? ` (Condicional: ${a.conditional.description})` : '';
+    lines.push(`# ${name.toUpperCase()}`, '');
+    lines.push(`> ${a.effect.description}`);
+    lines.push(`> **Gatilho:** ${triggerText} · **Custo:** ${a.cost.form} · **Efeito:** ${a.effect.names.join(' + ')}${conditionalText}`);
+    lines.push('');
+  });
 
   if (character.customSkills.length > 0) {
-    lines.push('Habilidades:');
     character.customSkills.forEach((sk) => {
       const skillLabel = SKILLS[sk.skillId]?.label ?? sk.skillId;
-      lines.push(`> ${sk.name || '(sem nome)'} [${skillLabel}, custo: ${sk.cost}] — ${sk.narrative}`);
+      lines.push(`# ${(sk.name || '(sem nome)').toUpperCase()}`, '');
+      lines.push(`> ${sk.narrative || ''}`);
+      lines.push(`> **Perícia:** ${skillLabel} · **Custo:** ${sk.cost} · **Efeito:** ${sk.effectType}`);
+      lines.push('');
     });
   }
 

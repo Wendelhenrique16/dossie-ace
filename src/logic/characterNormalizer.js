@@ -20,10 +20,11 @@ export function normalizeCharacter(data = {}) {
       },
       passives: (style.passives ?? []).map((p) => ({
         instanceId: p.instanceId ?? `${Date.now()}-${Math.random()}`,
-        names: p.names ?? (p.effectName ? [p.effectName] : []), // migra dados antigos (1 nome solto)
+        names: p.names ?? [],
         weight: p.weight ?? 1,
-        scope: p.scope ?? '',
-        description: p.description ?? '',
+        category: p.category ?? null,
+        conditional: p.conditional ?? null, // null | { description: string }
+        description: p.description ?? (p.scope ?? ''), // migra dados antigos (campo scope) pra description
       })),
     }));
     // TODO PERSONAGEM SEMPRE TEM PELO MENOS 1 ESTILO — mesmo zerado.

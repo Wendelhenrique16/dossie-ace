@@ -10,9 +10,10 @@ export const COST_FORMS_BY_WEIGHT = {
   1: ['1 Vigor', '1 Sanidade', '1 ação/reação (Stamina)', 'Fadiga Leve (-1 até descansar)'],
   2: ['2 Vigor', '1 Vigor + 1 Sanidade', '2 Sanidade', 'Fadiga Média (-3 até descansar)'],
   3: ['Usar o turno inteiro', 'Debuff/penalidade em si mesmo', '3+ Vigor ou Sanidade combinados', 'Fadiga Pesada (-5 até descansar)'],
+  4: ['4+ Vigor ou Sanidade combinados', 'Debuff/penalidade grave em si mesmo', 'Fadiga Devastadora (-10 até descansar)'],
 };
 
-export const COST_WEIGHT_LABELS = { 1: 'Leve', 2: 'Moderado', 3: 'Pesado' };
+export const COST_WEIGHT_LABELS = { 1: 'Leve', 2: 'Moderado', 3: 'Pesado', 4: 'Devastador' };
 
 // As 10 opções de Efeito nomeado — peso fixo, não editável por design.
 export const EFFECT_DEFINITIONS = {
@@ -29,9 +30,8 @@ export const EFFECT_DEFINITIONS = {
 };
 
 export function getEffectWeight(names) {
-  return Math.max(...names.map((n) => EFFECT_DEFINITIONS[n]?.weight ?? 1));
+  return names.reduce((sum, n) => sum + (EFFECT_DEFINITIONS[n]?.weight ?? 1), 0);
 }
-
 // description = texto específico dessa habilidade (o que ela faz na prática),
 // pré-preenchido no campo editável "Descrição" ao escolher do catálogo.
 // EFFECT_DEFINITIONS[nome].description é o texto GENÉRICO do Efeito em si
@@ -70,11 +70,11 @@ export const ABILITIES = {
 
   recuo_controlado: ability('recuo_controlado', 'Recuo Controlado', 'combate', 'Ativo', 'ao atirar em rajada',
     { weight: 2, form: 'Fadiga Média (-3 até descansar)' }, ['Blindar'], 'Ignora a penalidade de recuo ao disparar em modo Automático ou usar Fogo de Supressão.'),
-    evasao_perfeita: ability('evasao_perfeita', 'Evasão Perfeita', 'combate', 'Reativo', 'ao rolar defesa contra um ataque físico',
+  evasao_perfeita: ability('evasao_perfeita', 'Evasão Perfeita', 'combate', 'Reativo', 'ao rolar defesa contra um ataque físico',
     { weight: 2, form: '2 Vigor' }, ['Vantagem'], 'A Esquiva é rolada duas vezes e fica-se com o melhor resultado.'),
   golpe_certeiro: {
     ...ability('golpe_certeiro', 'Golpe Certeiro', 'combate', 'Ativo', 'antes de um ataque preparado, sem ter se movido no turno',
-      { weight: 2, form: '2 Vigor' }, ['Vantagem', 'Garantir'], 'O ataque a um ponto vital é rolado duas vezes (fica-se com o melhor), e essa rolagem não pode cair em Falha Crítica.'),
+      { weight: 3, form: '3+ Vigor ou Sanidade combinados' }, ['Vantagem', 'Garantir'], 'O ataque a um ponto vital é rolado duas vezes (fica-se com o melhor), e essa rolagem não pode cair em Falha Crítica.'),
     conditional: { description: 'Não se moveu neste turno', costReduction: 1 },
   },
 
@@ -96,8 +96,7 @@ export const ABILITIES = {
     { weight: 3, form: 'Fadiga Pesada (-5 até descansar)' }, ['Blindar'], 'Ignora, por uma cena, uma penalidade grave acumulada — o corpo aguenta agora e cobra o preço depois.'),
 
   furia_calculada: ability('furia_calculada', 'Fúria Calculada', 'combate', 'Ativo', 'ao atacar um alvo já ferido',
-    { weight: 2, form: '2 Vigor' }, ['Vantagem', 'Amplificar'], 'O ataque desarmado é rolado duas vezes (fica-se com o melhor), e se o resultado for Sucesso Normal, ainda é tratado como Sucesso Bom.'),
-
+    { weight: 4, form: 'Fadiga Devastadora (-10 até descansar)' }, ['Vantagem', 'Amplificar'], 'O ataque desarmado é rolado duas vezes (fica-se com o melhor), e se o resultado for Sucesso Normal, ainda é tratado como Sucesso Bom.'),
   tiro_de_instinto: ability('tiro_de_instinto', 'Tiro de Instinto', 'combate', 'Reativo', 'ao ser surpreendido e precisar reagir armado',
     { weight: 2, form: 'Fadiga Média (-3 até descansar)' }, ['Vantagem', 'Agilizar'], 'O disparo é rolado duas vezes (fica-se com o melhor), e a ação de atirar gasta 1 ação a menos.'),
   // ---- MOVIMENTO E FURTIVIDADE ----
@@ -130,8 +129,8 @@ export const ABILITIES = {
   presenca_imponente: ability('presenca_imponente', 'Presença Imponente', 'social', 'Ativo', 'antes de intimidar',
     { weight: 1, form: '1 Vigor' }, ['Garantir'], 'O teste de Intimidar não pode cair em Falha Crítica.'),
   leitura_perfeita: ability('leitura_perfeita', 'Leitura Perfeita', 'social', 'Ativo', 'ao tentar ler as intenções reais de alguém',
-    { weight: 2, form: '2 Sanidade' }, ['Vantagem', 'Compensar'], 'O teste social é rolado duas vezes (fica-se com o melhor), e mesmo o pior dos dois resultados ainda revela uma informação parcial.'),
-  // ---- MENTAL E SANIDADE ----
+    { weight: 4, form: '4+ Vigor ou Sanidade combinados' }, ['Vantagem', 'Compensar'], 'O teste social é rolado duas vezes (fica-se com o melhor), e mesmo o pior dos dois resultados ainda revela uma informação parcial.'),
+
   compartimentalizar: ability('compartimentalizar', 'Compartimentalizar', 'mental', 'Reativo', 'ao sofrer uma perda de Sanidade',
     { weight: 2, form: '2 Vigor' }, ['Blindar'], 'Ignora, por uma cena, a penalidade acumulada de choque/trauma recente.'),
 
@@ -187,7 +186,7 @@ export const ABILITIES = {
 
   modelo_maestria_pressao: {
     ...ability('modelo_maestria_pressao', 'Maestria sob Pressão', 'modelo', 'Reativo', 'em uma situação de perigo iminente/pressão',
-      { weight: 2, form: '1 Vigor + 1 Sanidade' }, ['Agilizar', 'Amplificar'], 'A ação escolhida gasta 1 ação a menos e um Sucesso normal nela é tratado como Sucesso Bom, só enquanto a pressão durar.',
+      { weight: 3, form: '3+ Vigor ou Sanidade combinados' }, ['Agilizar', 'Amplificar'], 'A ação escolhida gasta 1 ação a menos e um Sucesso normal nela é tratado como Sucesso Bom, só enquanto a pressão durar.',
       { hasContext: true, contextLabel: 'ação + perícia' }),
     conditional: { description: 'Só utilizável enquanto estiver sob a condição de pressão descrita', costReduction: 1 },
   },
