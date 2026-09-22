@@ -489,26 +489,35 @@ export function calculatePassiveWeightBudget(style) {
 }
 /**
  * Valida se o peso total das Passivas escolhidas pra um Estilo respeita
- * o orçamento e o teto de peso 2 por passiva individual. Cada passiva pode
- * combinar mais de um Efeito nomeado (igual Habilidade) — o peso da passiva
- * é o maior peso entre os Efeitos escolhidos nela.
+ * o orçamento e o teto de peso 2 por passiva individual. Cada passiva
+ * precisa de ao menos 1 Efeito e uma Categoria de Escopo escolhida.
  */
 export function validateStylePassives(style, chosenPassives) {
   const budget = calculatePassiveWeightBudget(style);
   const totalWeight = (chosenPassives || []).reduce((sum, p) => sum + p.weight, 0);
   const anyOverweight = (chosenPassives || []).some((p) => p.weight > MAX_SINGLE_PASSIVE_WEIGHT);
-  const anyMissingScope = (chosenPassives || []).some((p) => !p.scope || !p.scope.trim());
+  const anyMissingCategory = (chosenPassives || []).some((p) => !p.category);
   const anyMissingNames = (chosenPassives || []).some((p) => !p.names || p.names.length === 0);
   return {
-    valid: totalWeight <= budget && !anyOverweight && !anyMissingScope && !anyMissingNames,
+    valid: totalWeight <= budget && !anyOverweight && !anyMissingCategory && !anyMissingNames,
     budget,
     totalWeight,
     anyOverweight,
-    anyMissingScope,
+    anyMissingCategory,
     anyMissingNames,
   };
 }
-
+/**
+ * Peso final de uma Passiva: o maior peso entre os Efeitos combinados,
+ * reduzido em 1 (mínimo 1) se houver Condicional preenchido — mesma lógica
+ * do Condicional de Habilidade, só que aqui reduz PESO em vez de Custo,
+ * porque Passiva não tem Custo.
+ */
+export function calculatePassiveWeight(names, hasConditional) {
+  if (!names || names.length === 0) return 1;
+  const baseWeight = getEffectWeight(names);
+  return hasConditional ? Math.max(1, baseWeight - 1) : baseWeight;
+}
 /**
  * Traduz os pontos investidos em CADA Eixo pro efeito mecânico concreto.
  * physicalDamage vem de calculatePhysicalDamageBase + applyMassDamageModifier

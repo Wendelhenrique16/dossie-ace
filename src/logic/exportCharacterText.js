@@ -272,7 +272,8 @@ if (character.weightKg) {
         lines.push(`  - Postura Defensiva Nível ${effects.postura.defensiva.level}: ${effects.postura.defensiva.description} (dado atual: ${effects.postura.defensiva.prontidaoDie})`);
       }
       style.passives.forEach((p) => {
-        lines.push(`  - Passiva (${p.names.join(' + ')}, peso ${p.weight}, escopo: ${p.scope || '(sem escopo)'}): ${p.description || '(sem descrição)'}`);
+        const scopeText = `${p.category ?? '(sem categoria)'}${p.conditional ? ` — ${p.conditional.description}` : ''}`;
+        lines.push(`  - Passiva (${p.names.join(' + ')}, peso ${p.weight}, ${scopeText}): ${p.description || '(sem descrição)'}`);
       });
     });
     lines.push('');

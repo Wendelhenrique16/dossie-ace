@@ -24,6 +24,7 @@ import AbilityCatalogModal from '../components/modals/AbilityCatalogModal';
 import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINITIONS, getEffectWeight } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { getSignatureAbilitiesForArchetype } from '../data/abilities';
+import { PASSIVE_CATEGORIES } from '../data/fightingStyles';
 import {
   FIGHTING_STYLE_AXES, DICE_BONUS_AXES, POSTURE_EFFECTS, PASSIVE_POINTS_PER_UNLOCK,
   MAX_SINGLE_PASSIVE_WEIGHT, EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
@@ -394,13 +395,13 @@ function handleSetPosturePoints(styleId, postureId, value) {
 function handleAddBlankPassive(styleId) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: [...s.passives, { instanceId: `${Date.now()}-${Math.random()}`, names: [], weight: 1, scope: '', description: '' }],
+    passives: [...s.passives, { instanceId: `${Date.now()}-${Math.random()}`, names: [], weight: 1, category: null, conditional: null, description: '' }],
   }));
 }
 function handleAddPassiveFromModel(styleId, model) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: [...s.passives, createPassiveFromModel(model)],
+    passives: [...s.passives, { ...createPassiveFromModel(model), weight: getEffectWeight(model.names) }],
   }));
 }
 function handleRemovePassive(styleId, instanceId) {
@@ -417,14 +418,32 @@ function handleTogglePassiveEffectName(styleId, instanceId, effectName) {
       const names = p.names.includes(effectName)
         ? p.names.filter((n) => n !== effectName)
         : [...p.names, effectName];
-      return { ...p, names, weight: names.length ? getEffectWeight(names) : 1 };
+      const weight = names.length ? Math.max(1, getEffectWeight(names) - (p.conditional ? 1 : 0)) : 1;
+      return { ...p, names, weight };
     }),
   }));
 }
-function handleSetPassiveScope(styleId, instanceId, scope) {
+function handleSetPassiveCategory(styleId, instanceId, category) {
   handleUpdateStyle(styleId, (s) => ({
     ...s,
-    passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, scope } : p)),
+    passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, category } : p)),
+  }));
+}
+function handleTogglePassiveConditional(styleId, instanceId) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => {
+      if (p.instanceId !== instanceId) return p;
+      const conditional = p.conditional ? null : { description: '' };
+      const weight = p.names.length ? Math.max(1, getEffectWeight(p.names) - (conditional ? 1 : 0)) : 1;
+      return { ...p, conditional, weight };
+    }),
+  }));
+}
+function handleSetPassiveConditionalDescription(styleId, instanceId, description) {
+  handleUpdateStyle(styleId, (s) => ({
+    ...s,
+    passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, conditional: { ...p.conditional, description } } : p)),
   }));
 }
 function handleSetPassiveDescription(styleId, instanceId, description) {
@@ -1830,72 +1849,92 @@ function handleSetPassiveDescription(styleId, instanceId, description) {
   ) : (
     <div className="space-y-3">
       {style.passives.map((p) => (
-        <div key={p.instanceId} className="border-l-2 border-gray-200 pl-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-500">Peso {p.weight}</span>
-            <button
-              onClick={() => handleRemovePassive(style.id, p.instanceId)}
-              className="text-xs text-red-500 underline"
-            >
-              Remover
-            </button>
-          </div>
+<div key={p.instanceId} className="border-l-2 border-gray-200 pl-2">
+  <div className="flex items-center justify-between mb-1">
+    <span className="text-xs text-gray-500">Peso {p.weight}</span>
+    <button
+      onClick={() => handleRemovePassive(style.id, p.instanceId)}
+      className="text-xs text-red-500 underline"
+    >
+      Remover
+    </button>
+  </div>
 
-          <div className="flex flex-wrap gap-1 mb-2">
-            {Object.entries(EFFECT_DEFINITIONS)
-              .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
-              .map(([name, def]) => {
-                const selected = p.names.includes(name);
-                return (
-                  <button
-                    key={name} type="button"
-                    onClick={() => handleTogglePassiveEffectName(style.id, p.instanceId, name)}
-                    className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
-                  >
-                    {name} ({def.weight})
-                  </button>
-                );
-              })}
-          </div>
+  <div className="flex flex-wrap gap-1 mb-2">
+    {Object.entries(EFFECT_DEFINITIONS)
+      .filter(([name]) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
+      .map(([name, def]) => {
+        const selected = p.names.includes(name);
+        return (
+          <button
+            key={name} type="button"
+            onClick={() => handleTogglePassiveEffectName(style.id, p.instanceId, name)}
+            className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+          >
+            {name} ({def.weight})
+          </button>
+        );
+      })}
+  </div>
 
-          {p.names.length > 0 && (
-            <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1 mb-2">
-              {p.names.map((n) => (
-                <div key={n}><strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}</div>
-              ))}
-            </div>
-          )}
-
-          <label className="block text-xs text-gray-500 mb-1">
-            Escopo (obrigatório): a que golpes/situação se aplica
-          </label>
-          <input
-            className={`w-full border rounded px-2 py-1 text-xs mb-1 ${!p.scope.trim() ? 'border-red-400' : ''}`}
-            placeholder='ex: "cruzados e ganchos", "manobras de imobilização já em andamento"'
-            value={p.scope}
-            onChange={(e) => handleSetPassiveScope(style.id, p.instanceId, e.target.value)}
-          />
-          <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
-          <textarea
-            className="w-full border rounded px-2 py-1 text-xs"
-            rows={2}
-            placeholder="Descreva na prática o que essa passiva faz"
-            value={p.description}
-            onChange={(e) => handleSetPassiveDescription(style.id, p.instanceId, e.target.value)}
-          />
-        </div>
+  {p.names.length > 0 && (
+    <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1 mb-2">
+      {p.names.map((n) => (
+        <div key={n}><strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}</div>
       ))}
     </div>
   )}
 
-  {!passiveValidation.valid && (
-    <p className="text-xs text-red-600 mt-2">
-      ⚠ {passiveValidation.anyMissingNames && 'Toda Passiva precisa de ao menos 1 Efeito selecionado. '}
-      {passiveValidation.anyMissingScope && 'Toda Passiva precisa de um Escopo preenchido. '}
-      {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
-      {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
-    </p>
+  <label className="block text-xs text-gray-500 mb-1">Categoria (obrigatória)</label>
+  <select
+    className={`w-full border rounded px-2 py-1 text-xs mb-2 ${!p.category ? 'border-red-400' : ''}`}
+    value={p.category ?? ''}
+    onChange={(e) => handleSetPassiveCategory(style.id, p.instanceId, e.target.value || null)}
+  >
+    <option value="">Selecione...</option>
+    {PASSIVE_CATEGORIES.map((cat) => (
+      <option key={cat} value={cat}>{cat}</option>
+    ))}
+  </select>
+
+  <label className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+    <input
+      type="checkbox"
+      checked={!!p.conditional}
+      onChange={() => handleTogglePassiveConditional(style.id, p.instanceId)}
+    />
+    Condicional (reduz o peso em 1, mínimo 1 — torna a Passiva mais específica)
+  </label>
+  {p.conditional && (
+    <input
+      className="w-full border rounded px-2 py-1 text-xs mb-2"
+      placeholder='ex: "só em chutes giratórios"'
+      value={p.conditional.description}
+      onChange={(e) => handleSetPassiveConditionalDescription(style.id, p.instanceId, e.target.value)}
+    />
   )}
+
+  <label className="block text-xs text-gray-500 mb-1">Descrição (opcional)</label>
+  <textarea
+    className="w-full border rounded px-2 py-1 text-xs"
+    rows={2}
+    placeholder="Descreva na prática o que essa passiva faz"
+    value={p.description}
+    onChange={(e) => handleSetPassiveDescription(style.id, p.instanceId, e.target.value)}
+  />
+</div>
+      ))}
+    </div>
+  )}
+
+{!passiveValidation.valid && (
+  <p className="text-xs text-red-600 mt-2">
+    ⚠ {passiveValidation.anyMissingNames && 'Toda Passiva precisa de ao menos 1 Efeito selecionado. '}
+    {passiveValidation.anyMissingCategory && 'Toda Passiva precisa de uma Categoria selecionada. '}
+    {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
+    {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
+  </p>
+)}
 </div>
           </div>
         );
@@ -2084,11 +2123,11 @@ function handleSetPassiveDescription(styleId, instanceId, description) {
                           {effects.postura.defensiva.level > 0 && (
                             <div className="text-gray-500">Postura Defensiva Nível {effects.postura.defensiva.level}: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})</div>
                           )}
-                          {style.passives.map((p) => (
-                            <div key={p.instanceId} className="text-gray-500">
-                              Passiva ({p.names.join(' + ')}, escopo: {p.scope || '(sem escopo)'}): {p.description || '(sem descrição)'}
-                            </div>
-                          ))}
+                     {style.passives.map((p) => (
+  <div key={p.instanceId} className="text-gray-500">
+    Passiva ({p.names.join(' + ')}, {p.category ?? '(sem categoria)'}{p.conditional ? ` — ${p.conditional.description}` : ''}): {p.description || '(sem descrição)'}
+  </div>
+))}
                         </div>
                       );
                     })}
