@@ -1,27 +1,27 @@
 // src/data/fightingStylesCatalog.js
-// Catálogo de APOIO pro Estilo de Luta — igual ao de Habilidades: alguns
-// prontos pra usar direto, um modelo em branco pra preencher o conceito.
-// O motor de criação livre (characterCalculations.js) não depende disto.
+import { getEffectWeight } from './abilities';
 
 export const FIGHTING_STYLE_CATALOG = [
   {
     id: 'boxe',
     name: 'Boxe',
     category: 'pronto',
-    description: 'Estilo ofensivo baseado em socos, deslocamento de guarda e pressão constante.',
+    description: 'Soca rápido e desvia o corpo.',
     pointsRequired: 6,
-    eixos: { potencia: 2, robustez: 1, agilidade: 1, distancia: 0, controle: 0 },
-    postura: { ofensiva: 2, defensiva: 0 }, // 3 pontos de Postura (Nível 2) + 3 de Eixos = 6
-    passives: [{ names: ['Agilizar'], weight: 1, scope: 'Golpes de cruzado e jab', description: '' }],  },
+    eixos: { potencia: 2, robustez: 1, agilidade: 2, distancia: 0, controle: 0 },
+    postura: { ofensiva: 1, defensiva: 0 }, // 5 de Eixos + 1 de Postura (Nível 1) = 6
+    passives: [{ names: ['Agilizar'], category: 'Socos', conditional: null, description: 'Golpes de cruzado e jab.' }],
+  },
   {
     id: 'capoeira',
     name: 'Capoeira',
     category: 'pronto',
     description: 'Estilo evasivo e imprevisível, prioriza reposicionamento e golpes de oportunidade.',
-    pointsRequired: 6,
+    pointsRequired: 5,
     eixos: { potencia: 0, robustez: 0, agilidade: 2, distancia: 2, controle: 0 },
-    postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
-    passives: [{ names: ['Garantir'], weight: 1, scope: 'Esquivas com giro ou cambalhota', description: '' }],  },
+    postura: { ofensiva: 0, defensiva: 1 }, // 4 de Eixos + 1 de Postura (Nível 1) = 5
+    passives: [{ names: ['Garantir'], category: 'Defesas', conditional: null, description: 'Esquivas com giro ou cambalhota.' }],
+  },
   {
     id: 'jiu_jitsu',
     name: 'Jiu-Jitsu',
@@ -29,8 +29,9 @@ export const FIGHTING_STYLE_CATALOG = [
     description: 'Foco total em levar o combate ao chão e finalizar através de agarrões e imobilizações.',
     pointsRequired: 6,
     eixos: { potencia: 0, robustez: 1, agilidade: 0, distancia: 0, controle: 4 },
-    postura: { ofensiva: 0, defensiva: 1 }, // 1 ponto de Postura (Nível 1) + 5 de Eixos = 6
-    passives: [{ names: ['Amplificar'], weight: 2, scope: 'Manobras de imobilização já em andamento', description: '' }],  },
+    postura: { ofensiva: 0, defensiva: 1 }, // 5 de Eixos + 1 de Postura (Nível 1) = 6
+    passives: [{ names: ['Amplificar'], category: 'Agarrões', conditional: null, description: 'Manobras de imobilização já em andamento.' }],
+  },
   {
     id: 'modelo_generico',
     name: '[Nome do Estilo]',
@@ -53,8 +54,7 @@ export function getStyleModels() {
 
 /**
  * Aplica um template do catálogo SOBRE um Estilo já existente (sobrescreve
- * eixos/postura/passivas). Preserva o id do Estilo e o nome, SE o jogador já
- * tiver digitado um nome — senão usa o nome do catálogo.
+ * eixos/postura/passivas). Preserva id, nome (se já digitado) e Golpes de Assinatura.
  */
 export function applyCatalogToStyle(existingStyle, catalogEntry) {
   return {
@@ -65,8 +65,9 @@ export function applyCatalogToStyle(existingStyle, catalogEntry) {
     passives: catalogEntry.passives.map((p) => ({
       instanceId: `${Date.now()}-${Math.random()}`,
       names: [...p.names],
-      weight: p.weight,
-      scope: p.scope ?? '',
+      weight: Math.max(1, getEffectWeight(p.names) - (p.conditional ? 1 : 0)),
+      category: p.category ?? null,
+      conditional: p.conditional ? { ...p.conditional } : null,
       description: p.description ?? '',
     })),
   };
@@ -79,5 +80,6 @@ export function createBlankStyle() {
     eixos: { potencia: 0, robustez: 0, agilidade: 0, distancia: 0, controle: 0 },
     postura: { ofensiva: 0, defensiva: 0 },
     passives: [],
+    signatureMoves: [],
   };
 }

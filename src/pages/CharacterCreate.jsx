@@ -29,18 +29,19 @@ import {
   FIGHTING_STYLE_AXES, DICE_BONUS_AXES, POSTURE_EFFECTS, PASSIVE_POINTS_PER_UNLOCK,
   MAX_SINGLE_PASSIVE_WEIGHT, EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
 } from '../data/fightingStyles';
+import AbilityFields from '../components/character/AbilityFields';
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
 import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
-  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel,
+  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves,
 } from '../logic/characterCalculations';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
   calculateMaxSanity, rollAgingPenaltyAttributes, calculatePhysicalDamageBase,
-  applyMassDamageModifier, applyMassVigorModifier,
+  applyMassDamageModifier, calculateMaxVigor, formatPhysicalDamage,
   calculateCargaLimits, calculateMovement, // NOVO
 } from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';
@@ -319,11 +320,13 @@ export default function CharacterCreate({ userId }) {
       archetypeShifts,
     });
   }, [character.weightKg, finalSkillTotals, archetypeShifts]);
-  const isLutador = character.classPath.classId === 'lutador'; // ajuste o id se for diferente
 
   const massAdjustedVigor = useMemo(() => {
-    if (!massInfo) return { value: vigor, note: null };
-    return applyMassVigorModifier(vigor, massInfo.vigor.category.id, finalSkillTotals.constituicao || 0);
+    if (!massInfo) return { value: vigor, note: 'Informe o peso pra somar o Vigor Base da Massa.' };
+    return {
+      value: calculateMaxVigor(massInfo.vigor.category, finalSkillTotals.resistencia || 0, finalSkillTotals.constituicao || 0),
+      note: null,
+    };
   }, [massInfo, vigor, finalSkillTotals]);
 
   const physicalDamage = useMemo(() => {
@@ -331,11 +334,10 @@ export default function CharacterCreate({ userId }) {
     const baseDamage = calculatePhysicalDamageBase(
       finalAttributeTotals.existencia || 0,
       finalSkillTotals.forca || 0,
-      finalSkillTotals.combate || 0,
-      isLutador
+      finalSkillTotals.combate || 0
     );
     return applyMassDamageModifier(baseDamage, massInfo.damage.category.id);
-  }, [massInfo, finalAttributeTotals, finalSkillTotals, isLutador]);
+  }, [massInfo, finalAttributeTotals, finalSkillTotals]);
   const cargaInfo = useMemo(() => {
     if (!character.weightKg) return null;
     return calculateCargaLimits(character.weightKg, finalSkillTotals.forca || 0);
@@ -452,6 +454,36 @@ export default function CharacterCreate({ userId }) {
       passives: s.passives.map((p) => (p.instanceId === instanceId ? { ...p, description } : p)),
     }));
 
+  }
+  function handleAddSignatureMove(styleId) {
+    handleUpdateStyle(styleId, (s) => ({
+      ...s,
+      signatureMoves: [
+        ...(s.signatureMoves ?? []),
+        {
+          instanceId: `${Date.now()}-${Math.random()}`,
+          abilityId: null,
+          name: 'Novo Golpe',
+          trigger: { type: 'Ativo', detail: '' },
+          contextText: '',
+          conditional: null,
+          cost: { weight: 1, form: COST_FORMS_BY_WEIGHT[1][0] },
+          effect: { weight: 1, names: [], description: '' },
+        },
+      ],
+    }));
+  }
+  function handleUpdateSignatureMove(styleId, instanceId, updater) {
+    handleUpdateStyle(styleId, (s) => ({
+      ...s,
+      signatureMoves: (s.signatureMoves ?? []).map((m) => (m.instanceId === instanceId ? updater(m) : m)),
+    }));
+  }
+  function handleRemoveSignatureMove(styleId, instanceId) {
+    handleUpdateStyle(styleId, (s) => ({
+      ...s,
+      signatureMoves: (s.signatureMoves ?? []).filter((m) => m.instanceId !== instanceId),
+    }));
   }
 
   function handleSelectLifeStage(id) {
@@ -769,16 +801,20 @@ export default function CharacterCreate({ userId }) {
                 </button>
               ))}
             </div>
-            <label className="block text-sm mb-1 mt-4">Peso (kg)</label>
+            <label className="block text-sm mb-1 mt-4">Peso (kg) <span className="text-red-500">*</span></label>
             <input
               type="number"
-              className="w-full border rounded px-3 py-2"
+              min={1}
+              className={`w-full border rounded px-3 py-2 ${!character.weightKg ? 'border-red-400' : ''}`}
               value={character.weightKg ?? ''}
               onChange={(e) =>
                 setCharacter((c) => ({ ...c, weightKg: e.target.value ? Number(e.target.value) : null }))
               }
               placeholder="Ex: 78"
             />
+            {!character.weightKg && (
+              <p className="text-xs text-red-500 mt-1">Obrigatório: define a Categoria de Massa, o Vigor, o Dano Físico, a Carga e o Movimento.</p>
+            )}
           </section>
         )}
 
@@ -1714,7 +1750,8 @@ export default function CharacterCreate({ userId }) {
                 });
                 const ofensivaLevel = getPostureLevel(style.postura.ofensiva);
                 const defensivaLevel = getPostureLevel(style.postura.defensiva);
-
+                const signatureBudget = calculateSignatureMoveBudget(style);
+                const signatureValidation = validateSignatureMoves(style);
                 return (
                   <div key={style.id} className="border rounded p-3 space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1775,7 +1812,7 @@ export default function CharacterCreate({ userId }) {
                     {/* Painel de Efeitos concretos */}
                     <div className="bg-gray-50 border rounded p-2 text-xs text-gray-600 space-y-1">
                       <div><strong>Potência ({effects.potencia.points}):</strong> {effects.potencia.baseDamage}{effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}</div>
-                      <div><strong>Robustez ({effects.robustez.points}):</strong> DT contra Atordoamento = {effects.robustez.dtContraAtordoamento}</div>
+                      <div><strong>Robustez ({effects.robustez.points}):</strong> Teste Reativo contra Atordoamento = {effects.robustez.testeReativo}</div>
                       <div><strong>Agilidade ({effects.agilidade.points}):</strong> {effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno</div>
                       <div><strong>Distância ({effects.distancia.points}):</strong> {effects.distancia.usosPerScene} uso(s) de reposicionamento por cena</div>
                       <div><strong>Controle ({effects.controle.points}):</strong> {effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra</div>
@@ -1932,9 +1969,41 @@ export default function CharacterCreate({ userId }) {
                           ⚠ {passiveValidation.anyMissingNames && 'Toda Passiva precisa de ao menos 1 Efeito selecionado. '}
                           {passiveValidation.anyMissingCategory && 'Toda Passiva precisa de uma Categoria selecionada. '}
                           {(passiveValidation.totalWeight > passiveValidation.budget) && `Peso total (${passiveValidation.totalWeight}) passou do orçamento (${passiveValidation.budget}). `}
-                          {passiveValidation.anyOverweight && 'Alguma Passiva individual passou do teto de peso 2.'}
+                          {passiveValidation.anyInvalidEffect && 'Alguma Passiva usa Reverter ou Multiplicar, que não valem em Passiva.'}
                         </p>
                       )}
+                      {/* Golpes de Assinatura — 1 a cada 2 pontos investidos */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-medium text-gray-500">
+                            Golpes de Assinatura ({signatureValidation.count}/{signatureBudget} — 1 a cada 2 pontos investidos)
+                          </div>
+                          <button
+                            onClick={() => handleAddSignatureMove(style.id)}
+                            disabled={signatureValidation.count >= signatureBudget}
+                            className="text-xs px-2 py-1 rounded border bg-gray-50 disabled:opacity-40"
+                          >
+                            + Novo Golpe
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          Habilidade de combate criada com os mesmos passos de qualquer Habilidade; só vale enquanto o Estilo estiver ativo.
+                        </p>
+                        <div className="space-y-2">
+                          {(style.signatureMoves ?? []).map((m) => (
+                            <AbilityFields
+                              key={m.instanceId}
+                              ability={m}
+                              triggerPlaceholder="ex: logo após acertar um golpe"
+                              onChange={(updater) => handleUpdateSignatureMove(style.id, m.instanceId, updater)}
+                              onRemove={() => handleRemoveSignatureMove(style.id, m.instanceId)}
+                            />
+                          ))}
+                        </div>
+                        {(signatureValidation.anyMissingName || signatureValidation.anyMissingEffect) && (
+                          <p className="text-xs text-red-600 mt-2">⚠ Todo Golpe precisa de nome e de ao menos 1 Efeito.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1955,13 +2024,7 @@ export default function CharacterCreate({ userId }) {
               <div>
                 Fase da Vida: <strong>{lifeStage?.label ?? '—'}</strong> · Sanidade Máxima: <strong>{maxSanity}</strong> · Vigor: <strong>{massAdjustedVigor.value}</strong>
                 {massAdjustedVigor.note && <span className="text-amber-600 text-xs"> ({massAdjustedVigor.note})</span>}
-                {' · '}Dano Físico: <strong>
-                  {physicalDamage
-                    ? physicalDamage.diceCount > 0
-                      ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
-                      : 'Trauma Direto automático'
-                    : '—'}
-                </strong>
+                {' · '}Dano Físico: <strong>{formatPhysicalDamage(physicalDamage)}</strong>
                 {physicalDamage?.note && <span className="text-amber-600 text-xs"> ({physicalDamage.note})</span>}
                 {' · '}Sorte Restante: <strong>{remainingLuck}</strong>
               </div>
@@ -2084,10 +2147,11 @@ export default function CharacterCreate({ userId }) {
                     <div className="text-xs text-gray-500">
                       {movementInfo.value} pontos
                       {movementInfo.massCategoryLabel && ` (Atletismo + Mod. de Massa: ${movementInfo.massCategoryLabel})`}
-                      {movementInfo.normal && (
+                      {movementInfo.andar && (
                         <>
-                          {' '}· {movementInfo.normal.metersPerTurn}m/turno ({movementInfo.normal.kmh} km/h)
-                          {' '}· Esforço Intenso (correr): {movementInfo.intenso.metersPerTurn}m/turno ({movementInfo.intenso.kmh} km/h)
+                          {' '}· Andar: {movementInfo.andar.points} pts ({movementInfo.andar.metersPerTurn}m/turno, {movementInfo.andar.kmh} km/h)
+                          {' '}· Correr: {movementInfo.correr.points} pts ({movementInfo.correr.metersPerTurn}m/turno, {movementInfo.correr.kmh} km/h)
+                          {' '}· Sprint: {movementInfo.sprint.points} pts ({movementInfo.sprint.metersPerTurn}m/turno, {movementInfo.sprint.kmh} km/h)
                         </>
                       )}
                       {movementInfo.note && <span className="text-amber-600"> — {movementInfo.note}</span>}
@@ -2112,7 +2176,7 @@ export default function CharacterCreate({ userId }) {
                           <strong>{style.name || '(sem nome)'}</strong> — {calculateStyleInvestedPoints(style)} pontos investidos
                           <div className="text-gray-500 mt-1">
                             Potência: {effects.potencia.baseDamage}{effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''} ·{' '}
-                            Robustez: DT {effects.robustez.dtContraAtordoamento} ·{' '}
+                            Robustez: {effects.robustez.testeReativo} ·{' '}
                             Agilidade: {effects.agilidade.freeReactionsPerTurn} Reação(ões) grátis/turno ·{' '}
                             Distância: {effects.distancia.usosPerScene} uso(s)/cena ·{' '}
                             Controle: {effects.controle.bonusDie ?? 'sem bônus'}
@@ -2123,6 +2187,11 @@ export default function CharacterCreate({ userId }) {
                           {effects.postura.defensiva.level > 0 && (
                             <div className="text-gray-500">Postura Defensiva Nível {effects.postura.defensiva.level}: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})</div>
                           )}
+                          {[style.postura.ofensiva, style.postura.defensiva].some((p) => p === 2 || p > 3) && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              ⚠ Postura: 1 ponto dá o Nível 1 e 3 pontos dão o Nível 2. Pontos fora desses valores não somam efeito.
+                            </p>
+                          )}
                           {style.passives.map((p) => (
                             <div key={p.instanceId} className="text-gray-500">
                               Passiva ({p.names.join(' + ')}, {p.category ?? '(sem categoria)'}{p.conditional ? ` — ${p.conditional.description}` : ''}): {p.description || '(sem descrição)'}
@@ -2131,6 +2200,12 @@ export default function CharacterCreate({ userId }) {
                         </div>
                       );
                     })}
+                    {(style.signatureMoves ?? []).map((m) => (
+                      <div key={m.instanceId} className="text-gray-500">
+                        Golpe de Assinatura ({m.name || 'sem nome'}): {m.trigger.type}{m.trigger.detail ? ` (${m.trigger.detail})` : ''} · {m.cost.form} → {m.effect.names.join(' + ')}: {m.effect.description || '(sem descrição)'}
+                        {m.conditional && ` (Condicional: ${m.conditional.description})`}
+                      </div>
+                    ))}
                   </div>
                 )}
 

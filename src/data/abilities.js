@@ -17,7 +17,8 @@ export const COST_WEIGHT_LABELS = { 1: 'Leve', 2: 'Moderado', 3: 'Pesado', 4: 'D
 
 // As 10 opções de Efeito nomeado — peso fixo, não editável por design.
 export const EFFECT_DEFINITIONS = {
-  Facilitar: { weight: 1, description: 'Rebaixa em 1 o grau de sucesso exigido numa ação específica.' },
+  Facilitar: { weight: 1, description: 'Reduz em 1 grau (5 pontos) a Dificuldade (DT) de um teste contra Dificuldade fixa. Não se aplica a Testes Opostos.' },
+'Facilitar (Aprimorado)': { weight: 2, description: 'Reduz em 2 graus (10 pontos) a Dificuldade (DT) de um teste contra Dificuldade fixa. Não se aplica a Testes Opostos.' },
   Agilizar: { weight: 1, description: 'A ação específica gasta 1 ação a menos que o padrão.' },
   Garantir: { weight: 1, description: 'Remove a possibilidade de Falha Crítica numa ação específica.' },
   Potencializar: { weight: 1, description: 'Depois de um sucesso, rola o efeito (dano, cura, etc.) duas vezes e fica com o maior resultado.' },
