@@ -1,5 +1,21 @@
 // src/logic/characterNormalizer.js
 import { createBlankStyle } from '../data/fightingStylesCatalog';
+function normalizeAbility(a) {
+  return {
+    instanceId: a.instanceId ?? `${Date.now()}-${Math.random()}`,
+    abilityId: a.abilityId ?? null,
+    name: a.name ?? '',
+    trigger: { type: a.trigger?.type ?? 'Ativo', detail: a.trigger?.detail ?? '' },
+    contextText: a.contextText ?? '',
+    conditional: a.conditional ?? null,
+    cost: a.cost ?? { weight: 1, form: '1 Vigor' },
+    effect: {
+      weight: a.effect?.weight ?? 1,
+      names: a.effect?.names ?? [],
+      description: a.effect?.description ?? '',
+    },
+  };
+}
 export function normalizeCharacter(data = {}) {
   const safeData = data ?? {};
   const fightingStylesList = (() => {
@@ -25,6 +41,7 @@ export function normalizeCharacter(data = {}) {
         category: p.category ?? null,
         conditional: p.conditional ?? null, // null | { description: string }
         description: p.description ?? (p.scope ?? ''), // migra dados antigos (campo scope) pra description
+        signatureMoves: (style.signatureMoves ?? []).map(normalizeAbility),
       })),
     }));
     // TODO PERSONAGEM SEMPRE TEM PELO MENOS 1 ESTILO — mesmo zerado.
@@ -46,23 +63,7 @@ export function normalizeCharacter(data = {}) {
 
     traumaIds: safeData.traumaIds ?? [],
     customSkills: safeData.customSkills ?? [],
-    selectedAbilities: (safeData.selectedAbilities ?? []).map((a) => ({
-      instanceId: a.instanceId,
-      abilityId: a.abilityId ?? null,
-      name: a.name ?? '',
-      trigger: {
-        type: a.trigger?.type ?? 'Ativo',
-        detail: a.trigger?.detail ?? '',
-      },
-      contextText: a.contextText ?? '',
-      conditional: a.conditional ?? null, // null | { description, costReduction: 1 | 'zera' }
-      cost: a.cost ?? { weight: 1, form: '1 Vigor' },
-      effect: {
-        weight: a.effect?.weight ?? 1,
-        names: a.effect?.names ?? [],
-        description: a.effect?.description ?? '',
-      },
-    })),
+    selectedAbilities: (safeData.selectedAbilities ?? []).map(normalizeAbility),
 
     aspects: {
       ...safeData.aspects,

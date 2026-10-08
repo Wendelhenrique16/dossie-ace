@@ -66,6 +66,7 @@ export const EXCLUDED_PASSIVE_EFFECTS = ['Reverter', 'Multiplicar'];
 // A cada 3 pontos investidos (Eixos + Postura somados) num mesmo Estilo,
 // desbloqueia de graça 1 ponto de peso pra Passiva.
 export const PASSIVE_POINTS_PER_UNLOCK = 3;
+export const SIGNATURE_POINTS_PER_MOVE = 2;
 export const MAX_SINGLE_PASSIVE_WEIGHT = 2;
 
 // Categorias de Escopo pra Passiva de Estilo — "Outro" cobre o que não encaixa.

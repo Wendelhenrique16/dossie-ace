@@ -3,7 +3,7 @@
 // de existir qualquer tela. Import de dados vem de ../data/*.
 
 import { SKILL_LEVEL_TO_DICE } from '../data/skills';
-import { getEffectWeight } from '../data/abilities';
+import { getEffectWeight, EFFECT_DEFINITIONS } from '../data/abilities';
 /**
  * Rola um dado de N lados.
  */
@@ -250,81 +250,71 @@ export function rollAgingPenaltyAttributes(eligibleAttributes, count) {
   return picked;
 }
 
-/**
- * Dano Físico base: (Existência + dado de Força + dado de Combate) / 3,
- * dividido por 2 de novo se o personagem for Lutador. Usa o DADO (valor
- * máximo da face), não o nível da perícia.
- */
-export function calculatePhysicalDamageBase(existenciaValue, forcaLevel, combateLevel, isLutador = false) {
-  const forcaDie = getSkillDieMaxValue(forcaLevel);
-  const combateDie = getSkillDieMaxValue(combateLevel);
-  let base = (existenciaValue + forcaDie + combateDie) / 3;
-  if (isLutador) base /= 2;
-  return base;
+// Escada de dados do Dano Físico (livro): d4, d6, d8, d10, d12, d20, 3d8 (=24).
+export const DAMAGE_DICE_LADDER = [
+  { value: 4, diceCount: 1, dieFace: 4 },
+  { value: 6, diceCount: 1, dieFace: 6 },
+  { value: 8, diceCount: 1, dieFace: 8 },
+  { value: 10, diceCount: 1, dieFace: 10 },
+  { value: 12, diceCount: 1, dieFace: 12 },
+  { value: 20, diceCount: 1, dieFace: 20 },
+  { value: 24, diceCount: 3, dieFace: 8 },
+];
+
+// Dado mais próximo; empate exato entre dois dados usa o maior.
+export function roundToDamageDie(value) {
+  return DAMAGE_DICE_LADDER.reduce((best, step) => {
+    const diff = Math.abs(step.value - value);
+    const bestDiff = Math.abs(best.value - value);
+    return diff < bestDiff || (diff === bestDiff && step.value > best.value) ? step : best;
+  });
+}
+
+/** Dano Físico base = (Existência + dado de Força + dado de Combate) / 3. */
+export function calculatePhysicalDamageBase(existenciaValue, forcaLevel, combateLevel) {
+  return (existenciaValue + getSkillDieMaxValue(forcaLevel) + getSkillDieMaxValue(combateLevel)) / 3;
 }
 
 /**
- * Aplica o modificador de Dano da Categoria de Massa EFETIVA (já rebaixada
- * por Força). Massivo/Titânico não geram um número — viram Trauma Direto
- * automático, então value fica null e quem exibe trata isso à parte.
- */
-/**
- * Aplica o modificador de Dano da Categoria de Massa EFETIVA. Retorna a
- * notação de dado (quantidade + face), não um número cru — porque "Pesado"
- * não soma valor, ele rola 2 dados do mesmo tipo (ex: 2d8), e os demais
- * viram um único dado maior (ex: d10 vira d12 no Colosso).
+ * Modificador de Dano da Massa EFETIVA. Retorna dados + multiplicador/divisor
+ * aplicados ao RESULTADO rolado (Pluma ÷2 mín. 1 arred. pra cima; Colosso ×2).
  */
 export function applyMassDamageModifier(baseDamage, massCategoryId) {
-  const baseDie = roundToNearestDie(baseDamage);
+  const base = roundToDamageDie(baseDamage);
+  const result = { diceCount: base.diceCount, dieFace: base.dieFace, multiplier: 1, divisor: 1, note: null };
 
-  switch (massCategoryId) {
-    case 'pluma': {
-      const halvedDie = Math.max(2, roundToNearestDie(baseDamage / 2));
-      return { diceCount: 1, dieFace: halvedDie, note: 'Metade do Dano Físico, arredondado pro dado mais próximo (mín. d2)' };
-    }
-    case 'pesado':
-      return { diceCount: 2, dieFace: baseDie, note: 'Dado bônus: rola 2 dados do mesmo tipo em vez de 1' };
-    case 'colosso': {
-      const doubledDie = roundToNearestDie(baseDamage * 2);
-      return { diceCount: 1, dieFace: doubledDie, note: 'Dano dobrado, arredondado pro dado mais próximo' };
-    }
-    case 'massivo':
-    case 'titanico':
-      return { diceCount: 0, dieFace: null, note: 'Trauma Direto automático — ignora o cálculo padrão' };
-    default: // leve, medio
-      return { diceCount: 1, dieFace: baseDie, note: null };
-  }
-}
-export const STANDARD_DICE_FACES = [2, 4, 6, 8, 10, 12, 20, 24, 28];
-
-/**
- * Arredonda um valor de dano pro dado padrão mais próximo (não existe d5,
- * d7 etc — só os dados que realmente existem no sistema).
- */
-export function roundToNearestDie(value) {
-  return STANDARD_DICE_FACES.reduce((closest, face) =>
-    Math.abs(face - value) < Math.abs(closest - value) ? face : closest
-  );
-}
-/**
- * Aplica o modificador de Vigor da Categoria de Massa EFETIVA (já rebaixada
- * por Constituição), usando o dado de Constituição pra somar/subtrair.
- */
-export function applyMassVigorModifier(baseVigor, massCategoryId, constituicaoLevel) {
-  const constituicaoDie = getSkillDieMaxValue(constituicaoLevel);
   switch (massCategoryId) {
     case 'pluma':
-      return { value: Math.max(0, baseVigor - Math.floor(constituicaoDie / 2)), note: null };
+      return { ...result, divisor: 2, note: 'Metade do Dano Físico base rolado (mín. 1, arredondado pra cima)' };
     case 'pesado':
-      return { value: baseVigor + constituicaoDie, note: null };
+      return { ...result, diceCount: base.diceCount + 1, note: 'Dado bônus: +1 dado do mesmo tipo' };
     case 'colosso':
-      return { value: baseVigor + constituicaoDie * 2, note: null };
+      return { ...result, multiplier: 2, note: 'Dano Físico base dobrado' };
     case 'massivo':
     case 'titanico':
-      return { value: baseVigor, note: 'Escala colossal — valor de referência, ajustar por mesa' };
+      return { diceCount: 0, dieFace: null, multiplier: 1, divisor: 1, note: 'Trauma Direto automático — ignora o cálculo padrão' };
     default: // leve, medio
-      return { value: baseVigor, note: null };
+      return result;
   }
+}
+
+export function formatPhysicalDamage(damage) {
+  if (!damage) return '—';
+  if (damage.diceCount === 0) return 'Trauma Direto automático';
+  const dice = `${damage.diceCount}d${damage.dieFace}`;
+  if (damage.multiplier > 1) return `${dice} × ${damage.multiplier}`;
+  if (damage.divisor > 1) return `${dice} ÷ ${damage.divisor} (mín. 1)`;
+  return dice;
+}
+
+/**
+ * Vigor Máximo = Vigor Base da Categoria de Vigor (já rebaixada pela
+ * Constituição e ajustada por Arquétipo) + dado de Resistência + dado de Constituição.
+ */
+export function calculateMaxVigor(vigorCategory, resistenciaLevel, constituicaoLevel) {
+  return (vigorCategory?.vigorBase ?? 0)
+    + getSkillDieMaxValue(resistenciaLevel)
+    + getSkillDieMaxValue(constituicaoLevel);
 }
 import {CARGA_TABLE, CARGA_BY_MASS, MOVEMENT_MASS_MODIFIER } from '../data/massCategories';
 // (junta com o import de MASS_CATEGORIES que já existe — só adicionar os 3 novos nomes)
@@ -407,7 +397,7 @@ export function calculateMovement(atletismoLevel, weightKg) {
   if (!atletismoValue || atletismoValue <= 0) {
     return {
       value: 0, modifier: null, massCategoryLabel: null,
-      normal: null, intenso: null,
+      andar: null, correr: null, sprint: null,
       note: 'Atletismo 0: incapaz de se mover com eficiência.',
     };
   }
@@ -415,24 +405,27 @@ export function calculateMovement(atletismoLevel, weightKg) {
   const modifier = MOVEMENT_MASS_MODIFIER[massCategory.id] ?? 0;
   const value = Math.max(0, atletismoValue + modifier);
 
-  const metersPerTurnNormal = value * METERS_PER_MOVEMENT_POINT;
-  const metersPerTurnIntenso = metersPerTurnNormal * 2;
+  const toRitmo = (points) => {
+    const metersPerTurn = points * METERS_PER_MOVEMENT_POINT;
+    return { points, metersPerTurn, kmh: metersPerTurnToKmH(metersPerTurn) };
+  };
 
   return {
     value,
     modifier,
     massCategoryLabel: massCategory.label,
-    normal: { metersPerTurn: metersPerTurnNormal, kmh: metersPerTurnToKmH(metersPerTurnNormal) },
-    intenso: { metersPerTurn: metersPerTurnIntenso, kmh: metersPerTurnToKmH(metersPerTurnIntenso) },
+    andar: toRitmo(Math.ceil(value / 2)), // Esforço Leve
+    correr: toRitmo(value),               // Esforço Intenso
+    sprint: toRitmo(value * 2),           // Esforço Extremo
     note: null,
   };
 }
-
 
 import {
   BONUS_TABLE_DICE_FACES, BONUS_TABLE_CAP_FACE, DICE_BONUS_AXES,
   POSTURE_LEVEL_THRESHOLDS, POSTURE_EFFECTS, PASSIVE_POINTS_PER_UNLOCK,
   MAX_SINGLE_PASSIVE_WEIGHT, ARTISTA_MARCIAL_ARCHETYPE_ID,
+  EXCLUDED_PASSIVE_EFFECTS, SIGNATURE_POINTS_PER_MOVE,
 } from '../data/fightingStyles';
 
 /**
@@ -488,35 +481,58 @@ export function calculatePassiveWeightBudget(style) {
   return Math.floor(calculateStyleInvestedPoints(style) / PASSIVE_POINTS_PER_UNLOCK);
 }
 /**
- * Valida se o peso total das Passivas escolhidas pra um Estilo respeita
- * o orçamento e o teto de peso 2 por passiva individual. Cada passiva
- * precisa de ao menos 1 Efeito e uma Categoria de Escopo escolhida.
- */
-export function validateStylePassives(style, chosenPassives) {
-  const budget = calculatePassiveWeightBudget(style);
-  const totalWeight = (chosenPassives || []).reduce((sum, p) => sum + p.weight, 0);
-  const anyOverweight = (chosenPassives || []).some((p) => p.weight > MAX_SINGLE_PASSIVE_WEIGHT);
-  const anyMissingCategory = (chosenPassives || []).some((p) => !p.category);
-  const anyMissingNames = (chosenPassives || []).some((p) => !p.names || p.names.length === 0);
-  return {
-    valid: totalWeight <= budget && !anyOverweight && !anyMissingCategory && !anyMissingNames,
-    budget,
-    totalWeight,
-    anyOverweight,
-    anyMissingCategory,
-    anyMissingNames,
-  };
-}
-/**
- * Peso final de uma Passiva: o maior peso entre os Efeitos combinados,
- * reduzido em 1 (mínimo 1) se houver Condicional preenchido — mesma lógica
- * do Condicional de Habilidade, só que aqui reduz PESO em vez de Custo,
- * porque Passiva não tem Custo.
+ * Peso de uma Passiva = SOMA dos pesos dos Efeitos combinados, menos 1 se
+ * houver Condicional (mínimo 1).
  */
 export function calculatePassiveWeight(names, hasConditional) {
   if (!names || names.length === 0) return 1;
   const baseWeight = getEffectWeight(names);
   return hasConditional ? Math.max(1, baseWeight - 1) : baseWeight;
+}
+
+/**
+ * Valida as Passivas de um Estilo: o peso TOTAL (soma) cabe no orçamento;
+ * cada EFEITO pesa no máximo 2 (Reverter/Multiplicar ficam fora); toda
+ * Passiva tem ao menos 1 Efeito e uma Categoria.
+ */
+export function validateStylePassives(style, chosenPassives) {
+  const budget = calculatePassiveWeightBudget(style);
+  const passives = chosenPassives || [];
+  const totalWeight = passives.reduce((sum, p) => sum + calculatePassiveWeight(p.names, !!p.conditional), 0);
+  const anyInvalidEffect = passives.some((p) =>
+    (p.names || []).some(
+      (n) => EXCLUDED_PASSIVE_EFFECTS.includes(n) || (EFFECT_DEFINITIONS[n]?.weight ?? 1) > MAX_SINGLE_PASSIVE_WEIGHT
+    )
+  );
+  const anyMissingCategory = passives.some((p) => !p.category);
+  const anyMissingNames = passives.some((p) => !p.names || p.names.length === 0);
+  return {
+    valid: totalWeight <= budget && !anyInvalidEffect && !anyMissingCategory && !anyMissingNames,
+    budget,
+    totalWeight,
+    anyInvalidEffect,
+    anyMissingCategory,
+    anyMissingNames,
+  };
+}
+
+/** Golpes de Assinatura: 1 a cada 2 pontos investidos no Estilo (blocos completos). */
+export function calculateSignatureMoveBudget(style) {
+  return Math.floor(calculateStyleInvestedPoints(style) / SIGNATURE_POINTS_PER_MOVE);
+}
+
+export function validateSignatureMoves(style) {
+  const budget = calculateSignatureMoveBudget(style);
+  const moves = style.signatureMoves ?? [];
+  const anyMissingName = moves.some((m) => !m.name?.trim());
+  const anyMissingEffect = moves.some((m) => !m.effect?.names?.length);
+  return {
+    valid: moves.length <= budget && !anyMissingName && !anyMissingEffect,
+    budget,
+    count: moves.length,
+    anyMissingName,
+    anyMissingEffect,
+  };
 }
 /**
  * Traduz os pontos investidos em CADA Eixo pro efeito mecânico concreto.
@@ -538,17 +554,18 @@ export function calculateStyleEffects(style, { physicalDamage, constituicaoLevel
   const ofensivaLevel = getPostureLevel(style.postura?.ofensiva || 0);
   const defensivaLevel = getPostureLevel(style.postura?.defensiva || 0);
   const prontidaoDieFace = getSkillDieMaxValue(prontidaoLevel || 0);
+const reativoParts = ['1d20', constituicaoValue > 0 && `d${constituicaoValue}`, robustezDieFace && `d${robustezDieFace}`].filter(Boolean);
 
   return {
     potencia: {
       points: potenciaPoints,
       bonusDie: potenciaDieFace ? `+d${potenciaDieFace}` : null,
-      baseDamage: physicalDamage?.diceCount > 0 ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}` : (physicalDamage?.note ?? '—'),
+      baseDamage: physicalDamage ? formatPhysicalDamage(physicalDamage) : '—',
     },
     robustez: {
       points: robustezPoints,
       bonusDie: robustezDieFace ? `+d${robustezDieFace}` : null,
-      dtContraAtordoamento: `10 + d${constituicaoValue}${robustezDieFace ? ` + d${robustezDieFace}` : ''}`,
+      testeReativo: `${reativoParts.join(' + ')} (contra o resultado do ataque)`,
     },
     agilidade: {
       points: agilidadePoints,

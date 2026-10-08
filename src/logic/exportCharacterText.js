@@ -9,7 +9,7 @@ import { TRAUMAS } from '../data/traumas';
 import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
-import { getEffectiveMassCategory, calculateStyleEffects } from './characterCalculations';
+import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -135,14 +135,7 @@ export function buildCharacterSheetLines({
 
   lines.push('"Vigor', '');
   lines.push(`Vigor: ${massAdjustedVigor.value}/${massAdjustedVigor.value}`);
-  lines.push(
-    `Dano Físico: ${physicalDamage
-      ? physicalDamage.diceCount > 0
-        ? `${physicalDamage.diceCount}d${physicalDamage.dieFace}`
-        : 'Trauma Direto automático'
-      : ''
-    }`
-  );
+  lines.push(`Dano Físico: ${formatPhysicalDamage(physicalDamage)}`);
   lines.push(`Sorte: ${remainingLuck}/${lifeStage?.initialLuck ?? 0}`);
   lines.push(`Sanidade: ${maxSanity}/${maxSanity}`);
   lines.push('');
@@ -242,8 +235,10 @@ export function buildCharacterSheetLines({
         lines.push(`Movimento: 0 pontos (${movementInfo.note})`);
       } else {
         lines.push(
-          `Movimento: ${movementInfo.value} pontos — ${movementInfo.normal.metersPerTurn}m/turno (${movementInfo.normal.kmh} km/h) · ` +
-          `Esforço Intenso: ${movementInfo.intenso.metersPerTurn}m/turno (${movementInfo.intenso.kmh} km/h)`
+          `Movimento: ${movementInfo.value} pontos — ` +
+          `Andar ${movementInfo.andar.metersPerTurn}m/turno (${movementInfo.andar.kmh} km/h) · ` +
+          `Correr ${movementInfo.correr.metersPerTurn}m/turno (${movementInfo.correr.kmh} km/h) · ` +
+          `Sprint ${movementInfo.sprint.metersPerTurn}m/turno (${movementInfo.sprint.kmh} km/h)`
         );
       }
       lines.push('');
@@ -260,7 +255,7 @@ export function buildCharacterSheetLines({
         });
         lines.push(`> ${style.name || '(sem nome)'}`);
         lines.push(`  - Potência ${effects.potencia.points}: ${effects.potencia.baseDamage}${effects.potencia.bonusDie ? ` ${effects.potencia.bonusDie}` : ''}`);
-        lines.push(`  - Robustez ${effects.robustez.points}: DT contra Atordoamento = ${effects.robustez.dtContraAtordoamento}`);
+        lines.push(`  - Robustez ${effects.robustez.points}: Teste Reativo de Constituição = ${effects.robustez.testeReativo}`);
         lines.push(`  - Agilidade ${effects.agilidade.points}: ${effects.agilidade.freeReactionsPerTurn} Reação(ões) gratuita(s) por turno`);
         lines.push(`  - Distância ${effects.distancia.points}: ${effects.distancia.usosPerScene} uso(s) por cena`);
         lines.push(`  - Controle ${effects.controle.points}: ${effects.controle.bonusDie ?? 'sem bônus'} no Teste Oposto de Manobra`);
@@ -270,13 +265,21 @@ export function buildCharacterSheetLines({
         if (effects.postura.defensiva.level > 0) {
           lines.push(`  - Postura Defensiva Nível ${effects.postura.defensiva.level}: ${effects.postura.defensiva.description} (dado atual: ${effects.postura.defensiva.prontidaoDie})`);
         }
-      style.passives.forEach((p) => {
-        const categoryText = `${p.category ?? '(sem categoria)'}${p.conditional ? ` (${p.conditional.description})` : ''}`;
-        lines.push(`# ${style.name.toUpperCase() || '(SEM NOME)'} — PASSIVA`, '');
-        lines.push(`> ${p.description || ''}`);
-        lines.push(`> **Categoria:** ${categoryText} · **Efeito:** ${p.names.join(' + ')} · **Peso:** ${p.weight}`);
-        lines.push('');
-      });
+        style.passives.forEach((p) => {
+          const categoryText = `${p.category ?? '(sem categoria)'}${p.conditional ? ` (${p.conditional.description})` : ''}`;
+          lines.push(`# ${style.name.toUpperCase() || '(SEM NOME)'} — PASSIVA`, '');
+          lines.push(`> ${p.description || ''}`);
+          lines.push(`> **Categoria:** ${categoryText} · **Efeito:** ${p.names.join(' + ')} · **Peso:** ${p.weight}`);
+          lines.push('');
+        });
+        (style.signatureMoves ?? []).forEach((m) => {
+          const triggerText = `${m.trigger.type}${m.trigger.detail ? ` (${m.trigger.detail})` : ''}`;
+          const conditionalText = m.conditional ? ` (Condicional: ${m.conditional.description})` : '';
+          lines.push(`# ${(m.name || '(sem nome)').toUpperCase()} — GOLPE DE ASSINATURA (${(style.name || 'sem nome').toUpperCase()})`, '');
+          lines.push(`> ${m.effect.description || ''}`);
+          lines.push(`> **Gatilho:** ${triggerText} · **Custo:** ${m.cost.form} · **Efeito:** ${m.effect.names.join(' + ')}${conditionalText}`);
+          lines.push('');
+        });
       });
       lines.push('');
     }
