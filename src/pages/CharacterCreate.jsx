@@ -21,7 +21,7 @@ import AspectsStep from '../components/character/AspectsStep';
 import { POSITIVE_ASPECTS, NEGATIVE_ASPECTS } from '../data/aspects';
 import { normalizeCharacter } from '../logic/characterNormalizer';
 import AbilityCatalogModal from '../components/modals/AbilityCatalogModal';
-import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINITIONS, getEffectWeight } from '../data/abilities';
+import { COST_FORMS_BY_WEIGHT, EFFECT_DEFINITIONS, getEffectWeight } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { getSignatureAbilitiesForArchetype } from '../data/abilities';
 import { PASSIVE_CATEGORIES } from '../data/fightingStyles';
@@ -348,8 +348,8 @@ export default function CharacterCreate({ userId }) {
     return calculateMovement(finalSkillTotals[ATLETISMO_SKILL_ID] || 0, character.weightKg);
   }, [character.weightKg, finalSkillTotals]);
   const maxSanity = useMemo(
-    () => calculateMaxSanity(character.purchasedBackgrounds, freePackages),
-    [character.purchasedBackgrounds, freePackages]
+    () => calculateMaxSanity(character.purchasedBackgrounds, freePackages, 12, character.selectedAbilities),
+    [character.purchasedBackgrounds, freePackages, character.selectedAbilities]
   );
   const totalFightingStylePoints = useMemo(
     () => calculateFightingStylePoints(finalSkillTotals.combate || 0, character.classPath.archetypeId),
@@ -556,13 +556,14 @@ export default function CharacterCreate({ userId }) {
     });
     setBulkDistributeOpen(false);
   }
-  function handleConfirmBackground({ allocations, attributeId }) {
+  function handleConfirmBackground({ allocations, attributeId, chosenSkills }) {
     setCharacter((c) => {
       const updated = [...c.purchasedBackgrounds];
       updated[activeModalPackage.instanceIndex] = {
         ...updated[activeModalPackage.instanceIndex],
         allocations,
         attributeId,
+        chosenSkills,
       };
       return { ...c, purchasedBackgrounds: updated };
     });
@@ -600,6 +601,7 @@ export default function CharacterCreate({ userId }) {
           instanceId: `${Date.now()}-${Math.random()}`,
           abilityId: null,
           name: 'Nova Habilidade',
+          sanityCost: rollExtraPackageSanityCost(),
           trigger: { type: 'Ativo', detail: '' },
           contextText: '',
           conditional: null,
@@ -617,6 +619,7 @@ export default function CharacterCreate({ userId }) {
         {
           instanceId: `${Date.now()}-${Math.random()}`,
           abilityId: ability.id,
+          sanityCost: ability.category === 'assinatura' ? 0 : rollExtraPackageSanityCost(),
           name: ability.name,
           trigger: { ...ability.trigger },
           contextText: '',
@@ -629,14 +632,7 @@ export default function CharacterCreate({ userId }) {
     setAbilityModalOpen(false);
     setModelModalOpen(false);
   }
-  function handleToggleEffectName(instanceId, effectName) {
-    handleUpdateAbility(instanceId, (a) => {
-      const names = a.effect.names.includes(effectName)
-        ? a.effect.names.filter((n) => n !== effectName)
-        : [...a.effect.names, effectName];
-      return { ...a, effect: { ...a.effect, weight: names.length ? getEffectWeight(names) : 1, names } };
-    });
-  }
+
   function handleRemoveAbility(instanceId) {
     setCharacter((c) => ({
       ...c,
@@ -651,12 +647,6 @@ export default function CharacterCreate({ userId }) {
     }));
   }
 
-  function handleToggleAbilityConditional(instanceId) {
-    handleUpdateAbility(instanceId, (a) => ({
-      ...a,
-      conditional: a.conditional ? null : { description: '', costReduction: 1 },
-    }));
-  }
 
   function handleSetAbilityContext(abilityId, text) {
     setCharacter((c) => ({
@@ -931,8 +921,7 @@ export default function CharacterCreate({ userId }) {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium">Pacotes Comprados</h3>
-                      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0) && (
-                        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0 && e.packageId !== 'interesses') && (                        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
                           Distribuir tudo pendente
                         </button>
                       )}
@@ -941,12 +930,18 @@ export default function CharacterCreate({ userId }) {
                       {character.purchasedBackgrounds.map((entry, index) => {
                         const pkg = BACKGROUND_PACKAGES[entry.packageId];
                         const isDistributed = Object.keys(entry.allocations).length > 0;
+                        const allocatedPoints = Object.values(entry.allocations).reduce((a, b) => a + b, 0);
+                        const freePoints = pkg.pointsPerPurchase - allocatedPoints;
                         return (
                           <div key={index} className="border rounded p-3 flex items-center justify-between">
                             <div>
                               <div className="font-medium text-sm">{pkg.label} #{index + 1}</div>
                               <div className="text-xs text-gray-400">
-                                {isDistributed ? '✓ Distribuído' : 'Pendente de distribuição'}
+                                {isDistributed
+                                  ? freePoints > 0
+                                    ? `✓ Distribuído · ${freePoints} ponto(s) livre(s)`
+                                    : '✓ Distribuído'
+                                  : 'Pendente de distribuição'}
                                 {index >= freePackages && ` · Extra (-${entry.sanityCost} Sanidade)`}
                               </div>
                             </div>
@@ -1159,6 +1154,7 @@ export default function CharacterCreate({ userId }) {
             }
             initialAllocations={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.allocations}
             initialAttributeId={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.attributeId}
+            initialChosenSkills={character.purchasedBackgrounds[activeModalPackage.instanceIndex]?.chosenSkills}
             onConfirm={handleConfirmBackground}
             onClose={handleCloseModal}
           />
@@ -1167,8 +1163,7 @@ export default function CharacterCreate({ userId }) {
           <UnifiedDistributionModal
             pendingEntries={character.purchasedBackgrounds
               .map((entry, instanceIndex) => ({ entry, instanceIndex }))
-              .filter(({ entry }) => Object.keys(entry.allocations).length === 0)
-              .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
+              .filter(({ entry }) => Object.keys(entry.allocations).length === 0 && entry.packageId !== 'interesses')              .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
             onConfirmAll={handleConfirmBulkDistribution}
             onClose={() => setBulkDistributeOpen(false)}
           />
@@ -1187,8 +1182,12 @@ export default function CharacterCreate({ userId }) {
         {currentStep === 'customSkills' && (
           <section>
             <h2 className="text-xl font-semibold mb-2">Habilidades do Personagem</h2>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 mb-2">
               Manobras e especializações técnicas ativas baseadas em Perícias.
+            </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Cada Habilidade comprada custa d6+6 de Sanidade Máxima (mesmo desgaste de um pacote extra).
+              Sanidade Máxima atual: <strong>{maxSanity}</strong>
             </p>
 
             <div className="mb-6">
@@ -1212,174 +1211,13 @@ export default function CharacterCreate({ userId }) {
               ) : (
                 <div className="space-y-3">
                   {character.selectedAbilities.map((a) => (
-                    <div key={a.instanceId} className="border rounded p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <input
-                          className="font-medium text-sm border-b border-transparent hover:border-gray-300 focus:border-gray-900 outline-none flex-1"
-                          value={a.name}
-                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, name: e.target.value }))}
-                        />
-                        <button onClick={() => handleRemoveAbility(a.instanceId)} className="text-xs text-red-500 underline ml-2">
-                          Remover
-                        </button>
-                      </div>
-
-                      {/* Gatilho */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Gatilho</label>
-                          <select
-                            className="w-full border rounded px-2 py-1 text-xs"
-                            value={a.trigger.type}
-                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, type: e.target.value } }))}
-                          >
-                            {TRIGGER_TYPES.map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Detalhe (opcional)</label>
-                          <input
-                            className="w-full border rounded px-2 py-1 text-xs"
-                            placeholder="ex: antes de sacar a arma"
-                            value={a.trigger.detail}
-                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, trigger: { ...ab.trigger, detail: e.target.value } }))}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Custo */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Peso do Custo</label>
-                          <select
-                            className="w-full border rounded px-2 py-1 text-xs"
-                            value={a.cost.weight}
-                            onChange={(e) => {
-                              const weight = Number(e.target.value);
-                              handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { weight, form: COST_FORMS_BY_WEIGHT[weight][0] } }));
-                            }}
-                          >
-                            {[1, 2, 3, 4].map((w) => (
-                              <option key={w} value={w}>{w} — {COST_WEIGHT_LABELS[w]}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Forma do Custo</label>
-                          <select
-                            className="w-full border rounded px-2 py-1 text-xs"
-                            value={a.cost.form}
-                            onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, cost: { ...ab.cost, form: e.target.value } }))}
-                          >
-                            {COST_FORMS_BY_WEIGHT[a.cost.weight].map((form) => (
-                              <option key={form} value={form}>{form}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Legenda dos Efeitos escolhidos — só explica, NÃO editável */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Efeito (peso {a.effect.weight} — {COST_WEIGHT_LABELS[a.effect.weight]})
-                        </label>
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {Object.entries(EFFECT_DEFINITIONS).map(([name, def]) => (
-                            <button
-                              key={name}
-                              type="button"
-                              onClick={() => handleToggleEffectName(a.instanceId, name)}
-                              className={`px-2 py-1 rounded border text-xs ${a.effect.names.includes(name) ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
-                                }`}
-                            >
-                              {name} ({def.weight})
-                            </button>
-                          ))}
-                        </div>
-
-                        {a.effect.names.length > 0 && (
-                          <div className="bg-gray-50 border rounded p-2 text-xs text-gray-500 space-y-1">
-                            {a.effect.names.map((n) => (
-                              <div key={n}>
-                                <strong>{n}:</strong> {EFFECT_DEFINITIONS[n].description}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Descrição específica da habilidade — editável, pré-preenchida ao escolher do catálogo */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Descrição</label>
-                        <textarea
-                          className="w-full border rounded px-2 py-1 text-xs"
-                          rows={2}
-                          placeholder="Descreva o que essa habilidade faz na prática"
-                          value={a.effect.description}
-                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, effect: { ...ab.effect, description: e.target.value } }))}
-                        />
-                      </div>
-
-                      {a.cost.weight !== a.effect.weight && (
-                        <p className="text-xs text-amber-600">
-                          ⚠ Custo (peso {a.cost.weight}) e Efeito (peso {a.effect.weight}) diferentes —
-                          {a.cost.weight < a.effect.weight
-                            ? ' pagar menos gera um excedente dobrado como consequência extra.'
-                            : ' pagar mais é só desperdício de recurso (roleplay).'}
-                        </p>
-                      )}
-
-                      <div>
-                        <label className="flex items-center gap-2 text-xs text-gray-500">
-                          <input
-                            type="checkbox"
-                            checked={!!a.conditional}
-                            onChange={() => handleToggleAbilityConditional(a.instanceId)}
-                          />
-                          Condicional (reduz o Custo em troca de uma restrição)
-                        </label>
-                        {a.conditional && (
-                          <div className="mt-2 space-y-2 pl-5">
-                            <input
-                              className="w-full border rounded px-2 py-1 text-xs"
-                              placeholder="Descreva a condição (ex: sob forte estresse)"
-                              value={a.conditional.description}
-                              onChange={(e) =>
-                                handleUpdateAbility(a.instanceId, (ab) => ({
-                                  ...ab,
-                                  conditional: { ...ab.conditional, description: e.target.value },
-                                }))
-                              }
-                            />
-                            <select
-                              className="w-full border rounded px-2 py-1 text-xs"
-                              value={a.conditional.costReduction}
-                              onChange={(e) =>
-                                handleUpdateAbility(a.instanceId, (ab) => ({
-                                  ...ab,
-                                  conditional: { ...ab.conditional, costReduction: e.target.value === 'zera' ? 'zera' : Number(e.target.value) },
-                                }))
-                              }
-                            >
-                              <option value={1}>Reduz -1 no peso do Custo</option>
-                              <option value="zera">Zera o Custo</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
-                        <input
-                          className="w-full border rounded px-2 py-1 text-xs"
-                          placeholder="ex: usar um machado em combate"
-                          value={a.contextText}
-                          onChange={(e) => handleUpdateAbility(a.instanceId, (ab) => ({ ...ab, contextText: e.target.value }))}
-                        />
-                      </div>
-                    </div>
+                    <AbilityFields
+                      key={a.instanceId}
+                      ability={a}
+                      showContext
+                      onChange={(updater) => handleUpdateAbility(a.instanceId, updater)}
+                      onRemove={() => handleRemoveAbility(a.instanceId)}
+                    />
                   ))}
                 </div>
               )}
@@ -2197,17 +2035,18 @@ export default function CharacterCreate({ userId }) {
                               Passiva ({p.names.join(' + ')}, {p.category ?? '(sem categoria)'}{p.conditional ? ` — ${p.conditional.description}` : ''}): {p.description || '(sem descrição)'}
                             </div>
                           ))}
+                          {(style.signatureMoves ?? []).map((m) => (
+                            <div key={m.instanceId} className="text-gray-500">
+                              Golpe de Assinatura ({m.name || 'sem nome'}): {m.trigger.type}{m.trigger.detail ? ` (${m.trigger.detail})` : ''} · {m.cost.form} → {m.effect.names.join(' + ')}: {m.effect.description || '(sem descrição)'}
+                              {m.conditional && ` (Condicional: ${m.conditional.description})`}
+                            </div>
+                          ))}
                         </div>
                       );
                     })}
-                    {(style.signatureMoves ?? []).map((m) => (
-                      <div key={m.instanceId} className="text-gray-500">
-                        Golpe de Assinatura ({m.name || 'sem nome'}): {m.trigger.type}{m.trigger.detail ? ` (${m.trigger.detail})` : ''} · {m.cost.form} → {m.effect.names.join(' + ')}: {m.effect.description || '(sem descrição)'}
-                        {m.conditional && ` (Condicional: ${m.conditional.description})`}
-                      </div>
-                    ))}
                   </div>
                 )}
+
 
                 <div>
                   <div className="font-medium mb-1">Habilidades</div>

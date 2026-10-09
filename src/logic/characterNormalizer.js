@@ -4,6 +4,7 @@ function normalizeAbility(a) {
   return {
     instanceId: a.instanceId ?? `${Date.now()}-${Math.random()}`,
     abilityId: a.abilityId ?? null,
+    sanityCost: a.sanityCost ?? 0, // fichas antigas: sem custo retroativo
     name: a.name ?? '',
     trigger: { type: a.trigger?.type ?? 'Ativo', detail: a.trigger?.detail ?? '' },
     contextText: a.contextText ?? '',

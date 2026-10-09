@@ -12,21 +12,26 @@ import {
   decrementSkill,
   randomizeDistribution,
   selectAttribute,
+  toggleChosenSkill,
   canConfirm,
   ATTRIBUTE_BONUS_PER_PACKAGE,
 } from '../../logic/backgroundDistribution';
 
-export default function BackgroundModal({ packageId, purchaseNumber = 1, initialAllocations, initialAttributeId, onConfirm, onClose }) {
+export default function BackgroundModal({ packageId, purchaseNumber = 1, initialAllocations, initialAttributeId, initialChosenSkills, onConfirm, onClose }) {
   const pkg = BACKGROUND_PACKAGES[packageId];
-  const validSkills = getValidSkillsForPackage(packageId);
-  const skillGroups = groupSkillsByCategory(validSkills);
   const [state, setState] = useState(() =>
     createDistributionState(
       packageId,
-      initialAllocations ? { allocations: initialAllocations, attributeId: initialAttributeId } : null
+      initialAllocations
+        ? { allocations: initialAllocations, attributeId: initialAttributeId, chosenSkills: initialChosenSkills }
+        : null
     )
   );
   if (!pkg) return null;
+  const validSkills = getValidSkillsForPackage(packageId, state.chosenSkills);
+  const skillGroups = groupSkillsByCategory(validSkills);
+  const isSkillChoicePackage = !!pkg.skillChoiceSlots;
+  const handleToggleChosenSkill = (skillId) => setState((s) => toggleChosenSkill(s, skillId));
 
   // Escala Narrativa: mostra o tier correspondente a essa compra (capado no
   // último tier definido, já que o livro só tem até a 4ª compra escrita).
@@ -39,15 +44,15 @@ export default function BackgroundModal({ packageId, purchaseNumber = 1, initial
   const handleSelectAttribute = (attributeId) => setState((s) => selectAttribute(s, attributeId));
   const handleConfirm = () => {
     if (canConfirm(state)) {
-      onConfirm({ allocations: state.allocations, attributeId: state.selectedAttribute });
-    }
+      onConfirm({ allocations: state.allocations, attributeId: state.selectedAttribute, chosenSkills: state.chosenSkills });
+        }
   };
 
-return (
+  return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden">       {/* Cabeçalho */}
-<div className="p-3 sm:p-4 border-b bg-white flex items-center justify-between shrink-0">
-            <div>
+        <div className="p-3 sm:p-4 border-b bg-white flex items-center justify-between shrink-0">
+          <div>
             <h2 className="text-lg font-semibold">{pkg.label}</h2>
             <p className="text-sm text-gray-500">{pkg.description}</p>
           </div>
@@ -57,92 +62,115 @@ return (
         </div>
 
         {/* Escala Narrativa — o "sabor" dessa compra específica */}
-       {/* Início da área com scroll interno */}
-<div className="overflow-y-auto flex-1 overscroll-contain">
-        {narrativeTier && (
-          <div className="px-4 py-3 border-b bg-gray-50 text-sm">
-            <span className="font-medium">
-              {purchaseNumber}ª compra ({narrativeTier.title}):
-            </span>{' '}
-            <span className="text-gray-600">{narrativeTier.text}</span>
-          </div>
-        )}
+        {/* Início da área com scroll interno */}
+        <div className="overflow-y-auto flex-1 overscroll-contain">
+          {narrativeTier && (
+            <div className="px-4 py-3 border-b bg-gray-50 text-sm">
+              <span className="font-medium">
+                {purchaseNumber}ª compra ({narrativeTier.title}):
+              </span>{' '}
+              <span className="text-gray-600">{narrativeTier.text}</span>
+            </div>
+          )}
 
-        {/* Saldo de pontos */}
-        <div className="px-4 py-3 flex items-center justify-between border-b">
-          <span className="text-sm text-gray-600">Pontos disponíveis</span>
-          <span
-            className={`text-lg font-bold ${
-              state.remainingPoints === 0 ? 'text-red-600' : 'text-gray-900'
-            }`}
-          >
-            {state.remainingPoints} / {state.totalPoints}
-          </span>
-        </div>
-
-        {state.error && (
-          <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b">{state.error}</div>
-        )}
-
-        {/* Bônus fixo de Atributo (+2, não divisível) */}
-        <div className="px-4 py-3 border-b">
-          <div className="text-sm text-gray-600 mb-2">
-            Escolha o Atributo que recebe +{ATTRIBUTE_BONUS_PER_PACKAGE} nesta compra
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(ATTRIBUTES).map(([id, attr]) => (
-              <button
-                key={id}
-                onClick={() => handleSelectAttribute(id)}
-                className={`px-3 py-1.5 rounded border text-sm ${
-                  state.selectedAttribute === id ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+          {/* Saldo de pontos */}
+          <div className="px-4 py-3 flex items-center justify-between border-b">
+            <span className="text-sm text-gray-600">Pontos disponíveis</span>
+            <span
+              className={`text-lg font-bold ${state.remainingPoints === 0 ? 'text-red-600' : 'text-gray-900'
                 }`}
-              >
-                {attr.label}
-              </button>
+            >
+              {state.remainingPoints} / {state.totalPoints}
+            </span>
+          </div>
+
+          {state.error && (
+            <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b">{state.error}</div>
+          )}
+        {isSkillChoicePackage && (
+          <div className="px-4 py-3 border-b">
+            <div className="text-sm text-gray-600 mb-2">
+              Escolha até {pkg.skillChoiceSlots} perícias que representam o hobby ({state.chosenSkills.length}/{pkg.skillChoiceSlots})
+            </div>
+            {groupSkillsByCategory(Object.keys(SKILLS)).map((group) => (
+              <div key={group.categoryId} className="mb-2">
+                <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{group.label}</div>
+                <div className="flex flex-wrap gap-1">
+                  {group.skills.map((skillId) => {
+                    const selected = state.chosenSkills.includes(skillId);
+                    return (
+                      <button
+                        key={skillId}
+                        onClick={() => handleToggleChosenSkill(skillId)}
+                        className={`px-2 py-1 rounded border text-xs ${selected ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        {SKILLS[skillId]?.label ?? skillId}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+          {/* Bônus fixo de Atributo (+2, não divisível) */}
+          <div className="px-4 py-3 border-b">
+            <div className="text-sm text-gray-600 mb-2">
+              Escolha o Atributo que recebe +{ATTRIBUTE_BONUS_PER_PACKAGE} nesta compra
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(ATTRIBUTES).map(([id, attr]) => (
+                <button
+                  key={id}
+                  onClick={() => handleSelectAttribute(id)}
+                  className={`px-3 py-1.5 rounded border text-sm ${state.selectedAttribute === id ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
+                    }`}
+                >
+                  {attr.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de perícias válidas, agrupadas por categoria (como na ficha) */}
+          <div className="p-4 space-y-4">
+            {skillGroups.map((group) => (
+              <div key={group.categoryId}>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase mb-1">{group.label}</h3>
+                <div className="space-y-2">
+                  {group.skills.map((skillId) => {
+                    const skill = SKILLS[skillId];
+                    const allocated = state.allocations[skillId] || 0;
+                    return (
+                      <div key={skillId} className="flex items-center justify-between py-1">
+                        <span className="text-sm">{skill?.label ?? skillId}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleDecrement(skillId)}
+                            disabled={allocated === 0}
+                            className="w-7 h-7 rounded border disabled:opacity-30"
+                          >
+                            −
+                          </button>
+                          <span className="w-6 text-center text-sm">{allocated}</span>
+                          <button
+                            onClick={() => handleIncrement(skillId)}
+                            disabled={state.remainingPoints === 0 || allocated >= 2}
+                            className="w-7 h-7 rounded border disabled:opacity-30"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
         </div>
-
-        {/* Lista de perícias válidas, agrupadas por categoria (como na ficha) */}
-        <div className="p-4 space-y-4">
-          {skillGroups.map((group) => (
-            <div key={group.categoryId}>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-1">{group.label}</h3>
-              <div className="space-y-2">
-                {group.skills.map((skillId) => {
-                  const skill = SKILLS[skillId];
-                  const allocated = state.allocations[skillId] || 0;
-                  return (
-                    <div key={skillId} className="flex items-center justify-between py-1">
-                      <span className="text-sm">{skill?.label ?? skillId}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleDecrement(skillId)}
-                          disabled={allocated === 0}
-                          className="w-7 h-7 rounded border disabled:opacity-30"
-                        >
-                          −
-                        </button>
-                        <span className="w-6 text-center text-sm">{allocated}</span>
-                        <button
-                          onClick={() => handleIncrement(skillId)}
-                          disabled={state.remainingPoints === 0 || allocated >= 2}
-                          className="w-7 h-7 rounded border disabled:opacity-30"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-</div>
-{/* Fim da área com scroll interno */}
-{/* Ações do modal */}
+        {/* Fim da área com scroll interno */}
+        {/* Ações do modal */}
         <div className="p-3 sm:p-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-white gap-2 shrink-0">
           <button onClick={handleRandomize} className="text-xs sm:text-sm px-3 py-2 rounded border order-2 sm:order-1">
             Aleatorizar
