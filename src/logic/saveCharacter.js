@@ -12,8 +12,8 @@ export async function saveCharacterToSupabase(userId, character, characterId) {
     user_id: userId,
     name: character.name || '(sem nome)',
     data: character,
+    updated_at: new Date().toISOString(), // garante que a data muda a cada salvamento
   };
-
   if (characterId) {
     return supabase.from('characters').update(payload).eq('id', characterId).select().single();
   }

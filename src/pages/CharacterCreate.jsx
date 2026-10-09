@@ -32,6 +32,8 @@ import {
 import AbilityFields from '../components/character/AbilityFields';
 import SpecialtyFields from '../components/character/SpecialtyFields';
 import InventoryStep from '../components/character/InventoryStep';
+import MasterGrantsStep from '../components/character/MasterGrantsStep';
+import { getScaleBudget } from '../logic/masterMode';
 import { ARSENAL_BY_ID } from '../data/arsenal';
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
@@ -68,22 +70,35 @@ export default function CharacterCreate({ userId }) {
 
   const draftKey = `ace-draft-${routeCharacterId ?? 'new'}`;
 
-  // Modo edição/recuperação: primeiro checa se existe um rascunho local
-  // (RNF-03 — não perder progresso em caso de refresh/oscilação). Se tiver,
-  // usa ele e nem busca no Supabase. Só busca do banco se não tiver rascunho.
-  useEffect(() => {
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
-      try {
-        setCharacter(normalizeCharacter(JSON.parse(savedDraft)));
-        setIsLoadingExisting(false);
-        return;
-      } catch {
-        // rascunho corrompido — ignora e segue pro fluxo normal
-      }
+  // Versão da ficha que está no banco (ou foi salva por último). Serve pra saber
+  // se há alterações não salvas e pra não gravar rascunho à toa.
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(character));
+  const savedSnapshotRef = useRef(savedSnapshot);
+  const baseUpdatedAtRef = useRef(null); // updated_at do banco em que o rascunho se baseia
+  const [draftNotice, setDraftNotice] = useState(null);
+  const isDirty = JSON.stringify(character) !== savedSnapshot;
+
+  function readDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Rascunhos antigos eram só o objeto da ficha, sem baseUpdatedAt.
+      return parsed?.character ? parsed : { character: parsed, baseUpdatedAt: null };
+    } catch {
+      return null; // rascunho corrompido
     }
+  }
+
+  useEffect(() => {
+    savedSnapshotRef.current = savedSnapshot;
+  }, [savedSnapshot]);
+
+  useEffect(() => {
+    const draft = readDraft();
 
     if (!routeCharacterId) {
+      if (draft) setCharacter(normalizeCharacter(draft.character));
       setIsLoadingExisting(false);
       return;
     }
@@ -92,9 +107,26 @@ export default function CharacterCreate({ userId }) {
     loadCharacter(routeCharacterId).then(({ data, error }) => {
       if (cancelled) return;
       if (error || !data) {
-        setLoadError(error?.message || 'Ficha não encontrada.');
+        if (draft) {
+          setCharacter(normalizeCharacter(draft.character)); // sem conexão: usa o rascunho (RNF-03)
+          baseUpdatedAtRef.current = draft.baseUpdatedAt ?? null;
+        } else {
+          setLoadError(error?.message || 'Ficha não encontrada.');
+        }
       } else {
-        setCharacter(normalizeCharacter(data.data));
+        const fromDb = normalizeCharacter(data.data);
+        baseUpdatedAtRef.current = data.updated_at ?? null;
+        setSavedSnapshot(JSON.stringify(fromDb));
+        const draftMatchesDb = draft && draft.baseUpdatedAt === (data.updated_at ?? null);
+        if (draftMatchesDb) {
+          setCharacter(normalizeCharacter(draft.character)); // alterações não salvas deste aparelho
+        } else {
+          if (draft) {
+            localStorage.removeItem(draftKey);
+            setDraftNotice('O rascunho deste aparelho era de uma versão mais antiga e foi descartado; esta é a versão salva da ficha.');
+          }
+          setCharacter(fromDb);
+        }
       }
       setIsLoadingExisting(false);
     });
@@ -105,8 +137,7 @@ export default function CharacterCreate({ userId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeCharacterId]);
 
-  // Autosave a cada 10s (RF-06). Usa um ref pra sempre salvar o estado mais
-  // recente sem precisar recriar o interval a cada tecla digitada.
+  // Rascunho local a cada 10s (RF-06), só quando algo mudou desde o último salvo.
   const characterRef = useRef(character);
   useEffect(() => {
     characterRef.current = character;
@@ -114,10 +145,13 @@ export default function CharacterCreate({ userId }) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      localStorage.setItem(draftKey, JSON.stringify(characterRef.current));
+      if (JSON.stringify(characterRef.current) === savedSnapshotRef.current) return;
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({ character: characterRef.current, baseUpdatedAt: baseUpdatedAtRef.current })
+      );
     }, 10000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
 
   const isAgent = character.role === 'agente';
@@ -254,7 +288,7 @@ export default function CharacterCreate({ userId }) {
       },
     }));
   }
-  function buildSteps(isAgent) {
+  function buildSteps(isAgent, masterEnabled) {
     const steps = [
       { id: 'identity', label: '1. Detalhes do Personagem' },
       { id: 'lifeStage', label: '2. Fase da Vida' },
@@ -267,6 +301,7 @@ export default function CharacterCreate({ userId }) {
     if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
     steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
     steps.push({ id: 'inventory', label: `${n++}. Inventário` });
+    if (masterEnabled) steps.push({ id: 'masterGrants', label: `${n++}. Concessões do Mestre` });
     steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
     return steps;
   }
@@ -360,7 +395,10 @@ export default function CharacterCreate({ userId }) {
     [finalSkillTotals, character.classPath.archetypeId]
   );
   const hasFightingStylePoints = totalFightingStylePoints > 0;
-  const STEPS = useMemo(() => buildSteps(isAgent), [isAgent]);
+  const STEPS = useMemo(
+    () => buildSteps(isAgent, !!character.masterMode?.enabled),
+    [isAgent, character.masterMode?.enabled]
+  );
   const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
   const goNext = () => setCurrentStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id);
   const goBack = () => setCurrentStep(STEPS[Math.max(stepIndex - 1, 0)].id);
@@ -728,6 +766,8 @@ export default function CharacterCreate({ userId }) {
       } else {
         setSaveSuccess(true);
         localStorage.removeItem(draftKey);
+        baseUpdatedAtRef.current = data?.updated_at ?? null;
+        setSavedSnapshot(JSON.stringify(character));
         // Primeira vez salvando (era INSERT): guarda o id pra próximos
         // saves virarem UPDATE em vez de criar fichas duplicadas, e troca
         // a URL pra /characters/:id sem recarregar a página.
@@ -762,6 +802,7 @@ export default function CharacterCreate({ userId }) {
           ← Voltar ao Dashboard
         </button>
         <h1 className="text-sm font-semibold text-gray-400 uppercase mb-2 hidden md:block">Ficha ACE</h1>
+        {isDirty && <p className="text-xs text-amber-600 mb-2">● Alterações não salvas</p>}
 
         {/* Contêiner de passos: scroll horizontal no mobile, vertical no desktop */}
         <div className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0 no-scrollbar">
@@ -784,6 +825,11 @@ export default function CharacterCreate({ userId }) {
 
       {/* Conteúdo principal com scroll independente e padding reduzido no mobile */}
       <main className="flex-1 p-4 md:p-6 max-w-2xl overflow-y-auto">
+        {draftNotice && (
+          <div className="mb-4 text-xs px-3 py-2 rounded bg-amber-50 text-amber-700 border border-amber-200">
+            {draftNotice}
+          </div>
+        )}
         {/* Step 1: Detalhes */}
         {currentStep === 'identity' && (
           <section>
@@ -860,6 +906,23 @@ export default function CharacterCreate({ userId }) {
               value={character.curiosities ?? ''}
               onChange={(e) => setCharacter((c) => ({ ...c, curiosities: e.target.value }))}
             />
+
+            <label className="flex items-start gap-2 text-sm mt-6 border rounded p-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!character.masterMode?.enabled}
+                onChange={() =>
+                  setCharacter((c) => ({ ...c, masterMode: { ...(c.masterMode ?? {}), enabled: !c.masterMode?.enabled } }))
+                }
+              />
+              <span>
+                <strong>Modo Mestre</strong>
+                <span className="block text-xs text-gray-500">
+                  Liga um passo extra com as concessões que dependem do Mestre: Escala, Passiva Natural e Armas Naturais.
+                </span>
+              </span>
+            </label>
           </section>
         )}
 
@@ -1944,6 +2007,9 @@ export default function CharacterCreate({ userId }) {
         {currentStep === 'inventory' && (
           <InventoryStep character={character} setCharacter={setCharacter} physicalDamage={physicalDamage} cargaInfo={cargaInfo} />
         )}
+                {currentStep === 'masterGrants' && (
+          <MasterGrantsStep character={character} setCharacter={setCharacter} physicalDamage={physicalDamage} />
+        )}
         {/* Step Final: Validar */}
         {currentStep === 'review' && (
           <section>
@@ -2168,6 +2234,21 @@ export default function CharacterCreate({ userId }) {
                     })
                   )}
                 </div>
+                                {character.masterMode?.enabled && (() => {
+                  const b = getScaleBudget(character.masterMode);
+                  return (
+                    <div className="mt-2">
+                      <div className="font-medium mb-1">Concessões do Mestre</div>
+                      <div className="text-xs text-gray-500">
+                        Escala Geral {b.general} · Modificadores {b.spent}/{b.total} ·{' '}
+                        {Object.keys(character.masterMode.skillScales ?? {}).length} Perícia(s) com Escala ·{' '}
+                        {Object.keys(character.masterMode.categoryScales ?? {}).length} categoria(s) com Escala 0/−1 ·{' '}
+                        {(character.masterMode.naturalPassives ?? []).length} Passiva(s) Natural(is) ·{' '}
+                        {(character.masterMode.naturalWeapons ?? []).length} Arma(s) Natural(is)
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
                 {character.customSkills.length === 0 ? (
                   <p className="text-gray-400">Nenhuma habilidade adicionada.</p>

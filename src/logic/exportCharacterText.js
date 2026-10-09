@@ -10,6 +10,7 @@ import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
 import { ARSENAL_BY_ID } from '../data/arsenal';
+import { buildMasterModeLines } from './masterMode';
 import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage, formatArsenalSummary, formatPhysicalDefense, DEFENSE_SKILLS } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
@@ -301,6 +302,7 @@ export function buildCharacterSheetLines({
       lines.push('');
     }
   }
+    lines.push(...buildMasterModeLines(character.masterMode, physicalDamage));
     const inventory = character.inventory ?? [];
   if (inventory.length > 0) {
     lines.push('"Inventário', '');
