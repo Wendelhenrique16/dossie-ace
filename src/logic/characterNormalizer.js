@@ -19,6 +19,23 @@ function normalizeInventoryItem(i) {
     notes: i.notes ?? '',
   };
 }
+function normalizeMasterMode(m) {
+  const mm = m ?? {};
+  return {
+    enabled: !!mm.enabled,
+    scaleGeneral: mm.scaleGeneral ?? 1,
+    skillScales: mm.skillScales ?? {},
+    categoryScales: mm.categoryScales ?? {},
+    naturalPassives: (mm.naturalPassives ?? []).map(normalizeSpecialty),
+    naturalWeapons: (mm.naturalWeapons ?? []).map((w) => ({
+      instanceId: w.instanceId ?? `${Date.now()}-${Math.random()}`,
+      name: w.name ?? '',
+      damageType: w.damageType ?? 'Cortante',
+      tags: w.tags ?? [],
+      notes: w.notes ?? '',
+    })),
+  };
+}
 function normalizeAbility(a) {
   return {
     instanceId: a.instanceId ?? `${Date.now()}-${Math.random()}`,
@@ -118,6 +135,7 @@ export function normalizeCharacter(data = {}) {
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
     fightingStyles: fightingStylesList,
+    masterMode: normalizeMasterMode(safeData.masterMode),
     inventory: (safeData.inventory ?? []).map(normalizeInventoryItem),
     specialties: (safeData.specialties ?? []).map(normalizeSpecialty),
     activeFightingStyleId: safeData.activeFightingStyleId ?? (fightingStylesList.length === 1 ? fightingStylesList[0].id : null),
