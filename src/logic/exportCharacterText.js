@@ -39,20 +39,19 @@ export function buildCharacterSheetLines({
 
   lines.push('"Personagem', '');
   lines.push(`Nome: ${character.name || ''}`);
-  lines.push('Tier: ');
   lines.push(`Idade: ${lifeStage?.label ?? ''}`);
   lines.push(`Classe: ${className}`);
   lines.push(`Caminho: ${caminhoName}`);
-  lines.push(`Especialidade: ${specialtyPoints}`);
+  lines.push(`Especialidade: ${(character.specialties ?? []).map((s) => s.name || '(sem nome)').join(', ')}`);
   lines.push('');
 
   lines.push('"Curiosidades', '');
-  lines.push('Gênero: ');
-  lines.push('Sexualidade: ');
-  lines.push('Religião: ');
-  lines.push('Estado Civil: ');
+  lines.push(`Gênero: ${character.gender || ''}`);
+  lines.push(`Sexualidade: ${character.sexuality || ''}`);
+  lines.push(`Religião: ${character.religion || ''}`);
+  lines.push(`Estado Civil: ${character.maritalStatus || ''}`);
   lines.push(`Lore: ${character.concept || ''}`);
-  lines.push('Curiosidades gerais: ');
+  lines.push(`Curiosidades gerais: ${character.curiosities || ''}`);
   lines.push('');
 
   lines.push('"Informações', '');
@@ -100,9 +99,9 @@ export function buildCharacterSheetLines({
   lines.push('');
 
   lines.push('"Corpo', '');
-  lines.push('Altura: ');
+  lines.push(`Altura: ${character.height || ''}`);
   lines.push(`Peso: ${character.weightKg ?? ''}`);
-  lines.push('Aparência: ');
+  lines.push(`Aparência: ${character.appearance || ''}`);
   lines.push('');
 
   lines.push('〃Atributos', '');
@@ -194,7 +193,13 @@ export function buildCharacterSheetLines({
       lines.push('');
     }
   }
-
+  (character.specialties ?? []).forEach((s) => {
+    const scopeText = `${s.scope || '(sem escopo)'}${s.conditional ? ` — ${s.conditional.description}` : ''}`;
+    lines.push(`# ${(s.name || '(sem nome)').toUpperCase()} — ESPECIALIDADE`, '');
+    lines.push(`> ${s.description || ''}`);
+    lines.push(`> **Escopo:** ${scopeText} · **Efeito:** ${s.names.join(' + ')}`);
+    lines.push('');
+  });
   if (isAgent && character.classPath.caminhoId) {
     lines.push('Caminho:');
     lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);

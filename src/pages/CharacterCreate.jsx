@@ -30,6 +30,7 @@ import {
   MAX_SINGLE_PASSIVE_WEIGHT, EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
 } from '../data/fightingStyles';
 import AbilityFields from '../components/character/AbilityFields';
+import SpecialtyFields from '../components/character/SpecialtyFields';
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
@@ -485,7 +486,27 @@ export default function CharacterCreate({ userId }) {
       signatureMoves: (s.signatureMoves ?? []).filter((m) => m.instanceId !== instanceId),
     }));
   }
-
+  function handleAddSpecialty() {
+    setCharacter((c) => ({
+      ...c,
+      specialties: [
+        ...(c.specialties ?? []),
+        { instanceId: `${Date.now()}-${Math.random()}`, name: '', scope: '', names: [], conditional: null, description: '' },
+      ],
+    }));
+  }
+  function handleUpdateSpecialty(instanceId, updater) {
+    setCharacter((c) => ({
+      ...c,
+      specialties: (c.specialties ?? []).map((s) => (s.instanceId === instanceId ? updater(s) : s)),
+    }));
+  }
+  function handleRemoveSpecialty(instanceId) {
+    setCharacter((c) => ({
+      ...c,
+      specialties: (c.specialties ?? []).filter((s) => s.instanceId !== instanceId),
+    }));
+  }
   function handleSelectLifeStage(id) {
     const stage = LIFE_STAGES[id];
     const halvedAttributeIds = stage.agingPenalty
@@ -805,6 +826,37 @@ export default function CharacterCreate({ userId }) {
             {!character.weightKg && (
               <p className="text-xs text-red-500 mt-1">Obrigatório: define a Categoria de Massa, o Vigor, o Dano Físico, a Carga e o Movimento.</p>
             )}
+
+            {[
+              ['gender', 'Gênero'],
+              ['sexuality', 'Sexualidade'],
+              ['religion', 'Religião'],
+              ['maritalStatus', 'Estado Civil'],
+              ['height', 'Altura (ex: 1,75m)'],
+            ].map(([field, label]) => (
+              <div key={field}>
+                <label className="block text-sm mb-1 mt-4">{label}</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  value={character[field] ?? ''}
+                  onChange={(e) => setCharacter((c) => ({ ...c, [field]: e.target.value }))}
+                />
+              </div>
+            ))}
+            <label className="block text-sm mb-1 mt-4">Aparência</label>
+            <textarea
+              className="w-full border rounded px-3 py-2"
+              rows={2}
+              value={character.appearance ?? ''}
+              onChange={(e) => setCharacter((c) => ({ ...c, appearance: e.target.value }))}
+            />
+            <label className="block text-sm mb-1 mt-4">Curiosidades gerais</label>
+            <textarea
+              className="w-full border rounded px-3 py-2"
+              rows={2}
+              value={character.curiosities ?? ''}
+              onChange={(e) => setCharacter((c) => ({ ...c, curiosities: e.target.value }))}
+            />
           </section>
         )}
 
@@ -921,9 +973,9 @@ export default function CharacterCreate({ userId }) {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium">Pacotes Comprados</h3>
-                      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0 && e.packageId !== 'interesses') && (                        <button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
-                          Distribuir tudo pendente
-                        </button>
+                      {character.purchasedBackgrounds.some((e) => Object.keys(e.allocations).length === 0 && e.packageId !== 'interesses') && (<button onClick={handleDistributeAllPending} className="text-xs px-3 py-1.5 rounded border bg-gray-50">
+                        Distribuir tudo pendente
+                      </button>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -1163,7 +1215,7 @@ export default function CharacterCreate({ userId }) {
           <UnifiedDistributionModal
             pendingEntries={character.purchasedBackgrounds
               .map((entry, instanceIndex) => ({ entry, instanceIndex }))
-              .filter(({ entry }) => Object.keys(entry.allocations).length === 0 && entry.packageId !== 'interesses')              .map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
+              .filter(({ entry }) => Object.keys(entry.allocations).length === 0 && entry.packageId !== 'interesses').map(({ instanceIndex, entry }) => ({ instanceIndex, packageId: entry.packageId }))}
             onConfirmAll={handleConfirmBulkDistribution}
             onClose={() => setBulkDistributeOpen(false)}
           />
@@ -1391,7 +1443,7 @@ export default function CharacterCreate({ userId }) {
         {currentStep === 'classPath' && (
           <section>
             <h2 className="text-xl font-semibold mb-2">Classe & Caminho</h2>
-            <p className="text-sm text-gray-500 mb-4">Exclusivo para Agentes da ACE (Rank D+).</p>
+            <p className="text-sm text-gray-500 mb-4">Exclusivo para Agentes da ACE.</p>
 
             {/* Classe */}
             <label className="block text-sm mb-1">Classe</label>
@@ -1515,7 +1567,39 @@ export default function CharacterCreate({ userId }) {
                 </div>
               </div>
             )}
-
+            {/* Especialidade — 1 Passiva por ponto de Especialidade da Classe */}
+            {character.classPath.archetypeId && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm">
+                    Especialidade ({(character.specialties ?? []).length}/{classBonuses.specialtyPoints})
+                  </label>
+                  <button
+                    onClick={handleAddSpecialty}
+                    disabled={(character.specialties ?? []).length >= classBonuses.specialtyPoints}
+                    className="text-xs px-2 py-1 rounded border bg-gray-50 disabled:opacity-40"
+                  >
+                    + Nova Especialidade
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mb-2">
+                  Cada ponto de Especialidade vira uma Passiva inteira, sempre ligada, numa ação específica que o personagem domina.
+                </p>
+                <div className="space-y-2">
+                  {(character.specialties ?? []).map((s) => (
+                    <SpecialtyFields
+                      key={s.instanceId}
+                      specialty={s}
+                      onChange={(updater) => handleUpdateSpecialty(s.instanceId, updater)}
+                      onRemove={() => handleRemoveSpecialty(s.instanceId)}
+                    />
+                  ))}
+                </div>
+                {(character.specialties ?? []).length > classBonuses.specialtyPoints && (
+                  <p className="text-xs text-red-600 mt-2">⚠ Há mais Especialidades do que pontos de Especialidade da Classe.</p>
+                )}
+              </div>
+            )}
             {/* Caminho */}
             <label className="block text-sm mb-1">Caminho</label>
             <div className="grid grid-cols-1 gap-2">
@@ -2090,6 +2174,11 @@ export default function CharacterCreate({ userId }) {
                   </div>
                   <div>Caminho: {CAMINHOS[character.classPath.caminhoId]?.label ?? '—'}</div>
                   <div>Pontos de Especialidade: {classBonuses.specialtyPoints}</div>
+                  {(character.specialties ?? []).map((s) => (
+                    <div key={s.instanceId} className="text-xs text-gray-500">
+                      Especialidade ({s.name || 'sem nome'}): {s.scope || '(sem escopo)'}{s.conditional ? ` — ${s.conditional.description}` : ''} · {s.names.join(' + ') || '(sem Efeito)'}{s.description ? `: ${s.description}` : ''}
+                    </div>
+                  ))}
                   {classBonuses.notes.map((note, i) => (
                     <div key={i} className="text-xs text-gray-500 mt-1">
                       {note}
