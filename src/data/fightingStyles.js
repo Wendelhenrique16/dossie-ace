@@ -47,8 +47,8 @@ export const POSTURE_LEVEL_THRESHOLDS = { 1: 1, 2: 3 };
 
 export const POSTURE_EFFECTS = {
   ofensiva: {
-    1: { staminaDiscount: 1, description: 'Ataques deste Estilo custam -1 Stamina (piso 0). Primeiro ataque do turno ignora penalidade de sequência.' },
-    2: { staminaDiscount: 2, description: 'Ataques deste Estilo custam -2 Stamina (piso 0). Primeiro ataque do turno ignora penalidade de sequência.' },
+    1: { staminaDiscount: 1, description: 'Primeiro ataque do turno deste Estilo custam -1 Stamina (piso 0) e ignora penalidade de sequência.' },
+    2: { staminaDiscount: 2, description: 'Primeiro ataque do turno deste Estilo custam -1 Stamina (piso 0) e ignora penalidade de sequência.' },
   },
   defensiva: {
     1: { prontidaoDivisor: 2, description: 'Ao sofrer dano físico, rola Prontidão, divide por 2 (arred. pra cima), reduz do dano.' },
