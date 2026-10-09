@@ -1776,6 +1776,11 @@ export default function CharacterCreate({ userId }) {
                           Defensiva: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})
                         </p>
                       )}
+                                                {[style.postura.ofensiva, style.postura.defensiva].some((p) => p === 2 || p > 3) && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              ⚠ Postura: 1 ponto dá o Nível 1 e 3 pontos dão o Nível 2. Pontos fora desses valores não somam efeito.
+                            </p>
+                          )}
                     </div>
                     {/* Passivas — múltiplos Efeitos por passiva, Escopo obrigatório */}
                     <div>
@@ -2115,11 +2120,7 @@ export default function CharacterCreate({ userId }) {
                           {effects.postura.defensiva.level > 0 && (
                             <div className="text-gray-500">Postura Defensiva Nível {effects.postura.defensiva.level}: {effects.postura.defensiva.description} (dado atual: {effects.postura.defensiva.prontidaoDie})</div>
                           )}
-                          {[style.postura.ofensiva, style.postura.defensiva].some((p) => p === 2 || p > 3) && (
-                            <p className="text-xs text-amber-600 mt-1">
-                              ⚠ Postura: 1 ponto dá o Nível 1 e 3 pontos dão o Nível 2. Pontos fora desses valores não somam efeito.
-                            </p>
-                          )}
+
                           {style.passives.map((p) => (
                             <div key={p.instanceId} className="text-gray-500">
                               Passiva ({p.names.join(' + ')}, {p.category ?? '(sem categoria)'}{p.conditional ? ` — ${p.conditional.description}` : ''}): {p.description || '(sem descrição)'}
