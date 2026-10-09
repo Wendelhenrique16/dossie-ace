@@ -10,6 +10,15 @@ function normalizeSpecialty(s) {
     description: s.description ?? '',
   };
 }
+function normalizeInventoryItem(i) {
+  return {
+    instanceId: i.instanceId ?? `${Date.now()}-${Math.random()}`,
+    catalogId: i.catalogId ?? null,
+    name: i.name ?? '',
+    quantity: i.quantity ?? 1,
+    notes: i.notes ?? '',
+  };
+}
 function normalizeAbility(a) {
   return {
     instanceId: a.instanceId ?? `${Date.now()}-${Math.random()}`,
@@ -109,6 +118,7 @@ export function normalizeCharacter(data = {}) {
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
     fightingStyles: fightingStylesList,
+    inventory: (safeData.inventory ?? []).map(normalizeInventoryItem),
     specialties: (safeData.specialties ?? []).map(normalizeSpecialty),
     activeFightingStyleId: safeData.activeFightingStyleId ?? (fightingStylesList.length === 1 ? fightingStylesList[0].id : null),
     currentPosture: safeData.currentPosture ?? 'neutra', // 'neutra' | 'ofensiva' | 'defensiva'

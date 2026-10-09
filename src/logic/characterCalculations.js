@@ -598,3 +598,50 @@ const reativoParts = ['1d20', constituicaoValue > 0 && `d${constituicaoValue}`, 
     },
   };
 }
+/**
+ * Defesas na ficha: não são mais DT fixa, são testes rolados com o dado da perícia.
+ * Física e Mental vêm do livro (Constituição/Resistência; Vontade).
+ * Social vem do usuário (Aparência com Lábia ou Charme).
+ */
+export const DEFENSE_SKILLS = {
+  mental: ['vontade'],
+  social: ['aparencia', 'labia', 'charme'],
+};
+
+/**
+ * Defesa Física = Teste Reativo de Constituição:
+ * 1d20 + dado de Constituição + dado de Robustez do Estilo ativo.
+ */
+export function formatPhysicalDefense(constituicaoLevel, activeStyle) {
+  const constituicaoDie = getSkillDieMaxValue(constituicaoLevel || 0);
+  const robustezFace = getBonusDieFace(activeStyle?.eixos?.robustez || 0);
+  return ['1d20', constituicaoDie > 0 && `d${constituicaoDie}`, robustezFace && `d${robustezFace}`]
+    .filter(Boolean)
+    .join(' + ');
+}
+
+/**
+ * Texto do dano de uma arma do Arsenal. 'fisico' soma o Dano Físico do
+ * personagem (já com o modificador de Massa) ao dado da arma.
+ */
+export function formatWeaponDamage(damage, physicalDamage) {
+  if (!damage || damage.kind === 'nenhum') return 'sem dano';
+  if (damage.kind === 'texto') return damage.text;
+  const bonus = `1d${damage.die}`;
+  if (!physicalDamage) return `Dano Físico + ${bonus}`;
+  if (physicalDamage.diceCount === 0) return 'Trauma Direto automático';
+  const base = formatPhysicalDamage(physicalDamage);
+  const modified = physicalDamage.multiplier > 1 || physicalDamage.divisor > 1;
+  return `${modified ? `(${base})` : base} + ${bonus}`;
+}
+
+/** Resumo de uma linha de um item do Arsenal (dano | tipo | tags | suprimento). */
+export function formatArsenalSummary(entry, physicalDamage) {
+  if (!entry) return '';
+  const parts = [];
+  if (entry.damage) parts.push(`Dano: ${formatWeaponDamage(entry.damage, physicalDamage)}`);
+  if (entry.damageType && entry.damageType !== '—') parts.push(entry.damageType);
+  if (entry.tags?.length) parts.push(entry.tags.join(', '));
+  if (entry.supply) parts.push(`Suprimento: ${entry.supply}`);
+  return parts.join(' | ');
+}
