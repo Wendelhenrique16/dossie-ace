@@ -1,8 +1,7 @@
 // src/components/character/AbilityFields.jsx
 import { TRIGGER_TYPES, COST_FORMS_BY_WEIGHT, COST_WEIGHT_LABELS, EFFECT_DEFINITIONS, getEffectWeight } from '../../data/abilities';
 
-export default function AbilityFields({ ability: a, onChange, onRemove, triggerPlaceholder = 'ex: antes de sacar a arma' }) {
-  const set = (updater) => onChange(updater);
+export default function AbilityFields({ ability: a, onChange, onRemove, showContext = false, triggerPlaceholder = 'ex: antes de sacar a arma' }) {  const set = (updater) => onChange(updater);
 
   function toggleEffect(name) {
     set((ab) => {
@@ -21,8 +20,10 @@ export default function AbilityFields({ ability: a, onChange, onRemove, triggerP
           value={a.name}
           onChange={(e) => set((ab) => ({ ...ab, name: e.target.value }))}
         />
-        <button onClick={onRemove} className="text-xs text-red-500 underline ml-2">Remover</button>
-      </div>
+        {a.sanityCost > 0 && (
+          <span className="text-xs text-amber-600 ml-2 whitespace-nowrap">-{a.sanityCost} Sanidade Máx.</span>
+        )}
+        <button onClick={onRemove} className="text-xs text-red-500 underline ml-2">Remover</button>      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -150,6 +151,18 @@ export default function AbilityFields({ ability: a, onChange, onRemove, triggerP
           </div>
         )}
       </div>
+
+      {showContext && (
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Contexto (opcional — qual ação/item/situação)</label>
+          <input
+            className="w-full border rounded px-2 py-1 text-xs"
+            placeholder="ex: usar um machado em combate"
+            value={a.contextText ?? ''}
+            onChange={(e) => set((ab) => ({ ...ab, contextText: e.target.value }))}
+          />
+        </div>
+      )}
     </div>
   );
 }

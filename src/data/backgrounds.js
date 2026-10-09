@@ -29,7 +29,7 @@ export const BACKGROUND_PACKAGES = {
     id: 'corpo',
     label: 'Pacote Corpo',
     description: 'Molde biológico natural: vitalidade, genética, resistência e sentidos.',
-    pointsPerPurchase: 5,
+    pointsPerPurchase: 8,
     allowedSkillCategories: ['corpo', 'mente', 'sentidos', 'social'],
     freeChoiceSlots: 0,
     narrativeScale: [
@@ -44,7 +44,7 @@ export const BACKGROUND_PACKAGES = {
     id: 'fisico',
     label: 'Pacote Físico',
     description: 'Treinamento deliberado do corpo: exercício, esportes, condicionamento, artes marciais.',
-    pointsPerPurchase: 5,
+    pointsPerPurchase: 8,
     allowedSkillCategories: ['corpo', 'movimento', 'combate', 'sentidos'],
     freeChoiceSlots: 0,
     narrativeScale: [
@@ -60,8 +60,9 @@ export const BACKGROUND_PACKAGES = {
     label: 'Pacote Interesses',
     description: 'Investimento pessoal em hobbies, paixões e projetos paralelos.',
     pointsPerPurchase: 4,
-    allowedSkillCategories: [], // qualquer categoria — ver freeChoiceSlots
-    freeChoiceSlots: 4, // "Escolha até 4 Atributos quaisquer"
+    allowedSkillCategories: [],
+    freeChoiceSlots: 4,
+    skillChoiceSlots: 4, // livro: "Escolha até 4 [perícias] quaisquer", definidas na criação
     narrativeScale: [
       { purchase: 1, title: 'Amador', text: 'Entusiasta casual de fins de semana, leitura esporádica e prática não profissional.' },
       { purchase: 2, title: 'Apaixonado', text: 'Dedicação constante, compra de equipamentos próprios, estudo ativo.' },
@@ -119,7 +120,7 @@ export const BACKGROUND_PACKAGES = {
     id: 'ocultista',
     label: 'Pacote Ocultista',
     description: 'Estudo ou contato com o sobrenatural, dogmas esquecidos, ordens secretas.',
-    pointsPerPurchase: 5,
+    pointsPerPurchase: 8,
     allowedSkillCategories: ['mente', 'profissao', 'miscelanea'],
     freeChoiceSlots: 0,
     extraSkills: ['ocultismo'], // pertence à categoria "combate" mas é liberado aqui também

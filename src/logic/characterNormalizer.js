@@ -1,9 +1,20 @@
 // src/logic/characterNormalizer.js
 import { createBlankStyle } from '../data/fightingStylesCatalog';
+function normalizeSpecialty(s) {
+  return {
+    instanceId: s.instanceId ?? `${Date.now()}-${Math.random()}`,
+    name: s.name ?? '',
+    scope: s.scope ?? '',
+    names: s.names ?? [],
+    conditional: s.conditional ?? null,
+    description: s.description ?? '',
+  };
+}
 function normalizeAbility(a) {
   return {
     instanceId: a.instanceId ?? `${Date.now()}-${Math.random()}`,
     abilityId: a.abilityId ?? null,
+    sanityCost: a.sanityCost ?? 0, // fichas antigas: sem custo retroativo
     name: a.name ?? '',
     trigger: { type: a.trigger?.type ?? 'Ativo', detail: a.trigger?.detail ?? '' },
     contextText: a.contextText ?? '',
@@ -52,6 +63,13 @@ export function normalizeCharacter(data = {}) {
 
     name: safeData.name ?? '',
     concept: safeData.concept ?? '',
+    gender: safeData.gender ?? '',
+    sexuality: safeData.sexuality ?? '',
+    religion: safeData.religion ?? '',
+    maritalStatus: safeData.maritalStatus ?? '',
+    height: safeData.height ?? '',
+    appearance: safeData.appearance ?? '',
+    curiosities: safeData.curiosities ?? '',
     role: safeData.role ?? 'civil',
     lifeStageId: safeData.lifeStageId ?? null,
     purchasedBackgrounds: (safeData.purchasedBackgrounds ?? []).map((entry) => ({
@@ -91,6 +109,7 @@ export function normalizeCharacter(data = {}) {
       caminhoId: safeData.classPath?.caminhoId ?? null,
     },
     fightingStyles: fightingStylesList,
+    specialties: (safeData.specialties ?? []).map(normalizeSpecialty),
     activeFightingStyleId: safeData.activeFightingStyleId ?? (fightingStylesList.length === 1 ? fightingStylesList[0].id : null),
     currentPosture: safeData.currentPosture ?? 'neutra', // 'neutra' | 'ofensiva' | 'defensiva'
   };

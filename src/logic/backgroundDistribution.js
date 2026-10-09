@@ -8,10 +8,12 @@ import { SKILL_CATEGORIES } from '../data/skills';
  * Retorna a lista de perícias válidas para um pacote (RN-01: "o sistema deve
  * carregar as perícias válidas ao abrir o modal").
  */
-export function getValidSkillsForPackage(packageId) {
+export function getValidSkillsForPackage(packageId, chosenSkills = []) {
   const pkg = BACKGROUND_PACKAGES[packageId];
   if (!pkg) throw new Error(`Pacote desconhecido: ${packageId}`);
 
+  // Interesses: o jogador escolhe as perícias do hobby na compra.
+  if (pkg.skillChoiceSlots) return chosenSkills;
   const skillsFromCategories = pkg.allowedSkillCategories.flatMap(
     (categoryId) => SKILL_CATEGORIES[categoryId]?.skills || []
   );
@@ -124,6 +126,7 @@ export function createDistributionState(packageId, existing = null) {
       remainingPoints: pkg.pointsPerPurchase - allocatedPoints,
       allocations: { ...existing.allocations },
       selectedAttribute: existing.attributeId ?? null,
+      chosenSkills: existing.chosenSkills ?? [],
     };
   }
 
@@ -133,6 +136,7 @@ export function createDistributionState(packageId, existing = null) {
     remainingPoints: pkg.pointsPerPurchase,
     allocations: {},
     selectedAttribute: null,
+    chosenSkills: [],
   };
 }
 
@@ -217,4 +221,31 @@ export function randomizeUnifiedDistribution(state, pendingEntries) {
 
 export function unifiedCanConfirm(state) {
   return Object.values(state.perPackage).every((s) => canConfirm(s));
+}
+
+/**
+ * Interesses: marca/desmarca uma perícia do hobby (até skillChoiceSlots).
+ * Desmarcar devolve os pontos que estavam nela.
+ */
+export function toggleChosenSkill(state, skillId) {
+  const pkg = BACKGROUND_PACKAGES[state.packageId];
+  const max = pkg?.skillChoiceSlots ?? 0;
+  const chosen = state.chosenSkills ?? [];
+
+  if (chosen.includes(skillId)) {
+    const allocations = { ...state.allocations };
+    const refunded = allocations[skillId] || 0;
+    delete allocations[skillId];
+    return {
+      ...state,
+      chosenSkills: chosen.filter((id) => id !== skillId),
+      allocations,
+      remainingPoints: state.remainingPoints + refunded,
+      error: null,
+    };
+  }
+  if (chosen.length >= max) {
+    return { ...state, error: `Escolha no máximo ${max} perícias.` };
+  }
+  return { ...state, chosenSkills: [...chosen, skillId], error: null };
 }

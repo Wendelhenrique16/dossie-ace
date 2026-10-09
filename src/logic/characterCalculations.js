@@ -226,12 +226,16 @@ export function getEffectiveMassCategory(weightKg, { forcaLevel = 0, constituica
  * cálculo sempre soma o sanityCost apenas das entradas que estão em
  * posição >= freePackages no momento atual (recalcula sozinho ao remover).
  */
-export function calculateMaxSanity(purchasedBackgrounds, freePackages, hardLimit = 12) {
+export function calculateMaxSanity(purchasedBackgrounds, freePackages, hardLimit = 12, selectedAbilities = []) {
   if (purchasedBackgrounds.length > hardLimit) return 1; // A Beira da Loucura
 
   let total = 100;
   purchasedBackgrounds.forEach((entry, index) => {
     if (index >= freePackages) total -= entry.sanityCost || 0;
+  });
+  // Livro: cada Habilidade comprada custa d6+6 de Sanidade Máxima (valor guardado na compra).
+  selectedAbilities.forEach((ability) => {
+    total -= ability.sanityCost || 0;
   });
   return Math.max(1, total);
 }
