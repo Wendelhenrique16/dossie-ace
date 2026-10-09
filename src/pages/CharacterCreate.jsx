@@ -39,7 +39,7 @@ import {
 import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
-  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves, formatWeaponDamage,
+  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves, formatArsenalSummary,
 } from '../logic/characterCalculations';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
@@ -1936,8 +1936,8 @@ export default function CharacterCreate({ userId }) {
             </div>
           </section>
         )}
-                {currentStep === 'inventory' && (
-          <InventoryStep character={character} setCharacter={setCharacter} physicalDamage={physicalDamage} />
+        {currentStep === 'inventory' && (
+          <InventoryStep character={character} setCharacter={setCharacter} physicalDamage={physicalDamage} cargaInfo={cargaInfo} />
         )}
         {/* Step Final: Validar */}
         {currentStep === 'review' && (
@@ -2150,7 +2150,7 @@ export default function CharacterCreate({ userId }) {
                     ))
                   )}
                 </div>
-                                <div className="mt-2">
+                <div className="mt-2">
                   <div className="font-medium mb-1">Inventário</div>
                   {(character.inventory ?? []).length === 0 ? (
                     <p className="text-gray-400">Nenhum item adicionado.</p>
@@ -2160,7 +2160,7 @@ export default function CharacterCreate({ userId }) {
                       return (
                         <div key={item.instanceId} className="text-xs border-b py-1">
                           <strong>{item.name || entry?.name || '(sem nome)'}</strong>{item.quantity > 1 ? ` x${item.quantity}` : ''}
-                          {entry && ` — ${formatWeaponDamage(entry.damage, physicalDamage)} | ${entry.damageType} | ${entry.tags.join(', ')}`}
+                          {entry && ` — ${formatArsenalSummary(entry, physicalDamage)}`}
                           {item.notes && ` — ${item.notes}`}
                         </div>
                       );

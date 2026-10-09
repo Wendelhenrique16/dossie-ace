@@ -634,3 +634,14 @@ export function formatWeaponDamage(damage, physicalDamage) {
   const modified = physicalDamage.multiplier > 1 || physicalDamage.divisor > 1;
   return `${modified ? `(${base})` : base} + ${bonus}`;
 }
+
+/** Resumo de uma linha de um item do Arsenal (dano | tipo | tags | suprimento). */
+export function formatArsenalSummary(entry, physicalDamage) {
+  if (!entry) return '';
+  const parts = [];
+  if (entry.damage) parts.push(`Dano: ${formatWeaponDamage(entry.damage, physicalDamage)}`);
+  if (entry.damageType && entry.damageType !== '—') parts.push(entry.damageType);
+  if (entry.tags?.length) parts.push(entry.tags.join(', '));
+  if (entry.supply) parts.push(`Suprimento: ${entry.supply}`);
+  return parts.join(' | ');
+}

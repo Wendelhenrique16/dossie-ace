@@ -10,7 +10,7 @@ import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
 import { ARSENAL_BY_ID } from '../data/arsenal';
-import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage, formatWeaponDamage, formatPhysicalDefense, DEFENSE_SKILLS } from './characterCalculations';
+import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage, formatArsenalSummary, formatPhysicalDefense, DEFENSE_SKILLS } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -310,6 +310,7 @@ export function buildCharacterSheetLines({
       if (entry) {
         lines.push(`  - Dano: ${formatWeaponDamage(entry.damage, physicalDamage)} | ${entry.damageType} | ${entry.tags.join(', ')}`);
       }
+      
       if (item.notes) lines.push(`  - ${item.notes}`);
     });
     lines.push('');

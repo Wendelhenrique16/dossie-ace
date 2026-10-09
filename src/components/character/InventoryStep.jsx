@@ -1,8 +1,8 @@
 // src/components/character/InventoryStep.jsx
-import { ARSENAL, ARSENAL_GROUPS, ARSENAL_BY_ID, WEAPON_TAGS } from '../../data/arsenal';
+import { ARSENAL, ARSENAL_GROUPS, ARSENAL_BY_ID, WEAPON_TAGS, DAMAGE_TYPE_INFO, getDamageTypes } from '../../data/arsenal';
 import { formatWeaponDamage } from '../../logic/characterCalculations';
 
-export default function InventoryStep({ character, setCharacter, physicalDamage }) {
+export default function InventoryStep({ character, setCharacter, physicalDamage, cargaInfo }) {
   const items = character.inventory ?? [];
 
   function update(instanceId, patch) {
@@ -35,9 +35,14 @@ export default function InventoryStep({ character, setCharacter, physicalDamage 
   return (
     <section>
       <h2 className="text-xl font-semibold mb-2">Inventário</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Lista do que o personagem carrega, com os efeitos de cada item. As armas do Arsenal Padrão já trazem dano, tipo e Tags.
+      <p className="text-sm text-gray-500 mb-2">
+        Lista do que o personagem carrega, com os efeitos de cada item. Os itens do Arsenal trazem dano, tipo, Tags e suprimento.
       </p>
+      {cargaInfo && (
+        <p className="text-xs text-gray-500 mb-4">
+          Carga confortável do personagem: até <strong>{cargaInfo.comfortable.maxKg} kg</strong> (Carga {cargaInfo.comfortable.cargaLevel}).
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-4">
         <select
@@ -66,6 +71,8 @@ export default function InventoryStep({ character, setCharacter, physicalDamage 
         <div className="space-y-3">
           {items.map((item) => {
             const entry = item.catalogId ? ARSENAL_BY_ID[item.catalogId] : null;
+            const hasInfo = entry && (entry.damage || entry.tags?.length || entry.supply);
+            const types = entry ? getDamageTypes(entry.damageType) : [];
             return (
               <div key={item.instanceId} className="border rounded p-3 space-y-2">
                 <div className="flex items-center gap-2">
@@ -88,14 +95,25 @@ export default function InventoryStep({ character, setCharacter, physicalDamage 
                   <button onClick={() => remove(item.instanceId)} className="text-xs text-red-500 underline">Remover</button>
                 </div>
 
-                {entry && (
+                {hasInfo && (
                   <div className="bg-gray-50 border rounded p-2 text-xs text-gray-600 space-y-1">
-                    <div>
-                      <strong>Dano:</strong> {formatWeaponDamage(entry.damage, physicalDamage)} · <strong>Tipo:</strong> {entry.damageType}
-                    </div>
-                    {entry.tags.map((tag) => (
+                    {entry.damage && (
+                      <div>
+                        <strong>Dano:</strong> {formatWeaponDamage(entry.damage, physicalDamage)}
+                        {entry.damageType && entry.damageType !== '—' && (
+                          <> · <strong>Tipo:</strong> {entry.damageType}</>
+                        )}
+                      </div>
+                    )}
+                    {types.map((t) => (
+                      <div key={t}><strong>{t}:</strong> {DAMAGE_TYPE_INFO[t]}</div>
+                    ))}
+                    {(entry.tags ?? []).map((tag) => (
                       <div key={tag}><strong>{tag}:</strong> {WEAPON_TAGS[tag] ?? ''}</div>
                     ))}
+                    {entry.supply && (
+                      <div><strong>Suprimento:</strong> {entry.supply}</div>
+                    )}
                   </div>
                 )}
 
