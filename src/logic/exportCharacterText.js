@@ -9,7 +9,8 @@ import { TRAUMAS } from '../data/traumas';
 import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
-import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage } from './characterCalculations';
+import { ARSENAL_BY_ID } from '../data/arsenal';
+import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage, formatWeaponDamage, formatPhysicalDefense, DEFENSE_SKILLS } from './characterCalculations';
 function diceFor(level) {
   if (!level || level <= 0) return 'd00';
   return SKILL_LEVEL_TO_DICE[Math.min(level, 9)] ?? 'd00';
@@ -127,9 +128,20 @@ export function buildCharacterSheetLines({
 
   lines.push('"Defesas', '');
   lines.push('Defesa (armadura): ');
-  lines.push('DT Física: ');
-  lines.push('DT Mental: ');
-  lines.push('DT Social: ');
+  const activeStyle = (character.fightingStyles ?? []).find((s) => s.id === character.activeFightingStyleId);
+  const constituicaoBonus = skillResultBonuses?.constituicao;
+  lines.push(
+    `Física (Teste Reativo de Constituição): ${formatPhysicalDefense(finalSkillTotals.constituicao || 0, activeStyle)}${constituicaoBonus ? ` (+${constituicaoBonus})` : ''}`
+  );
+  [['Mental', DEFENSE_SKILLS.mental], ['Social', DEFENSE_SKILLS.social]].forEach(([label, skillIds]) => {
+    const text = skillIds
+      .map((skillId) => {
+        const bonus = skillResultBonuses?.[skillId];
+        return `${SKILLS[skillId]?.label ?? skillId} ${diceFor(finalSkillTotals[skillId] ?? 0)}${bonus ? ` (+${bonus})` : ''}`;
+      })
+      .join(' · ');
+    lines.push(`${label}: ${text}`);
+  });
   lines.push('');
 
   lines.push('"Vigor', '');
@@ -288,6 +300,19 @@ export function buildCharacterSheetLines({
       });
       lines.push('');
     }
+  }
+    const inventory = character.inventory ?? [];
+  if (inventory.length > 0) {
+    lines.push('"Inventário', '');
+    inventory.forEach((item) => {
+      const entry = item.catalogId ? ARSENAL_BY_ID[item.catalogId] : null;
+      lines.push(`> ${item.name || entry?.name || '(sem nome)'}${item.quantity > 1 ? ` x${item.quantity}` : ''}`);
+      if (entry) {
+        lines.push(`  - Dano: ${formatWeaponDamage(entry.damage, physicalDamage)} | ${entry.damageType} | ${entry.tags.join(', ')}`);
+      }
+      if (item.notes) lines.push(`  - ${item.notes}`);
+    });
+    lines.push('');
   }
   character.selectedAbilities.forEach((a) => {
     const name = a.contextText ? `${a.name} [${a.contextText}]` : a.name;

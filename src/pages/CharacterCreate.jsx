@@ -31,13 +31,15 @@ import {
 } from '../data/fightingStyles';
 import AbilityFields from '../components/character/AbilityFields';
 import SpecialtyFields from '../components/character/SpecialtyFields';
+import InventoryStep from '../components/character/InventoryStep';
+import { ARSENAL_BY_ID } from '../data/arsenal';
 import {
   getReadyMadeStyles, createBlankStyle, applyCatalogToStyle,
 } from '../data/fightingStylesCatalog';
 import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
-  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves,
+  calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves, formatWeaponDamage,
 } from '../logic/characterCalculations';
 import {
   rollExtraPackageSanityCost, checkBrokenSanityState, calculateVigor, getEffectiveMassCategory,
@@ -264,6 +266,7 @@ export default function CharacterCreate({ userId }) {
     let n = 7;
     if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
     steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
+    steps.push({ id: 'inventory', label: `${n++}. Inventário` });
     steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
     return steps;
   }
@@ -1933,6 +1936,9 @@ export default function CharacterCreate({ userId }) {
             </div>
           </section>
         )}
+                {currentStep === 'inventory' && (
+          <InventoryStep character={character} setCharacter={setCharacter} physicalDamage={physicalDamage} />
+        )}
         {/* Step Final: Validar */}
         {currentStep === 'review' && (
           <section>
@@ -2142,6 +2148,23 @@ export default function CharacterCreate({ userId }) {
                         <strong>{a.name}{a.contextText ? ` [${a.contextText}]` : ''}</strong> — {a.trigger.type}{a.trigger.detail ? ` (${a.trigger.detail})` : ''} · {a.cost.form} → {a.effect.description}        {a.conditional && ` (Condicional: ${a.conditional.description})`}
                       </div>
                     ))
+                  )}
+                </div>
+                                <div className="mt-2">
+                  <div className="font-medium mb-1">Inventário</div>
+                  {(character.inventory ?? []).length === 0 ? (
+                    <p className="text-gray-400">Nenhum item adicionado.</p>
+                  ) : (
+                    (character.inventory ?? []).map((item) => {
+                      const entry = item.catalogId ? ARSENAL_BY_ID[item.catalogId] : null;
+                      return (
+                        <div key={item.instanceId} className="text-xs border-b py-1">
+                          <strong>{item.name || entry?.name || '(sem nome)'}</strong>{item.quantity > 1 ? ` x${item.quantity}` : ''}
+                          {entry && ` — ${formatWeaponDamage(entry.damage, physicalDamage)} | ${entry.damageType} | ${entry.tags.join(', ')}`}
+                          {item.notes && ` — ${item.notes}`}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
                 <div className="font-medium mb-1">Habilidades Customizadas</div>
