@@ -74,17 +74,42 @@ function stableStringify(v) {
  * Relê a ficha no banco e compara com a que está na tela.
  * Retorna { ok, updatedAt, reason }.
  */
+// Lista os caminhos que diferem entre dois valores (até `limit`).
+function diffPaths(a, b, path = '', out = [], limit = 12) {
+  if (out.length >= limit) return out;
+  if (stableStringify(a) === stableStringify(b)) return out;
+  const isObj = (v) => v && typeof v === 'object';
+  if (isObj(a) && isObj(b) && Array.isArray(a) === Array.isArray(b)) {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) {
+      const next = Array.isArray(a) ? `${path}[${k}]` : path ? `${path}.${k}` : k;
+      diffPaths(a[k], b[k], next, out, limit);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+  out.push(path || '(raiz)');
+  return out;
+}
+
+/**
+ * Relê a ficha no banco e compara, sem normalizar, com a que está na tela.
+ * Retorna { ok, updatedAt, differences, reason }.
+ */
 export async function verifySavedCharacter(characterId, character) {
   const { data, error } = await supabase
     .from('characters')
     .select('data, updated_at')
     .eq('id', characterId)
     .single();
-  if (error) return { ok: false, updatedAt: null, reason: `Não consegui reler a ficha no banco: ${error.message}` };
-  const same = stableStringify(normalizeCharacter(data.data)) === stableStringify(normalizeCharacter(character));
+  if (error) {
+    return { ok: false, updatedAt: null, differences: [], reason: `Não consegui reler a ficha no banco: ${error.message}` };
+  }
+  const differences = diffPaths(character, data.data);
   return {
-    ok: same,
+    ok: differences.length === 0,
     updatedAt: data.updated_at,
-    reason: same ? null : 'A tela e o banco têm versões diferentes da ficha.',
+    differences,
+    reason: differences.length ? `Campos diferentes: ${differences.join(', ')}.` : null,
   };
 }
