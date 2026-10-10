@@ -9,7 +9,7 @@ import { CLASSES, getArchetypesForClass } from '../data/classes';
 import { CAMINHOS } from '../data/caminhos';
 import { calculateClassBonuses } from '../logic/classBonuses';
 import BureaucraticLoader from '../components/BureaucraticLoader';
-import { saveCharacterToSupabase, loadCharacter } from '../logic/saveCharacter';
+import { saveCharacterToSupabase, loadCharacter, verifySavedCharacter } from '../logic/saveCharacter';
 import { calculatePendingConsequences, CONSEQUENCE_TYPE_LABELS } from '../logic/backgroundConsequences';
 import { rollRandomNegativeAspects, getManualNegativeAspectPool } from '../logic/aspectsSelection';
 import { rollRandomTraumas, getManualTraumaPool } from '../logic/traumaSelection';
@@ -33,6 +33,9 @@ import AbilityFields from '../components/character/AbilityFields';
 import SpecialtyFields from '../components/character/SpecialtyFields';
 import InventoryStep from '../components/character/InventoryStep';
 import MasterGrantsStep from '../components/character/MasterGrantsStep';
+import StepHelp from '../components/character/StepHelp';
+import { getSkillTier } from '../data/skillTiers';
+import { getSkillDieMaxValue } from '../logic/characterCalculations';
 import { getScaleBudget } from '../logic/masterMode';
 import { ARSENAL_BY_ID } from '../data/arsenal';
 import {
@@ -64,7 +67,8 @@ export default function CharacterCreate({ userId }) {
   const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
+  const [dbCheck, setDbCheck] = useState(null);
+    // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
   const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false); const [character, setCharacter] = useState(() => normalizeCharacter());
   const ATLETISMO_SKILL_ID = 'atletismo'; // confirmar se bate com skills.js
 
@@ -731,10 +735,41 @@ export default function CharacterCreate({ userId }) {
   function handleDownloadTxt() {
     setPendingAction('txt');
   }
+  const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR') : 'sem data');
 
+  async function handleCheckDb() {
+    if (!currentCharacterId) {
+      setDbCheck('Esta ficha ainda não foi salva no banco.');
+      return;
+    }
+    setDbCheck('Conferindo...');
+    const check = await verifySavedCharacter(currentCharacterId, character);
+    setDbCheck(
+      check.ok
+        ? `✓ O banco tem exatamente esta versão (atualizada em ${fmtDate(check.updatedAt)}).`
+        : `✗ ${check.reason} Banco: versão de ${fmtDate(check.updatedAt)}. A tela pode ter alterações não salvas ou um rascunho antigo.`
+    );
+  }
+
+  function handleReloadFromDb() {
+    if (!currentCharacterId) return;
+    localStorage.removeItem(draftKey);
+    window.location.reload();
+  }
   async function handleLoaderComplete() {
     const action = pendingAction;
     setPendingAction(null);
+    try {
+      setSaveError(null);
+      await runLoaderAction(action);
+    } catch (err) {
+      console.error(err);
+      setSaveSuccess(false);
+      setSaveError(`Falha na ação "${action}": ${err?.message ?? err}`);
+    }
+  }
+
+  async function runLoaderAction(action) {
 
     const exportParams = {
       character, lifeStage, finalAttributeTotals, finalSkillTotals, skillResultBonuses,
@@ -760,12 +795,22 @@ export default function CharacterCreate({ userId }) {
         setSaveError('Você precisa estar logado para salvar a ficha.');
         return;
       }
-      const { data, error } = await saveCharacterToSupabase(userId, character, currentCharacterId);
+      const { data, error } = await saveCharacterToSupabase(userId, character, currentCharacterId, baseUpdatedAtRef.current);      
       if (error) {
+        
         setSaveError(error.message);
       } else {
         setSaveSuccess(true);
-        localStorage.removeItem(draftKey);
+        // Só descarta o rascunho local depois de conferir que o banco guardou a mesma ficha.
+        verifySavedCharacter(data?.id ?? currentCharacterId, character).then((check) => {
+          if (check.ok) {
+            localStorage.removeItem(draftKey);
+            setDbCheck(`✓ Salva e conferida no banco (versão de ${fmtDate(check.updatedAt)}).`);
+          } else {
+            setSaveSuccess(false);
+            setSaveError(`A ficha foi enviada, mas o banco não devolveu a mesma versão. ${check.reason} O rascunho deste aparelho foi mantido.`);
+          }
+        });
         baseUpdatedAtRef.current = data?.updated_at ?? null;
         setSavedSnapshot(JSON.stringify(character));
         // Primeira vez salvando (era INSERT): guarda o id pra próximos
@@ -830,6 +875,7 @@ export default function CharacterCreate({ userId }) {
             {draftNotice}
           </div>
         )}
+                <StepHelp key={currentStep} stepId={currentStep} />
         {/* Step 1: Detalhes */}
         {currentStep === 'identity' && (
           <section>
@@ -2043,10 +2089,12 @@ export default function CharacterCreate({ userId }) {
                         const level = finalSkillTotals[skillId] || 0;
                         const dice = level > 0 ? SKILL_LEVEL_TO_DICE[Math.min(level, 9)] : 'd00';
                         const bonus = skillResultBonuses[skillId];
+                        const tier = getSkillTier(getSkillDieMaxValue(level));
                         return (
                           <div key={skillId}>
                             {SKILLS[skillId]?.label ?? skillId}: {dice}
                             {bonus ? ` (+${bonus})` : ''}
+                            <span className="text-xs text-gray-400"> · {tier.label}</span>
                           </div>
                         );
                       })}
@@ -2309,7 +2357,15 @@ export default function CharacterCreate({ userId }) {
                 Gerar PDF (Documento Confidencial)
               </button>
             </div>
-
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button onClick={handleCheckDb} className="px-3 py-1.5 rounded border text-xs">
+                Conferir no banco
+              </button>
+              <button onClick={handleReloadFromDb} className="px-3 py-1.5 rounded border text-xs">
+                Descartar rascunho deste aparelho e recarregar
+              </button>
+            </div>
+            {dbCheck && <p className="text-xs text-gray-600 mt-2">{dbCheck}</p>}
             {saveError && <p className="text-xs text-red-500 mt-2">{saveError}</p>}
             {saveSuccess && <p className="text-xs text-green-600 mt-2">Ficha salva com sucesso.</p>}
 

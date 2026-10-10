@@ -310,8 +310,8 @@ export function buildCharacterSheetLines({
       const entry = item.catalogId ? ARSENAL_BY_ID[item.catalogId] : null;
       lines.push(`> ${item.name || entry?.name || '(sem nome)'}${item.quantity > 1 ? ` x${item.quantity}` : ''}`);
       if (entry) {
-        lines.push(`  - Dano: ${formatWeaponDamage(entry.damage, physicalDamage)} | ${entry.damageType} | ${entry.tags.join(', ')}`);
-      }
+        lines.push(`  - ${formatArsenalSummary(entry, physicalDamage)}`);
+            }
       
       if (item.notes) lines.push(`  - ${item.notes}`);
     });
