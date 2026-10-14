@@ -78,8 +78,8 @@ export function normalizeCharacter(data = {}) {
         category: p.category ?? null,
         conditional: p.conditional ?? null, // null | { description: string }
         description: p.description ?? (p.scope ?? ''), // migra dados antigos (campo scope) pra description
-        signatureMoves: (style.signatureMoves ?? []).map(normalizeAbility),
       })),
+      signatureMoves: (style.signatureMoves ?? []).map(normalizeAbility),
     }));
     // TODO PERSONAGEM SEMPRE TEM PELO MENOS 1 ESTILO — mesmo zerado.
     return mapped.length > 0 ? mapped : [createBlankStyle()];
