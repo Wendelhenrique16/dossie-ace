@@ -317,13 +317,13 @@ export function buildPhysicalParametersMarkdown(p, character) {
   L.push('', `Sustenta até ${conf.maxKg} kg sem esforço, até ${heavy.maxKg} kg sob esforço intenso e só alcança ${extreme.maxKg} kg no limite do corpo.`, '');
 
   /* 3 */
-  L.push('## 3. Interação com Cenário e Dano', '');
+  L.push('## 3. Interação com Cenário e Dano(AINDA EM FASE DE TESTE)', '');
   L.push(`- Dano Físico (soco/ataque desarmado): **${p.damage.formatted}**${p.damage.stats.avg != null ? ` (média ${p.damage.stats.avg}, máximo ${p.damage.stats.max})` : ''}`);
   if (p.damage.physicalDamage.note) L.push(`- Massa Efetiva: ${p.damage.physicalDamage.note}`);
   if (p.damage.directTrauma) L.push('- Todo acerto físico causa Trauma Direto: o dano reduz o Vigor do alvo sem a conta de metade e excedente.');
   if (p.damage.masonryBreaker) L.push('- Destrói alvenaria e barricadas só se deslocando, sem rolagem nem ação.');
   if (p.scales.strength.multiplier !== 1) {
-    L.push(`- Escala de Força ${p.scales.strength.value}: o impacto dos ataques e a força bruta são multiplicados (${p.scales.strength.label}). O livro não traz fórmula; o Mestre arbitra.`);
+    L.push(`- Escala de Força ${p.scales.strength.value}: o impacto dos ataques e a força bruta são multiplicados (${p.scales.strength.label}).(Ainda em fase de teste) o Mestre arbitra.`);
   }
   L.push('', '| Estrutura | Vigor (Limiar) | Golpe médio | Melhor caso | Retorno ao atacante |', '|---|---|---|---|---|');
   p.damage.structures.forEach((s) => {
@@ -357,7 +357,7 @@ export function buildPhysicalParametersMarkdown(p, character) {
   L.push('## 4. Fôlego e Fadiga', '');
   const f = p.fatigue;
   L.push(`- Teste de Fadiga: Resistência ${f.resistenciaDie ? `d${f.resistenciaDie}` : 'd00'} contra DT ${f.dtLadder.join(' / ')} (Fácil a Difícil).`);
-  L.push(`- Margem de turnos antes do primeiro Teste (estimativa; o livro não traz tabela): **${f.margin.intenso}** em Esforço Intenso ou **${f.margin.extremo}** em Esforço Extremo.`);
+  L.push(`- Margem de turnos antes do primeiro Teste (estimativa; AINDA EM FASE DE TESTE): **${f.margin.intenso}** em Esforço Intenso ou **${f.margin.extremo}** em Esforço Extremo.`);
   L.push('- Andar não soma desgaste; Correr soma como Intenso; Sprint soma como Extremo.');
   L.push(`- Custo silencioso de Vigor por Teste bem-sucedido (Massa ${f.costCategoryLabel}): **${f.silentCost.intenso}** (Intenso) / **${f.silentCost.extremo}** (Extremo).`);
   L.push(f.recovery
