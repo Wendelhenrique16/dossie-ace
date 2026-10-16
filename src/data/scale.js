@@ -22,3 +22,10 @@ export const MAX_WEAK_CATEGORIES_FOR_PLAYER = 3;
 export function getScaleLabel(value) {
   return SCALE_LEVELS.find((l) => l.value === value)?.label ?? '';
 }
+
+// Multiplicador de desempenho de cada Escala (Livro do Jogador, valores referenciais).
+export const SCALE_MULTIPLIERS = { '-1': 0.25, 0: 0.5, 1: 1, 2: 2, 3: 4, 4: 8, 5: 16 };
+
+export function getScaleMultiplier(value) {
+  return SCALE_MULTIPLIERS[value] ?? 1;
+}

@@ -290,8 +290,16 @@ export function applyMassDamageModifier(baseDamage, massCategoryId) {
   switch (massCategoryId) {
     case 'pluma':
       return { ...result, divisor: 2, note: 'Metade do Dano Físico base rolado (mín. 1, arredondado pra cima)' };
-    case 'pesado':
-      return { ...result, diceCount: base.diceCount + 1, note: 'Dado bônus: +1 dado do mesmo tipo' };
+    case 'pesado': {
+      const idx = DAMAGE_DICE_LADDER.findIndex((s) => s.value === base.value);
+      const up = DAMAGE_DICE_LADDER[Math.min(idx + 1, DAMAGE_DICE_LADDER.length - 1)];
+      return {
+        ...result,
+        diceCount: up.diceCount,
+        dieFace: up.dieFace,
+        note: 'O dado do Dano Físico sobe 1 degrau (d6 passa a d8); em 3d8 se mantém',
+      };
+    }
     case 'colosso':
       return { ...result, multiplier: 2, note: 'Dano Físico base dobrado' };
     case 'massivo':
@@ -376,8 +384,8 @@ export function calculateCargaLimits(weightKg, forcaLevel) {
  * — o "1 ponto = 1,5m" é só nota de referência de Mestre, nunca aparece na ficha).
  * Atletismo 0 = incapaz (Movimento 0).
  */
-const METERS_PER_MOVEMENT_POINT = 1.5;
-const TURN_DURATION_SECONDS = 6;
+export const METERS_PER_MOVEMENT_POINT = 1.5;
+export const TURN_DURATION_SECONDS = 6;
 
 function metersPerTurnToKmH(metersPerTurn) {
   return Number(((metersPerTurn / TURN_DURATION_SECONDS) * 3.6).toFixed(1));

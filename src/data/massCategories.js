@@ -46,7 +46,7 @@ export const MASS_CATEGORIES = [
     id: 'pesado',
     label: 'Pesado',
     maxWeightKg: 120,
-    damageEffect: 'Recebe 1 dado bônus nas rolagens de Dano Físico.',
+    damageEffect: 'O dado do Dano Físico sobe 1 degrau (por exemplo, d6 passa a d8). Em 3d8, se mantém.',
     vigorEffect: 'Vigor Base 14.', vigorBase: 14,
     staminaEffect: 'Ataques físicos e Esquivas custam 2 Stamina (ou 2 Vigor).',
     staminaCost: 2,

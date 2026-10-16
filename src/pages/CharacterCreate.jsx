@@ -53,6 +53,7 @@ import {
   calculateCargaLimits, calculateMovement, // NOVO
 } from '../logic/characterCalculations';
 import UnifiedDistributionModal from '../components/modals/UnifiedDistributionModal';
+import PhysicalParametersModal from '../components/modals/PhysicalParametersModal';
 
 
 export default function CharacterCreate({ userId }) {
@@ -67,6 +68,7 @@ export default function CharacterCreate({ userId }) {
   const [pendingAction, setPendingAction] = useState(null); // null | 'pdf' | 'save' | 'txt'
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [physicalParamsOpen, setPhysicalParamsOpen] = useState(false);
   const [dbCheck, setDbCheck] = useState(null);
     // Remove: const [distributeQueue, setDistributeQueue] = useState([]);
   const [bulkDistributeOpen, setBulkDistributeOpen] = useState(false); const [character, setCharacter] = useState(() => normalizeCharacter());
@@ -2357,6 +2359,9 @@ export default function CharacterCreate({ userId }) {
               <button onClick={handleExportPdf} className="px-4 py-2 rounded border text-sm">
                 Gerar PDF (Documento Confidencial)
               </button>
+              <button onClick={() => setPhysicalParamsOpen(true)} className="px-4 py-2 rounded border text-sm">
+                Exportar Parâmetros Físicos
+              </button>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
               <button onClick={handleCheckDb} className="px-3 py-1.5 rounded border text-xs">
@@ -2392,6 +2397,12 @@ export default function CharacterCreate({ userId }) {
       </main>
 
       <BureaucraticLoader isOpen={pendingAction !== null} onComplete={handleLoaderComplete} />
+      {physicalParamsOpen && (
+        <PhysicalParametersModal
+          sheet={{ character, finalSkillTotals, finalAttributeTotals }}
+          onClose={() => setPhysicalParamsOpen(false)}
+        />
+      )}
     </div>
   );
 }
