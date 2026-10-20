@@ -45,8 +45,20 @@ function scaleInfo(masterMode, skillId) {
 }
 
 /* ---------- Armas Naturais x armadura (regras decididas) ---------- */
-
-describeArmorInteraction
+export function describeArmorInteraction(damageTypes = [], tags = []) {
+  const types = Array.isArray(damageTypes) ? damageTypes : [damageTypes];
+  const notes = [];
+  if (tags.includes('Penetrante')) {
+    notes.push('Penetrante: contra armadura ou cobertura, só o Limiar detém o dano; acima dele o dano passa inteiro ao usuário e a proteção perde 1 de Vigor, seja ela Resistente ou Fraca.');
+  }
+  if (types.some((t) => t.includes('Corrosivo'))) {
+    notes.push('Corrosivo: em Sucesso Bom ou Extremo, destrói permanentemente a armadura, o escudo ou a cobertura atingida.');
+  }
+  types.forEach((t) => {
+    notes.push(`Contra proteção Fraca a ${t}: em armadura vestida, ao passar do Limiar o usuário sofre a Condição desse Tipo em Grau Leve; em cobertura e estrutura, o Vigor perdido é o dano que passou do Limiar.`);
+  });
+  return notes;
+}
 /* ---------- Dano: média e máximo ---------- */
 
 export function getDamageStats(damage) {
@@ -183,10 +195,10 @@ export function calculatePhysicalParameters({ character, finalSkillTotals = {}, 
 
   const naturalWeapons = (masterMode?.naturalWeapons ?? []).map((w) => ({
     name: w.name || '(sem nome)',
-    damageType: w.damageType,
+    damageTypes: w.damageTypes ?? [w.damageType],
     tags: w.tags ?? [],
     damageText: formatPhysicalDamage(physicalDamage),
-    armorNotes: describeArmorInteraction(w.damageType, w.tags ?? []),
+    armorNotes: describeArmorInteraction(w.damageTypes ?? [w.damageType], w.tags ?? []),
   }));
 
   /* 4. Fôlego e Fadiga */
@@ -335,7 +347,7 @@ export function buildPhysicalParametersMarkdown(p, character) {
   if (p.damage.naturalWeapons.length) {
     L.push('**Armas Naturais** (o ataque desarmado rola com o tipo e as Tags):');
     p.damage.naturalWeapons.forEach((w) => {
-      L.push(`- ${w.name} — ${w.damageType}${w.tags.length ? `, ${w.tags.join(', ')}` : ''}; dano ${w.damageText}`);
+      L.push(`- ${w.name} — ${w.damageTypes.join(', ')}${w.tags.length ? `; Tags: ${w.tags.join(', ')}` : ''}; dano ${w.damageText}`);
       w.armorNotes.forEach((n) => L.push(`  - ${n}`));
     });
     L.push('');

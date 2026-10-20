@@ -1,8 +1,7 @@
 // src/components/character/SpecialtyFields.jsx
 import { EFFECT_DEFINITIONS } from '../../data/abilities';
 import { EXCLUDED_PASSIVE_EFFECTS } from '../../data/fightingStyles';
-
-export default function SpecialtyFields({ specialty: s, onChange, onRemove }) {
+export default function SpecialtyFields({ specialty: s, onChange, onRemove, allowAllEffects = false }) {
   function toggleEffect(name) {
     onChange((sp) => ({
       ...sp,
@@ -36,7 +35,7 @@ export default function SpecialtyFields({ specialty: s, onChange, onRemove }) {
         <label className="block text-xs text-gray-500 mb-1">Efeitos (combine quantos quiser)</label>
         <div className="flex flex-wrap gap-1 mb-2">
           {Object.keys(EFFECT_DEFINITIONS)
-            .filter((name) => !EXCLUDED_PASSIVE_EFFECTS.includes(name))
+            .filter((name) => allowAllEffects || !EXCLUDED_PASSIVE_EFFECTS.includes(name))
             .map((name) => (
               <button
                 key={name}
