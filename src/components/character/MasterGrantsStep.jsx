@@ -5,6 +5,7 @@ import { DAMAGE_TYPE_INFO, WEAPON_TAGS } from '../../data/arsenal';
 import { getScaleBudget } from '../../logic/masterMode';
 import { formatPhysicalDamage } from '../../logic/characterCalculations';
 import SpecialtyFields from './SpecialtyFields';
+import { NATURAL_PASSIVE_PRESETS, createNaturalPassiveFromPreset } from '../../data/readyPresets';
 
 export default function MasterGrantsStep({ character, setCharacter, physicalDamage }) {
   const mm = character.masterMode ?? {};
@@ -45,6 +46,11 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
       ],
     }));
   }
+  function addPassiveFromPreset(presetId) {
+    const preset = NATURAL_PASSIVE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    updateMaster((m) => ({ ...m, naturalPassives: [...(m.naturalPassives ?? []), createNaturalPassiveFromPreset(preset)] }));
+  }
   function updatePassive(instanceId, updater) {
     updateMaster((m) => ({
       ...m,
@@ -60,7 +66,7 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
       ...m,
       naturalWeapons: [
         ...(m.naturalWeapons ?? []),
-        { instanceId: `${Date.now()}-${Math.random()}`, name: '', damageType: 'Cortante', tags: [], notes: '' },
+        { instanceId: `${Date.now()}-${Math.random()}`, name: '', damageTypes: ['Cortante'], tags: [], notes: '' },
       ],
     }));
   }
@@ -177,17 +183,33 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-medium">Passivas Naturais ({naturalPassives.length})</h3>
-          <button onClick={addPassive} className="text-xs px-2 py-1 rounded border bg-gray-50">+ Nova Passiva Natural</button>
+          <div className="flex items-center gap-2">
+            <select
+              className="text-xs border rounded px-2 py-1"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addPassiveFromPreset(e.target.value);
+                e.target.value = '';
+              }}
+            >
+              <option value="">+ Passiva Natural pronta...</option>
+              {NATURAL_PASSIVE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button onClick={addPassive} className="text-xs px-2 py-1 rounded border bg-gray-50">+ Nova Passiva Natural</button>
+          </div>
         </div>
         <p className="text-xs text-gray-500 mb-2">
           Facilidade inata, sempre ligada, concedida pelo Mestre (um macaco que escala sem esforço, um elefante que empurra qualquer coisa
-          no caminho). Não tem limite de pontos. Cada Efeito pesa no máximo 2, e Reverter e Multiplicar ficam de fora.
+          no caminho). Não tem limite de pontos. O Mestre pode usar qualquer Efeito.
         </p>
         <div className="space-y-2">
           {naturalPassives.map((p) => (
             <SpecialtyFields
               key={p.instanceId}
               specialty={p}
+              allowAllEffects
               onChange={(updater) => updatePassive(p.instanceId, updater)}
               onRemove={() => removePassive(p.instanceId)}
             />
@@ -215,18 +237,28 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
                   value={w.name}
                   onChange={(e) => updateWeapon(w.instanceId, { name: e.target.value })}
                 />
-                <select
-                  className="border rounded px-2 py-1 text-xs"
-                  value={w.damageType}
-                  onChange={(e) => updateWeapon(w.instanceId, { damageType: e.target.value })}
-                >
-                  {Object.keys(DAMAGE_TYPE_INFO).map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+
                 <button onClick={() => removeWeapon(w.instanceId)} className="text-xs text-red-500 underline">Remover</button>
               </div>
 
+              <div className="text-xs text-gray-500">Tipos de Dano (um ou mais)</div>
+              <div className="flex flex-wrap gap-1">
+                {Object.keys(DAMAGE_TYPE_INFO).map((t) => {
+                  const on = w.damageTypes.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => updateWeapon(w.instanceId, { damageTypes: on ? w.damageTypes.filter((x) => x !== t) : [...w.damageTypes, t] })}
+                      className={`px-2 py-1 rounded border text-xs ${on ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+              {w.damageTypes.length === 0 && <p className="text-xs text-red-600">⚠ Escolha ao menos 1 Tipo de Dano.</p>}
+              <div className="text-xs text-gray-500">Tags</div>
               <div className="flex flex-wrap gap-1">
                 {Object.keys(WEAPON_TAGS).map((tag) => {
                   const selected = w.tags.includes(tag);
@@ -246,8 +278,10 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
               </div>
 
               <div className="bg-gray-50 border rounded p-2 text-xs text-gray-600 space-y-1">
-                <div><strong>Dano:</strong> {formatPhysicalDamage(physicalDamage)} (ataque desarmado) · <strong>Tipo:</strong> {w.damageType}</div>
-                <div><strong>{w.damageType}:</strong> {DAMAGE_TYPE_INFO[w.damageType]}</div>
+                <div><strong>Dano:</strong> {formatPhysicalDamage(physicalDamage)} (ataque desarmado) · <strong>Tipo:</strong> {w.damageTypes.join(', ') || '—'}</div>
+                {w.damageTypes.map((t) => (
+                  <div key={t}><strong>{t}:</strong> {DAMAGE_TYPE_INFO[t]}</div>
+                ))}
                 {w.tags.map((tag) => (
                   <div key={tag}><strong>{tag}:</strong> {WEAPON_TAGS[tag]}</div>
                 ))}

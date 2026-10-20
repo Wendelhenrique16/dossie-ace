@@ -20,7 +20,7 @@ export function buildMasterModeLines(masterMode, physicalDamage) {
   );
   const budget = getScaleBudget(masterMode);
 
-  lines.push('"Concessões do Mestre', '');
+  lines.push('Concessões do Mestre', '');
   lines.push(`Escala Geral: ${budget.general} (Modificadores de Escala: ${budget.spent}/${budget.total})`);
   Object.entries(masterMode.skillScales ?? {}).forEach(([skillId, value]) => {
     lines.push(`> ${SKILLS[skillId]?.label ?? skillId}: Escala ${value} (${getScaleLabel(value)})`);
@@ -41,7 +41,7 @@ export function buildMasterModeLines(masterMode, physicalDamage) {
   (masterMode.naturalWeapons ?? []).forEach((w) => {
     lines.push(`# ${(w.name || '(sem nome)').toUpperCase()} — ARMA NATURAL`, '');
     lines.push(`> ${w.notes || ''}`);
-    lines.push(`> **Dano:** ${formatPhysicalDamage(physicalDamage)} (ataque desarmado) · **Tipo:** ${w.damageType} · **Tags:** ${w.tags.join(', ') || '—'}`);
+    lines.push(`> **Dano:** ${formatPhysicalDamage(physicalDamage)} (ataque desarmado) · **Tipo:** ${(w.damageTypes ?? [w.damageType]).join(', ')} · **Tags:** ${w.tags.join(', ') || '—'}`);
     lines.push('');
   });
 

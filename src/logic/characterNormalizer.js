@@ -17,6 +17,30 @@ function normalizeInventoryItem(i) {
     name: i.name ?? '',
     quantity: i.quantity ?? 1,
     notes: i.notes ?? '',
+    armor: i.armor
+      ? {
+          category: i.armor.category ?? 'medio',
+          vigorMax: i.armor.vigorMax ?? 16,
+          vigorCurrent: i.armor.vigorCurrent ?? i.armor.vigorMax ?? 16,
+          weakTo: i.armor.weakTo ?? [],
+        }
+      : null,
+  };
+}
+const OLD_TAG_TO_TYPE = { 'Incendiário/Fogo': 'Incendiário / Fogo', 'Elétrico': 'Elétrico' };
+function normalizeNaturalWeapon(w) {
+  const rawTags = w.tags ?? [];
+  const types = [...(w.damageTypes ?? (w.damageType ? [w.damageType] : ['Cortante']))];
+  rawTags.forEach((t) => {
+    const type = OLD_TAG_TO_TYPE[t];
+    if (type && !types.includes(type)) types.push(type);
+  });
+  return {
+    instanceId: w.instanceId ?? `${Date.now()}-${Math.random()}`,
+    name: w.name ?? '',
+    damageTypes: types,
+    tags: rawTags.filter((t) => !OLD_TAG_TO_TYPE[t]),
+    notes: w.notes ?? '',
   };
 }
 function normalizeMasterMode(m) {
@@ -27,13 +51,7 @@ function normalizeMasterMode(m) {
     skillScales: mm.skillScales ?? {},
     categoryScales: mm.categoryScales ?? {},
     naturalPassives: (mm.naturalPassives ?? []).map(normalizeSpecialty),
-    naturalWeapons: (mm.naturalWeapons ?? []).map((w) => ({
-      instanceId: w.instanceId ?? `${Date.now()}-${Math.random()}`,
-      name: w.name ?? '',
-      damageType: w.damageType ?? 'Cortante',
-      tags: w.tags ?? [],
-      notes: w.notes ?? '',
-    })),
+    naturalWeapons: (mm.naturalWeapons ?? []).map(normalizeNaturalWeapon),
   };
 }
 function normalizeAbility(a) {

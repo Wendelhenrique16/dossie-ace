@@ -45,20 +45,20 @@ function scaleInfo(masterMode, skillId) {
 }
 
 /* ---------- Armas Naturais x armadura (regras decididas) ---------- */
-
-export function describeArmorInteraction(damageType, tags = []) {
+export function describeArmorInteraction(damageTypes = [], tags = []) {
+  const types = Array.isArray(damageTypes) ? damageTypes : [damageTypes];
   const notes = [];
   if (tags.includes('Penetrante')) {
-    notes.push('Penetrante: a armadura só detém o dano até o Limiar; acima dele o dano passa inteiro (a armadura perde 1 de Vigor).');
-  } else if (damageType === 'Perfurante') {
-    notes.push('Perfurante: acima do Limiar, metade do dano chega ao usuário (a armadura perde 1 de Vigor).');
+    notes.push('Penetrante: contra armadura ou cobertura, só o Limiar detém o dano; acima dele o dano passa inteiro ao usuário e a proteção perde 1 de Vigor, seja ela Resistente ou Fraca.');
   }
-  if (damageType === 'Contundente') {
-    notes.push('Contundente: a armadura perde Vigor igual ao dano que passou do Limiar.');
+  if (types.some((t) => t.includes('Corrosivo'))) {
+    notes.push('Corrosivo: em Sucesso Bom ou Extremo, destrói permanentemente a armadura, o escudo ou a cobertura atingida.');
   }
+  types.forEach((t) => {
+    notes.push(`Contra proteção Fraca a ${t}: em armadura vestida, ao passar do Limiar o usuário sofre a Condição desse Tipo em Grau Leve; em cobertura e estrutura, o Vigor perdido é o dano que passou do Limiar.`);
+  });
   return notes;
 }
-
 /* ---------- Dano: média e máximo ---------- */
 
 export function getDamageStats(damage) {
@@ -77,7 +77,7 @@ function structureEffect(damage, structure) {
   const limiar = structure.vigor / 2;
   if (damage <= limiar) return { key: 'absorvido', text: 'sem efeito' };
   if (damage <= structure.vigor) return { key: 'racha', text: 'reduz 1 de Vigor da estrutura' };
-  return { key: 'colapsa', text: 'colapsa' };
+  return { key: 'passa', text: `${damage - structure.vigor} passa; reduz 1 de Vigor da estrutura` };
 }
 
 /** Diferença de Material (Livro do Mestre): retorno de dano em quem golpeia. */
@@ -161,10 +161,10 @@ export function calculatePhysicalParameters({ character, finalSkillTotals = {}, 
   };
   const rhythms = baseMovement > 0
     ? [
-        makeRhythm('andar', 'Andar', Math.ceil(scaledMovement / 2), 'Leve'),
-        makeRhythm('correr', 'Correr', scaledMovement, 'Intenso'),
-        makeRhythm('sprint', 'Sprint', scaledMovement * 2, 'Extremo'),
-      ]
+      makeRhythm('andar', 'Andar', Math.ceil(scaledMovement / 2), 'Leve'),
+      makeRhythm('correr', 'Correr', scaledMovement, 'Intenso'),
+      makeRhythm('sprint', 'Sprint', scaledMovement * 2, 'Extremo'),
+    ]
     : [];
 
   /* 2. Carga */
@@ -195,10 +195,10 @@ export function calculatePhysicalParameters({ character, finalSkillTotals = {}, 
 
   const naturalWeapons = (masterMode?.naturalWeapons ?? []).map((w) => ({
     name: w.name || '(sem nome)',
-    damageType: w.damageType,
+    damageTypes: w.damageTypes ?? [w.damageType],
     tags: w.tags ?? [],
     damageText: formatPhysicalDamage(physicalDamage),
-    armorNotes: describeArmorInteraction(w.damageType, w.tags ?? []),
+    armorNotes: describeArmorInteraction(w.damageTypes ?? [w.damageType], w.tags ?? []),
   }));
 
   /* 4. Fôlego e Fadiga */
@@ -262,16 +262,16 @@ export function calculatePhysicalParameters({ character, finalSkillTotals = {}, 
     thresholds,
     masterGrants: masterMode
       ? {
-          skillScales: Object.entries(masterMode.skillScales ?? {}).map(([id, value]) => ({
-            label: SKILLS[id]?.label ?? id, value, multiplier: getScaleMultiplier(value),
-          })),
-          categoryScales: Object.entries(masterMode.categoryScales ?? {}).map(([id, value]) => ({
-            label: groupSkillsByCategory(Object.keys(SKILLS)).find((g) => g.categoryId === id)?.label || id,
-            value, multiplier: getScaleMultiplier(value),
-          })),
-          naturalPassives: masterMode.naturalPassives ?? [],
-          naturalWeapons,
-        }
+        skillScales: Object.entries(masterMode.skillScales ?? {}).map(([id, value]) => ({
+          label: SKILLS[id]?.label ?? id, value, multiplier: getScaleMultiplier(value),
+        })),
+        categoryScales: Object.entries(masterMode.categoryScales ?? {}).map(([id, value]) => ({
+          label: groupSkillsByCategory(Object.keys(SKILLS)).find((g) => g.categoryId === id)?.label || id,
+          value, multiplier: getScaleMultiplier(value),
+        })),
+        naturalPassives: masterMode.naturalPassives ?? [],
+        naturalWeapons,
+      }
       : null,
   };
 }
@@ -338,7 +338,7 @@ export function buildPhysicalParametersMarkdown(p, character) {
       L.push(`${head} | ${s.average.damage}: ${s.average.text} | ${s.best.damage}: ${s.best.text} | ${back} |`);
     }
   });
-  L.push('', 'Dano até o Limiar é absorvido; acima do Limiar reduz 1 de Vigor da estrutura; acima do Vigor atual a estrutura colapsa.', '');
+  L.push('', 'Dano até o Limiar é absorvido; acima do Limiar reduz 1 de Vigor da estrutura; o que ultrapassa o Vigor atual passa a quem está atrás e a estrutura perde 1 de Vigor; com Vigor 0 ela quebra. Contra estrutura Fraca ao Tipo do golpe, o Vigor perdido é o dano que passou do Limiar.', '');
   if (p.damage.collision.length) {
     L.push('**Colisão e Atropelamento** (por 10 pontos de Movimento):');
     p.damage.collision.forEach((c) => L.push(`- ${c.rhythm} (${c.points} pontos): ${c.text}${c.avg != null ? ` — média ${c.avg}` : ''}`));
@@ -347,7 +347,7 @@ export function buildPhysicalParametersMarkdown(p, character) {
   if (p.damage.naturalWeapons.length) {
     L.push('**Armas Naturais** (o ataque desarmado rola com o tipo e as Tags):');
     p.damage.naturalWeapons.forEach((w) => {
-      L.push(`- ${w.name} — ${w.damageType}${w.tags.length ? `, ${w.tags.join(', ')}` : ''}; dano ${w.damageText}`);
+      L.push(`- ${w.name} — ${w.damageTypes.join(', ')}${w.tags.length ? `; Tags: ${w.tags.join(', ')}` : ''}; dano ${w.damageText}`);
       w.armorNotes.forEach((n) => L.push(`  - ${n}`));
     });
     L.push('');

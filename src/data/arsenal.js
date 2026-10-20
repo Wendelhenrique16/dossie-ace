@@ -28,14 +28,14 @@ export const ARSENAL = [
   { id: 'pistola_leve', group: 'fogo_curtas', name: 'Pistola Leve (9mm, .380)', damage: { kind: 'texto', text: 'd20+d10' }, damageType: 'Perfurante', tags: ['Letal', 'Ocultável'], supply: 'Dado de Suprimento d6 · pente de 15 balas' },
   { id: 'revolver_pesado', group: 'fogo_curtas', name: 'Revólver Pesado (.44, .357)', damage: { kind: 'texto', text: 'd20+d12' }, damageType: 'Perfurante', tags: ['Letal', 'Penetrante'], supply: 'Tambor de 6 tiros, contado · reserva d6/d8/d10 (loadout)' },
   { id: 'submetralhadora', group: 'fogo_curtas', name: 'Submetralhadora (Uzi, MP5)', damage: { kind: 'texto', text: 'd20+d10' }, damageType: 'Perfurante', tags: ['Letal', 'Automática'], supply: 'Dado de Suprimento d8 · pente de 25 balas' },
-  { id: 'taser', group: 'fogo_curtas', name: 'Taser / Arma de Choque', damage: { kind: 'texto', text: '1d4 fixo' }, damageType: 'Perfurante', tags: ['Não-Letal', 'Elétrico', 'Ocultável'], supply: '1 cartucho (troca por ação, sem dado)' },
+  { id: 'taser', group: 'fogo_curtas', name: 'Taser / Arma de Choque', damage: { kind: 'texto', text: '1d4 fixo' }, damageType: 'Contundente, Elétrico', tags: ['Não-Letal', 'Ocultável'], supply: '1 cartucho (troca por ação, sem dado)' },
   // Armas de Fogo Longas
   { id: 'fuzil_assalto', group: 'fogo_longas', name: 'Fuzil de Assalto (M4A1, AK-47)', damage: { kind: 'texto', text: 'd20+d12' }, damageType: 'Perfurante', tags: ['Letal', 'Automática', 'Pesada'], supply: 'Dado de Suprimento d10 · pente de 30 balas' },
   { id: 'escopeta', group: 'fogo_longas', name: 'Escopeta (Calibre 12)', damage: { kind: 'texto', text: 'd20+d12' }, damageType: 'Perfurante', tags: ['Letal', 'Dispersão', 'Brutal', 'Pesada'], supply: 'Tubo de 6 tiros, contado · reserva d6/d8/d10 (loadout). Variantes: Quebra-Cano 2 tiros, Bombeada 6, Caça (Bolt-Action) 1' },
   { id: 'rifle_precisao', group: 'fogo_longas', name: 'Rifle de Precisão (Sniper)', damage: { kind: 'texto', text: 'd20+d12+5' }, damageType: 'Perfurante', tags: ['Letal', 'Penetrante', 'Pesada'], supply: 'Sem magazine: 1 tiro, contado · com magazine interno: 5 · reserva d6/d8/d10 (loadout)' },
   // Explosivos e Táticos
   { id: 'granada', group: 'explosivos', name: 'Granada de Fragmentação', damage: { kind: 'texto', text: '20 fixo' }, damageType: 'Perfurante', tags: ['Explosão/Área', 'Letal'] },
-  { id: 'molotov', group: 'explosivos', name: 'Coquetel Molotov', damage: { kind: 'texto', text: '10 fixo' }, damageType: 'Contundente', tags: ['Explosão/Área', 'Incendiário/Fogo'] },
+  { id: 'molotov', group: 'explosivos', name: 'Coquetel Molotov', damage: { kind: 'texto', text: '10 fixo' }, damageType: 'Contundente, Incendiário / Fogo', tags: ['Explosão/Área'] },
   { id: 'gas', group: 'explosivos', name: 'Gás Lacrimogêneo / Fumaça', damage: { kind: 'nenhum' }, damageType: '—', tags: ['Explosão/Área', 'Não-Letal'], notes: 'Asfixia/cegueira temporária.' },
   // Armas Brancas
   { id: 'adaga', group: 'brancas', name: 'Adaga / Estilete', damage: { kind: 'fisico', die: 4 }, damageType: 'Perfurante ou Cortante', tags: ['Letal', 'Ocultável', 'Penetrante'] },
@@ -61,6 +61,10 @@ export const ARSENAL_BY_ID = Object.fromEntries(ARSENAL.map((a) => [a.id, a]));
 
 // Resumo dos Tipos de Dano (condensado do Livro do Jogador; ajuste o texto se quiser).
 export const DAMAGE_TYPE_INFO = {
+  'Incendiário / Fogo': 'Fogo, plasma, líquidos inflamáveis, calor extremo e lasers. Eficiente em causar queimaduras. Golpes graves podem tirar a sensibilidade da região atingida. Pode deixar o alvo Em Chamas.',
+  'Elétrico': 'Tasers, fios de alta tensão, descargas e energia que atravessa o corpo. A sobrecarga zera a Stamina do alvo ou anula todas as suas Reações naquele turno.',
+  'Tóxico / Biológico': 'Venenos, gases, toxinas, esporos e radiação. Impõe a condição Envenenado, com perda gradual de Vigor a cada turno até que o alvo obtenha sucesso em testes de Constituição.',
+  'Corrosivo / Ácido': 'Ácidos e compostos químicos estruturais. Contra o corpo, o dano que passa do Limiar vira penalidade direta na região atingida. Contra proteção, destrói a armadura, o escudo ou a cobertura atingida.',
   Contundente: 'Impactos, pancadas e quedas. Eficiente em causar dor, desequilíbrio e Atordoamento: mesmo sem reduzir o Vigor, o alvo pode precisar resistir ao impacto pra não ficar atordoado. Golpes extremos podem causar fraturas ou lesões internas.',
   Cortante: 'Objetos que rasgam ou separam tecidos. Eficiente em causar Sangramento: até um corte superficial provoca dor e sangramento leve se o alvo não estiver protegido. Roupas grossas ou proteções podem impedir cortes leves.',
   Perfurante: 'Objetos que atravessam o corpo ou penetram fundo (flechas, estacas, projéteis). Causa ferimentos concentrados, com sangramento intenso ou atingindo estruturas internas; em órgãos e articulações gera consequências debilitantes além do dano.',
@@ -69,10 +73,7 @@ export const DAMAGE_TYPE_INFO = {
 /** Extrai os tipos de dano de textos como "Cortante/Perfurante" ou "Contundente ou Cortante". */
 export function getDamageTypes(damageType) {
   if (!damageType) return [];
-  return damageType
-    .split(/\s*\/\s*|\s+ou\s+/)
-    .map((t) => t.trim())
-    .filter((t) => DAMAGE_TYPE_INFO[t]);
+  return Object.keys(DAMAGE_TYPE_INFO).filter((t) => damageType.includes(t));
 }
 
 // Resumo das Tags (condensado do Livro do Jogador; ajuste o texto se quiser).
@@ -84,10 +85,10 @@ export const WEAPON_TAGS = {
   'Dispersão': 'Até 5 m, aumenta a Dificuldade pra esquivar e empurra o alvo pra trás.',
   'Ocultável': 'Vantagem em Prestidigitação e furtividade pra esconder, passar por revista e sacar de surpresa.',
   'Explosão/Área': 'Dano fixo, sem rolagem de ataque; o alvo reage pra sair do epicentro e o dano cai pela metade a cada margem de distância.',
-  'Incendiário/Fogo': 'Se causar dano, impõe Em Chamas: dano fixo no Vigor a cada turno até apagar com uma Ação principal.',
-  'Elétrico': 'Em Sucesso Bom ou Extremo, zera a Stamina do alvo ou anula suas Reações no turno.',
+  'Concussiva': 'Sobrecarga sensorial e impacto acústico ou luminoso. Se o ataque atingir o alvo, mesmo sem reduzir o Vigor, impõe cegueira ou surdez temporária por 1d4 turnos.',
+  'Instável': 'Bônus agressivo nos dados de dano pela improvisação, mas qualquer Falha Crítica quebra a arma ou a faz falhar, podendo causar dano ao próprio usuário.',
   'Pesada': 'Exige as duas mãos; em movimento impõe Desvantagem no ataque e em Agilidade e movimento enquanto em uso.',
-  'Penetrante': 'Ignora a redução de coletes, escudos e armaduras rígidas, sem destruí-los.',
+  'Penetrante': 'Contra armadura ou cobertura, só o Limiar detém o dano; acima dele o dano passa inteiro ao usuário e a proteção perde 1 de Vigor. Vale para qualquer Tipo de Dano.',
   'Alcance': 'Ataca corpo a corpo de 2 a 3 m; armas curtas e desarmados não contra-atacam sem encurtar a distância.',
   'Silenciosa': 'Sem estampido nem clarão; disparar escondido não revela o atirador sem um teste ativo de Percepção.',
 };
