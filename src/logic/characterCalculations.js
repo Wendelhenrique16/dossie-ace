@@ -301,8 +301,9 @@ export function applyMassDamageModifier(baseDamage, massCategoryId) {
       };
     }
     case 'colosso':
-      return { ...result, multiplier: 2, note: 'Dano Físico base dobrado' };
+      return { ...result, diceCount: base.diceCount + 1, note: 'Um dado a mais de Dano Físico como bônus' };
     case 'massivo':
+      return { ...result, multiplier: 2, note: 'Dano Físico base dobrado' };
     case 'titanico':
       return { diceCount: 0, dieFace: null, multiplier: 1, divisor: 1, note: 'Trauma Direto automático — ignora o cálculo padrão' };
     default: // leve, medio

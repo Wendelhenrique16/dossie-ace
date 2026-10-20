@@ -43,6 +43,10 @@ import {
 } from '../data/fightingStylesCatalog';
 import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
+  SPECIALTY_PRESETS, SPECIALTY_ORIGINS, STYLE_PASSIVE_PRESETS, SIGNATURE_MOVE_PRESETS,
+  createSpecialtyFromPreset, createStylePassiveFromPreset, createSignatureMoveFromPreset,
+} from '../data/readyPresets';
+import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
   calculatePassiveWeightBudget, validateStylePassives, calculateStyleEffects, getPostureLevel, calculateSignatureMoveBudget, validateSignatureMoves, formatArsenalSummary,
 } from '../logic/characterCalculations';
@@ -532,6 +536,21 @@ export default function CharacterCreate({ userId }) {
       ...s,
       signatureMoves: (s.signatureMoves ?? []).filter((m) => m.instanceId !== instanceId),
     }));
+  }
+  function handleAddSpecialtyFromPreset(presetId) {
+    const preset = SPECIALTY_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setCharacter((c) => ({ ...c, specialties: [...(c.specialties ?? []), createSpecialtyFromPreset(preset)] }));
+  }
+  function handleAddStylePassiveFromPreset(styleId, presetId) {
+    const preset = STYLE_PASSIVE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    handleUpdateStyle(styleId, (s) => ({ ...s, passives: [...s.passives, createStylePassiveFromPreset(preset)] }));
+  }
+  function handleAddSignatureMoveFromPreset(styleId, presetId) {
+    const preset = SIGNATURE_MOVE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    handleUpdateStyle(styleId, (s) => ({ ...s, signatureMoves: [...(s.signatureMoves ?? []), createSignatureMoveFromPreset(preset)] }));
   }
   function handleAddSpecialty() {
     setCharacter((c) => ({
@@ -1699,6 +1718,24 @@ export default function CharacterCreate({ userId }) {
                 <p className="text-xs text-gray-400 mb-2">
                   Cada ponto de Especialidade vira uma Passiva inteira, sempre ligada, numa ação específica que o personagem domina.
                 </p>
+                <select
+                  className="text-xs border rounded px-2 py-1 mb-2"
+                  value=""
+                  disabled={(character.specialties ?? []).length >= classBonuses.specialtyPoints}
+                  onChange={(e) => {
+                    if (e.target.value) handleAddSpecialtyFromPreset(e.target.value);
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">+ Especialidade pronta...</option>
+                  {SPECIALTY_ORIGINS.map((origin) => (
+                    <optgroup key={origin} label={origin}>
+                      {SPECIALTY_PRESETS.filter((p) => p.origin === origin).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
                 <div className="space-y-2">
                   {(character.specialties ?? []).map((s) => (
                     <SpecialtyFields
@@ -1920,6 +1957,19 @@ export default function CharacterCreate({ userId }) {
                             <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
                         </select>
+                        <select
+                          className="text-xs border rounded px-2 py-1"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) handleAddStylePassiveFromPreset(style.id, e.target.value);
+                            e.target.value = '';
+                          }}
+                        >
+                          <option value="">+ Passiva pronta...</option>
+                          {STYLE_PASSIVE_PRESETS.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.category})</option>
+                          ))}
+                        </select>
                       </div>
 
                       {style.passives.length === 0 ? (
@@ -2030,6 +2080,20 @@ export default function CharacterCreate({ userId }) {
                         <p className="text-xs text-gray-400 mb-2">
                           Habilidade de combate criada com os mesmos passos de qualquer Habilidade; só vale enquanto o Estilo estiver ativo.
                         </p>
+                        <select
+                          className="text-xs border rounded px-2 py-1 mb-2"
+                          value=""
+                          disabled={signatureValidation.count >= signatureBudget}
+                          onChange={(e) => {
+                            if (e.target.value) handleAddSignatureMoveFromPreset(style.id, e.target.value);
+                            e.target.value = '';
+                          }}
+                        >
+                          <option value="">+ Golpe pronto...</option>
+                          {SIGNATURE_MOVE_PRESETS.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
                         <div className="space-y-2">
                           {(style.signatureMoves ?? []).map((m) => (
                             <AbilityFields

@@ -5,6 +5,7 @@ import { DAMAGE_TYPE_INFO, WEAPON_TAGS } from '../../data/arsenal';
 import { getScaleBudget } from '../../logic/masterMode';
 import { formatPhysicalDamage } from '../../logic/characterCalculations';
 import SpecialtyFields from './SpecialtyFields';
+import { NATURAL_PASSIVE_PRESETS, createNaturalPassiveFromPreset } from '../../data/readyPresets';
 
 export default function MasterGrantsStep({ character, setCharacter, physicalDamage }) {
   const mm = character.masterMode ?? {};
@@ -44,6 +45,11 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
         { instanceId: `${Date.now()}-${Math.random()}`, name: '', scope: '', names: [], conditional: null, description: '' },
       ],
     }));
+  }
+  function addPassiveFromPreset(presetId) {
+    const preset = NATURAL_PASSIVE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    updateMaster((m) => ({ ...m, naturalPassives: [...(m.naturalPassives ?? []), createNaturalPassiveFromPreset(preset)] }));
   }
   function updatePassive(instanceId, updater) {
     updateMaster((m) => ({
@@ -177,7 +183,22 @@ export default function MasterGrantsStep({ character, setCharacter, physicalDama
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-medium">Passivas Naturais ({naturalPassives.length})</h3>
-          <button onClick={addPassive} className="text-xs px-2 py-1 rounded border bg-gray-50">+ Nova Passiva Natural</button>
+          <div className="flex items-center gap-2">
+            <select
+              className="text-xs border rounded px-2 py-1"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addPassiveFromPreset(e.target.value);
+                e.target.value = '';
+              }}
+            >
+              <option value="">+ Passiva Natural pronta...</option>
+              {NATURAL_PASSIVE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button onClick={addPassive} className="text-xs px-2 py-1 rounded border bg-gray-50">+ Nova Passiva Natural</button>
+          </div>
         </div>
         <p className="text-xs text-gray-500 mb-2">
           Facilidade inata, sempre ligada, concedida pelo Mestre (um macaco que escala sem esforço, um elefante que empurra qualquer coisa

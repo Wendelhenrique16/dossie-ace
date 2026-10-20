@@ -17,6 +17,14 @@ function normalizeInventoryItem(i) {
     name: i.name ?? '',
     quantity: i.quantity ?? 1,
     notes: i.notes ?? '',
+    armor: i.armor
+      ? {
+          category: i.armor.category ?? 'medio',
+          vigorMax: i.armor.vigorMax ?? 16,
+          vigorCurrent: i.armor.vigorCurrent ?? i.armor.vigorMax ?? 16,
+          weakTo: i.armor.weakTo ?? [],
+        }
+      : null,
   };
 }
 function normalizeMasterMode(m) {
