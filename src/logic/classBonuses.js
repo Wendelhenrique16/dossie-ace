@@ -28,7 +28,6 @@ export function calculateClassBonuses(classId, archetypeId, weaponChoiceSkillId)
   const result = {
     attributeBonuses: {},
     skillBonuses: {},
-    specialtyPoints: 0,
     notes: [],
   };
 
@@ -36,7 +35,6 @@ export function calculateClassBonuses(classId, archetypeId, weaponChoiceSkillId)
   if (!classData) return result;
 
   mergeBonuses(result, classData.classBonus);
-  result.specialtyPoints += classData.classBonus.specialtyPoints || 0;
 
   if (classData.classBonus.skillChoice) {
     const { options, amount } = classData.classBonus.skillChoice;

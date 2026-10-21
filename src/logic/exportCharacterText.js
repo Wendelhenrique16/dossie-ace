@@ -10,6 +10,7 @@ import { ABILITIES } from '../data/abilities';
 import { ARCHETYPE_BONUSES } from '../data/archetypeBonuses';
 import { FIGHTING_STYLE_AXES } from '../data/fightingStyles';
 import { ARSENAL_BY_ID } from '../data/arsenal';
+import { getResistantTypes } from '../data/armor';
 import { buildMasterModeLines } from './masterMode';
 import { getEffectiveMassCategory, calculateStyleEffects, formatPhysicalDamage, formatArsenalSummary, formatPhysicalDefense, DEFENSE_SKILLS } from './characterCalculations';
 function diceFor(level) {
@@ -37,7 +38,7 @@ export function buildCharacterSheetLines({
   const archetypeId = character.classPath.archetypeId;
   const className = isAgent ? CLASSES[classId]?.label ?? '' : '';
   const caminhoName = isAgent ? CAMINHOS[character.classPath.caminhoId]?.label ?? '' : '';
-  const specialtyPoints = isAgent ? classBonuses?.specialtyPoints ?? '' : '';
+
 
   lines.push('"Personagem', '');
   lines.push(`Nome: ${character.name || ''}`);
@@ -128,7 +129,12 @@ export function buildCharacterSheetLines({
   });
 
   lines.push('"Defesas', '');
-  lines.push('Defesa (armadura): ');
+  const armorItems = (character.inventory ?? []).filter((i) => i.armor);
+  lines.push(
+    `Defesa (armadura): ${armorItems
+      .map((i) => `${i.name || 'Armadura'} — Vigor ${i.armor.vigorCurrent}/${i.armor.vigorMax} (Limiar ${Math.ceil(i.armor.vigorMax / 2)})`)
+      .join('; ')}`
+  );
   const activeStyle = (character.fightingStyles ?? []).find((s) => s.id === character.activeFightingStyleId);
   const constituicaoBonus = skillResultBonuses?.constituicao;
   lines.push(
@@ -206,13 +212,7 @@ export function buildCharacterSheetLines({
       lines.push('');
     }
   }
-  (character.specialties ?? []).forEach((s) => {
-    const scopeText = `${s.scope || '(sem escopo)'}${s.conditional ? ` — ${s.conditional.description}` : ''}`;
-    lines.push(`# ${(s.name || '(sem nome)').toUpperCase()} — ESPECIALIDADE`, '');
-    lines.push(`> ${s.description || ''}`);
-    lines.push(`> **Escopo:** ${scopeText} · **Efeito:** ${s.names.join(' + ')}`);
-    lines.push('');
-  });
+
   if (isAgent && character.classPath.caminhoId) {
     lines.push('Caminho:');
     lines.push(`> ${CAMINHOS[character.classPath.caminhoId]?.vantagem ?? ''}`);
@@ -313,6 +313,11 @@ export function buildCharacterSheetLines({
         lines.push(`  - ${formatArsenalSummary(entry, physicalDamage)}`);
             }
       
+      if (item.armor) {
+        const weak = item.armor.weakTo?.length ? item.armor.weakTo.join(', ') : 'nenhum';
+        const resistant = getResistantTypes(item.armor.weakTo ?? []).join(', ') || 'nenhum';
+        lines.push(`  - Armadura: Vigor ${item.armor.vigorCurrent}/${item.armor.vigorMax} · Fraca a: ${weak} · Resistente a: ${resistant}`);
+      }
       if (item.notes) lines.push(`  - ${item.notes}`);
     });
     lines.push('');

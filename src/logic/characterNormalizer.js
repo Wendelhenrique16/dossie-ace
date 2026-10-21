@@ -72,7 +72,7 @@ function normalizeAbility(a) {
   };
 }
 export function normalizeCharacter(data = {}) {
-  const safeData = data ?? {};
+  const { specialties: _legacySpecialties, ...safeData } = data ?? {};
   const fightingStylesList = (() => {
     const raw = safeData.fightingStyles ?? [];
     const mapped = raw.map((style) => ({
@@ -155,7 +155,6 @@ export function normalizeCharacter(data = {}) {
     fightingStyles: fightingStylesList,
     masterMode: normalizeMasterMode(safeData.masterMode),
     inventory: (safeData.inventory ?? []).map(normalizeInventoryItem),
-    specialties: (safeData.specialties ?? []).map(normalizeSpecialty),
     activeFightingStyleId: safeData.activeFightingStyleId ?? (fightingStylesList.length === 1 ? fightingStylesList[0].id : null),
     currentPosture: safeData.currentPosture ?? 'neutra', // 'neutra' | 'ofensiva' | 'defensiva'
   };

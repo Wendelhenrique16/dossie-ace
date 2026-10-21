@@ -30,7 +30,7 @@ import {
   MAX_SINGLE_PASSIVE_WEIGHT, EXCLUDED_PASSIVE_EFFECTS, ARTISTA_MARCIAL_ARCHETYPE_ID,
 } from '../data/fightingStyles';
 import AbilityFields from '../components/character/AbilityFields';
-import SpecialtyFields from '../components/character/SpecialtyFields';
+
 import InventoryStep from '../components/character/InventoryStep';
 import MasterGrantsStep from '../components/character/MasterGrantsStep';
 import StepHelp from '../components/character/StepHelp';
@@ -43,8 +43,8 @@ import {
 } from '../data/fightingStylesCatalog';
 import { FIGHTING_STYLE_PASSIVE_MODELS, createPassiveFromModel } from '../data/fightingStylePassiveModels';
 import {
-  SPECIALTY_PRESETS, SPECIALTY_ORIGINS, STYLE_PASSIVE_PRESETS, SIGNATURE_MOVE_PRESETS,
-  createSpecialtyFromPreset, createStylePassiveFromPreset, createSignatureMoveFromPreset,
+  STYLE_PASSIVE_PRESETS, SIGNATURE_MOVE_PRESETS,
+  createStylePassiveFromPreset, createSignatureMoveFromPreset,
 } from '../data/readyPresets';
 import {
   calculateFightingStylePoints, calculateStyleInvestedPoints, calculateTotalInvestedPoints,
@@ -222,8 +222,8 @@ export default function CharacterCreate({ userId }) {
   const classBonuses = useMemo(() => {
     const { classId, archetypeId, weaponChoiceSkillId } = character.classPath;
     if (!isAgent || !classId || !archetypeId) {
-      return { attributeBonuses: {}, skillBonuses: {}, specialtyPoints: 0, notes: [] };
-    }
+      return { attributeBonuses: {}, skillBonuses: {}, notes: [] };
+        }
     return calculateClassBonuses(classId, archetypeId, weaponChoiceSkillId);
   }, [isAgent, character.classPath]);
 
@@ -537,11 +537,7 @@ export default function CharacterCreate({ userId }) {
       signatureMoves: (s.signatureMoves ?? []).filter((m) => m.instanceId !== instanceId),
     }));
   }
-  function handleAddSpecialtyFromPreset(presetId) {
-    const preset = SPECIALTY_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    setCharacter((c) => ({ ...c, specialties: [...(c.specialties ?? []), createSpecialtyFromPreset(preset)] }));
-  }
+
   function handleAddStylePassiveFromPreset(styleId, presetId) {
     const preset = STYLE_PASSIVE_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
@@ -552,27 +548,7 @@ export default function CharacterCreate({ userId }) {
     if (!preset) return;
     handleUpdateStyle(styleId, (s) => ({ ...s, signatureMoves: [...(s.signatureMoves ?? []), createSignatureMoveFromPreset(preset)] }));
   }
-  function handleAddSpecialty() {
-    setCharacter((c) => ({
-      ...c,
-      specialties: [
-        ...(c.specialties ?? []),
-        { instanceId: `${Date.now()}-${Math.random()}`, name: '', scope: '', names: [], conditional: null, description: '' },
-      ],
-    }));
-  }
-  function handleUpdateSpecialty(instanceId, updater) {
-    setCharacter((c) => ({
-      ...c,
-      specialties: (c.specialties ?? []).map((s) => (s.instanceId === instanceId ? updater(s) : s)),
-    }));
-  }
-  function handleRemoveSpecialty(instanceId) {
-    setCharacter((c) => ({
-      ...c,
-      specialties: (c.specialties ?? []).filter((s) => s.instanceId !== instanceId),
-    }));
-  }
+
   function handleSelectLifeStage(id) {
     const stage = LIFE_STAGES[id];
     const halvedAttributeIds = stage.agingPenalty
@@ -1700,57 +1676,7 @@ export default function CharacterCreate({ userId }) {
                 </div>
               </div>
             )}
-            {/* Especialidade — 1 Passiva por ponto de Especialidade da Classe */}
-            {character.classPath.archetypeId && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm">
-                    Especialidade ({(character.specialties ?? []).length}/{classBonuses.specialtyPoints})
-                  </label>
-                  <button
-                    onClick={handleAddSpecialty}
-                    disabled={(character.specialties ?? []).length >= classBonuses.specialtyPoints}
-                    className="text-xs px-2 py-1 rounded border bg-gray-50 disabled:opacity-40"
-                  >
-                    + Nova Especialidade
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 mb-2">
-                  Cada ponto de Especialidade vira uma Passiva inteira, sempre ligada, numa ação específica que o personagem domina.
-                </p>
-                <select
-                  className="text-xs border rounded px-2 py-1 mb-2"
-                  value=""
-                  disabled={(character.specialties ?? []).length >= classBonuses.specialtyPoints}
-                  onChange={(e) => {
-                    if (e.target.value) handleAddSpecialtyFromPreset(e.target.value);
-                    e.target.value = '';
-                  }}
-                >
-                  <option value="">+ Especialidade pronta...</option>
-                  {SPECIALTY_ORIGINS.map((origin) => (
-                    <optgroup key={origin} label={origin}>
-                      {SPECIALTY_PRESETS.filter((p) => p.origin === origin).map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <div className="space-y-2">
-                  {(character.specialties ?? []).map((s) => (
-                    <SpecialtyFields
-                      key={s.instanceId}
-                      specialty={s}
-                      onChange={(updater) => handleUpdateSpecialty(s.instanceId, updater)}
-                      onRemove={() => handleRemoveSpecialty(s.instanceId)}
-                    />
-                  ))}
-                </div>
-                {(character.specialties ?? []).length > classBonuses.specialtyPoints && (
-                  <p className="text-xs text-red-600 mt-2">⚠ Há mais Especialidades do que pontos de Especialidade da Classe.</p>
-                )}
-              </div>
-            )}
+
             {/* Caminho */}
             <label className="block text-sm mb-1">Caminho</label>
             <div className="grid grid-cols-1 gap-2">
@@ -2392,12 +2318,7 @@ export default function CharacterCreate({ userId }) {
                     )?.label ?? '—'}
                   </div>
                   <div>Caminho: {CAMINHOS[character.classPath.caminhoId]?.label ?? '—'}</div>
-                  <div>Pontos de Especialidade: {classBonuses.specialtyPoints}</div>
-                  {(character.specialties ?? []).map((s) => (
-                    <div key={s.instanceId} className="text-xs text-gray-500">
-                      Especialidade ({s.name || 'sem nome'}): {s.scope || '(sem escopo)'}{s.conditional ? ` — ${s.conditional.description}` : ''} · {s.names.join(' + ') || '(sem Efeito)'}{s.description ? `: ${s.description}` : ''}
-                    </div>
-                  ))}
+
                   {classBonuses.notes.map((note, i) => (
                     <div key={i} className="text-xs text-gray-500 mt-1">
                       {note}

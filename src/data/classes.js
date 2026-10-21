@@ -13,7 +13,6 @@ export const CLASSES = {
       skillBonuses: { forca: 2 },
       // "+2 em Combate, Armas Brancas ou Armas de Fogo" — jogador escolhe 1
       skillChoice: { options: ['combate', 'armas_brancas', 'armas_de_fogo'], amount: 2 },
-      specialtyPoints: 1,
     },
     archetypes: [
       {
@@ -64,7 +63,6 @@ export const CLASSES = {
     classBonus: {
       attributeBonuses: { sabedoria: 2 },
       skillBonuses: { ocultismo: 2, vontade: 2, intuicao: 2 },
-      specialtyPoints: 1,
     },
     archetypes: [
       {
@@ -111,7 +109,6 @@ export const CLASSES = {
     classBonus: {
       attributeBonuses: { inteligencia: 2 },
       skillBonuses: { primeiros_socorros: 2, medicina: 2, armas_de_fogo: 2 },
-      specialtyPoints: 2,
     },
     archetypes: [
       {

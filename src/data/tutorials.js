@@ -73,13 +73,12 @@ export const STEP_TUTORIALS = {
     ],
   },
 
+
   classPath: {
-    intro: 'Neste passo, exclusivo para Agentes, você escolhe Classe, Arquétipo, Especialidade e Caminho.',
+    intro: 'Neste passo, exclusivo para Agentes, você escolhe Classe, Arquétipo e Caminho.',
     tips: [
       'A Classe e o Arquétipo dão bônus fixos em Atributos e Perícias. O Lutador escolhe 1 Perícia para o bônus de Classe.',
       'O Arquétipo concede uma Habilidade de Assinatura: escolha 1 entre 3.',
-      'Cada ponto de Especialidade, concedido pelo bônus de Classe (Lutador e Ocultista têm 1, Suporte tem 2), vira uma Passiva própria, sempre ligada, numa ação específica que o personagem domina. Você combina quantos Efeitos quiser, e o Condicional é opcional.',
-      'O Escopo da Especialidade é uma ação específica (por exemplo, "desarmar um oponente agarrado"), e não uma Perícia inteira.',
       'O Caminho concede uma vantagem própria, descrita no card.',
     ],
   },
@@ -103,6 +102,8 @@ export const STEP_TUTORIALS = {
       'As armas mostram o dano, o Tipo de Dano e as Tags, cada um com sua descrição. As armas corpo a corpo somam o seu Dano Físico ao dado da arma.',
       'O Suprimento mostra o Dado de Suprimento e o tamanho do pente ou da reserva, quando a arma usa munição.',
       'O topo do passo mostra a sua Carga confortável, como referência. O Inventário não pesa item por item.',
+      'Armadura: escolha uma pronta ou crie a sua, com a Categoria (Frágil, Médio, Robusto ou Pesado), o Vigor atual e os Tipos de Dano a que ela é Fraca. Ela é Resistente a todos os outros. Golpes até o Limiar não causam efeito. Acima do Limiar, a armadura perde 1 de Vigor, e o que ultrapassa o Vigor atual passa a quem a veste. Com Vigor 0, ela quebra.',
+      'Contra um Tipo a que a armadura é Fraca, quem a veste sofre a Condição desse Tipo em Grau Leve quando o dano passa do Limiar. Penetrante é detido só pelo Limiar, e Corrosivo destrói a proteção em Sucesso Bom ou Extremo.',
     ],
   },
 
@@ -111,9 +112,9 @@ export const STEP_TUTORIALS = {
     tips: [
       'A Escala 1 é o padrão e não custa nada. A Escala 2 ou mais usa Modificadores de Escala, cujo total depende da Escala Geral (2 dá 2, 3 dá 4, 4 dá 8, 5 dá 16). Cada Modificador sobe uma Perícia em 1 grau.',
       'Escala 0 ou −1 vale para uma categoria inteira de Perícias. Para personagem de jogador, o limite é de 3 categorias.',
-      'A Passiva Natural é uma facilidade inata sempre ligada, concedida pelo Mestre e sem limite de pontos. Cada Efeito pesa no máximo 2.',
-      'A Arma Natural usa um Tipo de Dano escolhido pela anatomia (presa é Perfurante, garra é Cortante, coice é Contundente) e as Tags que fizerem sentido. O ataque desarmado rola com isso.',
-    ],
+      'A Passiva Natural é uma facilidade inata sempre ligada, concedida pelo Mestre e sem limite de pontos. O Mestre pode usar qualquer Efeito, inclusive Reverter e Multiplicar.',
+      'A Arma Natural usa um ou mais Tipos de Dano, escolhidos pela anatomia (presa é Perfurante, garra é Cortante, coice é Contundente), e as Tags que fizerem sentido. O ataque desarmado rola com isso.',
+        ],
   },
 
   review: {
