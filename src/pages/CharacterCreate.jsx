@@ -300,20 +300,21 @@ export default function CharacterCreate({ userId }) {
   }
   function buildSteps(isAgent, masterEnabled) {
     const steps = [
-      { id: 'identity', label: '1. Detalhes do Personagem' },
-      { id: 'lifeStage', label: '2. Fase da Vida' },
-      { id: 'backgrounds', label: '3. Antecedentes' },
-      { id: 'aspects', label: '4. Aspectos' },
-      { id: 'customSkills', label: '5. Habilidades' },
-      { id: 'occupation', label: '6. Ocupação' },
+      { id: 'identity', label: 'Detalhes do Personagem' },
+      { id: 'lifeStage', label: 'Fase da Vida' },
+      { id: 'backgrounds', label: 'Antecedentes' },
+      { id: 'aspects', label: 'Aspectos' },
     ];
-    let n = 7;
-    if (isAgent) steps.push({ id: 'classPath', label: `${n++}. Classe & Caminho` });
-    steps.push({ id: 'fightingStyle', label: `${n++}. Estilo de Luta` });
-    steps.push({ id: 'inventory', label: `${n++}. Inventário` });
-    if (masterEnabled) steps.push({ id: 'masterGrants', label: `${n++}. Concessões do Mestre` });
-    steps.push({ id: 'review', label: `${n}. Validar & Exportar` });
-    return steps;
+    if (isAgent) steps.push({ id: 'classPath', label: 'Classe & Caminho' });
+    steps.push(
+      { id: 'customSkills', label: 'Habilidades' },
+      { id: 'occupation', label: 'Ocupação' },
+      { id: 'fightingStyle', label: 'Estilo de Luta' },
+      { id: 'inventory', label: 'Inventário' },
+    );
+    if (masterEnabled) steps.push({ id: 'masterGrants', label: 'Concessões do Mestre' });
+    steps.push({ id: 'review', label: 'Validar & Exportar' });
+    return steps.map((s, i) => ({ ...s, label: `${i + 1}. ${s.label}` }));
   }
   function handleSwapGraveAspect(index, newId) {
     setCharacter((c) => {
